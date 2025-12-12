@@ -1,0 +1,95 @@
+name: Comment-Based Approval Gate
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+  issue_comment:
+    types: [created]
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+
+    # Ensure this only runs on events related to pull requests
+    if: >
+      github.event.pull_request.number ||
+      github.event.issue.pull_request
+
+    steps:
+      - name: Run approval logic
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Get PR number depending on event type
+            const prNumber =
+              context.payload.pull_request?.number ||
+              context.payload.issue.number;
+
+            // TODO: Only Mete for now
+            const allowedApprovers = [
+              "Mete4"
+            ];
+
+            const approvalPhrases = ["approved", "/approved"];
+
+            // Fetch comments
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber
+            });
+
+            // Determine if approved
+            const approved = comments.some(c => {
+              const userOK = allowedApprovers.includes(c.user.login);
+              const text = c.body.trim().toLowerCase();
+              const phraseOK = approvalPhrases.includes(text);
+              return userOK && phraseOK;
+            });
+
+            // Fetch PR state
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+
+            const isClosed = pr.state === "closed";
+
+            if (approved) {
+              console.log("PR has required approval.");
+
+              // If PR is closed but now approved → reopen it automatically
+              if (isClosed) {
+                await github.rest.pulls.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: prNumber,
+                  state: "open"
+                });
+                console.log("PR automatically reopened due to approval.");
+              }
+
+              // Nothing more to do
+              return;
+            }
+
+            // If *not* approved, and PR is open → close it
+            if (!isClosed) {
+              console.log("PR missing approval → closing.");
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+                state: "closed"
+              });
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: "Missing approval, PR closed. Comment **`approved`** or **`/approved`** from an authorized approver."
+              });
+            } else {
+              console.log("PR already closed and still not approved. No action taken.");
+            }
