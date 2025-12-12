@@ -22,8 +22,8 @@ jobs:
           script: |
             // Get PR number depending on event type
             const prNumber =
-              github.event.pull_request?.number ||
-              github.event.issue.number;
+              context.payload.pull_request?.number ||
+              context.payload.issue.number;
 
             // TODO: Only Mete for now
             const allowedApprovers = [
