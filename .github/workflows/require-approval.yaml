@@ -12,8 +12,8 @@ jobs:
 
     # Ensure this only runs on events related to pull requests
     if: >
-      github.event.pull_request?.number ||
-      github.event.issue?.pull_request
+      github.event.pull_request.number ||
+      github.event.issue.pull_request
 
     steps:
       - name: Run approval logic
