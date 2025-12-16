@@ -1,0 +1,9 @@
+[project]
+name = "llm-game-arena"
+version = "0.1.0"
+description = "Create pipeline to do evals of llms in different games"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "openai>=2.11.0",
+]
