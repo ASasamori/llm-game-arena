@@ -1,0 +1,26 @@
+name: Pylint * Formatting Checks
+
+on: #
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip // Is this right?
+          uv add ruff pyright
+      - name: Check Ruff Linting
+        run: |
+          ruff check
+      - name: Check Ruff Formatting
+        run: |
+          ruff format --check
+      - name: Analyze Code with Pyright
+        run: |
+          pyright // TODO: Fix this up
