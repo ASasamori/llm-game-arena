@@ -2,7 +2,7 @@ name: Comment-Based Approval Gate
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize]
+    types: [opened, synchronize]
   issue_comment:
     types: [created]
 
@@ -29,10 +29,31 @@ jobs:
               context.payload.pull_request?.number ||
               context.payload.issue.number;
 
-            // TODO: Only Mete for now
-            const allowedApprovers = [
-              "Mete4"
-            ];
+            // Fetch PR to get author and state
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+
+            const prAuthor = pr.user.login;
+            console.log(`PR #${prNumber} created by: ${prAuthor}`);
+
+            // Define approval pairs - who can approve whose PRs
+            const approvalRules = {
+              "ASasamori": ["Mete4"],      // ASasamori's PRs need Mete4 approval
+              "Mete4": ["ASasamori"]       // Mete4's PRs need ASasamori approval
+            };
+
+            // Get allowed approvers for this PR author
+            const allowedApprovers = approvalRules[prAuthor] || [];
+            
+            if (allowedApprovers.length === 0) {
+              console.log(`No approval rules defined for author: ${prAuthor}. Skipping.`);
+              return;
+            }
+            
+            console.log(`Required approvers: ${allowedApprovers.join(", ")}`);
 
             const approvalPhrases = ["approved", "/approved"];
 
@@ -43,19 +64,26 @@ jobs:
               issue_number: prNumber
             });
 
-            // Determine if approved
+            // Get the timestamp of the latest commit (head) for stale approval check
+            const { data: headCommit } = await github.rest.repos.getCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: pr.head.sha
+            });
+            const latestCommitTime = new Date(headCommit.commit.committer.date);
+            console.log(`Latest commit: ${pr.head.sha.substring(0, 7)} at ${latestCommitTime.toISOString()}`);
+
+            // Determine if approved (only approvals AFTER latest commit count)
             const approved = comments.some(c => {
               const userOK = allowedApprovers.includes(c.user.login);
               const text = c.body.trim().toLowerCase();
               const phraseOK = approvalPhrases.includes(text);
-              return userOK && phraseOK;
-            });
-
-            // Fetch PR state
-            const { data: pr } = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: prNumber
+              const commentTime = new Date(c.created_at);
+              const isAfterLatestCommit = commentTime > latestCommitTime;
+              if (userOK && phraseOK) {
+                console.log(`Approval from ${c.user.login} at ${commentTime.toISOString()} - ${isAfterLatestCommit ? 'VALID' : 'STALE (dismissed)'}`);
+              }
+              return userOK && phraseOK && isAfterLatestCommit;
             });
 
             const isClosed = pr.state === "closed";
@@ -92,7 +120,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: prNumber,
-                body: "Missing approval, PR closed. Comment **`approved`** or **`/approved`** from an authorized approver."
+                body: `⚠️ **Missing approval** — PR closed.\n\nRequired approver(s): **${allowedApprovers.join("**, **")}**\n\nComment \`approved\` or \`/approved\` to approve..`
               });
             } else {
               console.log("PR already closed and still not approved. No action taken.");
