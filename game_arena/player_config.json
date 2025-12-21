@@ -1,0 +1,54 @@
+{
+  "players": [
+    {
+      "name": "Sophia",
+      "model_id": "gemma-3-27b-it",
+      "avatar": "🎭"
+    },
+    {
+      "name": "Marcus",
+      "model_id": "gemma-3-27b-it",
+      "avatar": "🎩"
+    },
+    {
+      "name": "Elena",
+      "model_id": "gemma-3-27b-it",
+      "avatar": "🌹"
+    },
+    {
+      "name": "Viktor",
+      "model_id": "gemma-3-27b-it",
+      "avatar": "🐺"
+    },
+    {
+      "name": "Aria",
+      "model_id": "gemma-3-27b-it",
+      "avatar": "✨"
+    },
+    {
+      "name": "Dante",
+      "model_id": "gemma-3-27b-it",
+      "avatar": "🔥"
+    },
+    {
+      "name": "Luna",
+      "model_id": "gemma-3-27b-it",
+      "avatar": "🌙"
+    },
+    {
+      "name": "Rex",
+      "model_id": "gemma-3-27b-it",
+      "avatar": "👑"
+    },
+    {
+      "name": "Ivy",
+      "model_id": "gemma-3-27b-it",
+      "avatar": "🍀"
+    },
+    {
+      "name": "Oscar",
+      "model_id": "gemma-3-27b-it",
+      "avatar": "🎬"
+    }
+  ]
+}

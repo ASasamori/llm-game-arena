@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Watch AI players deceive each other in a game of Mafia">
+    <title>Mafia AI Simulation</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <h1 class="logo">🎭 <span>MAFIA</span> AI</h1>
+            <div class="header-controls">
+                <div class="phase-indicator">
+                    <span class="phase-label">Phase:</span>
+                    <span id="phase-value" class="phase-value">--</span>
+                </div>
+                <div class="day-indicator">
+                    <span class="day-label">Day:</span>
+                    <span id="day-value" class="day-value">0</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Stage (Left) -->
+            <section class="stage" id="stage">
+                <!-- Welcome Screen -->
+                <div class="welcome-screen" id="welcome-screen">
+                    <div class="welcome-content">
+                        <h2 class="welcome-title">Welcome to Mafia AI</h2>
+                        <p class="welcome-subtitle">Watch 10 AI players play a game of Mafia.</p>
+                        <button class="btn-primary" id="start-game-btn">
+                            <span class="btn-icon">▶</span>
+                            Start New Game
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Speaker View -->
+                <div class="speaker-view hidden" id="speaker-view">
+                    <div class="speaker-avatar-container">
+                        <div class="speaker-avatar" id="speaker-avatar">🎭</div>
+                        <div class="speaker-info">
+                            <span class="speaker-name" id="speaker-name">Player</span>
+                            <span class="speaker-role" id="speaker-role">Role</span>
+                        </div>
+                    </div>
+
+                    <!-- Thought Bubble -->
+                    <div class="thought-bubble" id="thought-bubble">
+                        <div class="thought-header">
+                            <span class="thought-icon">💭</span>
+                            <span class="thought-label">Inner Monologue</span>
+                        </div>
+                        <p class="thought-text" id="thought-text">...</p>
+                    </div>
+
+                    <!-- Speech Bubble -->
+                    <div class="speech-bubble" id="speech-bubble">
+                        <div class="speech-header">
+                            <span class="speech-icon">💬</span>
+                            <span class="speech-label">Public Speech</span>
+                        </div>
+                        <p class="speech-text" id="speech-text">...</p>
+                    </div>
+                </div>
+
+                <!-- Night View -->
+                <div class="night-view hidden" id="night-view">
+                    <div class="night-overlay">
+                        <div class="moon-icon">🌙</div>
+                        <h2 class="night-title">Night Phase</h2>
+                        <p class="night-subtitle" id="night-message">The village sleeps...</p>
+                    </div>
+                </div>
+
+                <!-- Game Over View -->
+                <div class="gameover-view hidden" id="gameover-view">
+                    <div class="gameover-content">
+                        <h2 class="gameover-title" id="gameover-title">Game Over</h2>
+                        <p class="gameover-subtitle" id="gameover-subtitle">The winner is...</p>
+                        <button class="btn-primary" id="restart-btn">
+                            <span class="btn-icon">🔄</span>
+                            Play Again
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Transcript (Right) -->
+            <aside class="transcript-panel" id="transcript-panel">
+                <div class="transcript-header">
+                    <h2 class="transcript-title">📜 Game Transcript</h2>
+                </div>
+                <div class="transcript-messages" id="transcript-messages">
+                    <div class="transcript-placeholder">
+                        <p>Game transcript will appear here...</p>
+                    </div>
+                </div>
+            </aside>
+        </main>
+
+        <!-- Controls Footer -->
+        <footer class="controls-footer" id="controls-footer">
+            <div class="player-roster" id="player-roster">
+                <!-- Player avatars will be injected here -->
+            </div>
+
+            <div class="controls-main">
+                <div class="control-group">
+                    <button class="btn-primary" id="next-turn-btn" disabled>
+                        <span class="btn-icon">➡️</span>
+                        <span class="btn-text">Next Turn</span>
+                    </button>
+                </div>
+
+                <div class="control-group">
+                    <label class="toggle-label">
+                        <input type="checkbox" id="autoplay-toggle">
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-text">Auto-Play</span>
+                    </label>
+                    <div class="speed-control">
+                        <label for="speed-slider">Speed:</label>
+                        <input type="range" id="speed-slider" min="1" max="5" value="3">
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+
+</html>
