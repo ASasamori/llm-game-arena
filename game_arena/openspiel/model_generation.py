@@ -66,8 +66,13 @@ class GeminiModel:
         )
 
         main_response = ""
-        for part in response.candidates[0].content.parts:
-            if part.text:
-                main_response += part.text
+        if (
+            response.candidates
+            and response.candidates[0].content
+            and response.candidates[0].content.parts
+        ):
+            for part in response.candidates[0].content.parts:
+                if part.text:
+                    main_response += part.text
 
         return GenerateResponse(main_response=main_response)
