@@ -1,0 +1,68 @@
+import dataclasses
+import datetime
+import os
+
+from absl import logging
+from google import genai as google_genai
+from google.genai import types as google_genai_types
+import tenacity
+
+
+def _log_retry_warning(retry_state: tenacity.RetryCallState) -> None:
+    """Log a warning when retrying."""
+    logging.warning(
+        "Retrying API call (attempt %d) after error: %s",
+        retry_state.attempt_number,
+        retry_state.outcome.exception() if retry_state.outcome else "unknown",
+    )
+
+
+# Retry decorator for handling rate limits and transient errors
+_retry_decorator = tenacity.retry(
+    wait=tenacity.wait_random_exponential(min=1, max=60),
+    stop=tenacity.stop_after_delay(datetime.timedelta(minutes=60)),
+    before_sleep=_log_retry_warning,
+    reraise=True,
+)
+
+
+@dataclasses.dataclass
+class GenerateResponse:
+    """Simple response container with the model's output."""
+    main_response: str
+
+
+class GeminiModel:
+    """Simple wrapper for Google Gemini API."""
+
+    def __init__(self, model_name: str = "gemini-2.5-flash", api_key: str | None = None):
+        self._model_name = model_name
+        # Use provided key, or fall back to GEMINI_API_KEY env var
+        key = api_key or os.environ.get("GEMINI_API_KEY")
+        if not key:
+            raise ValueError("No API key provided. Set GEMINI_API_KEY environment variable or pass api_key argument.")
+        self._client = google_genai.Client(api_key=key)
+
+    @_retry_decorator
+    def generate_with_text_input(
+        self,
+        prompt: str,
+        system_instruction: str | None = None,
+    ) -> GenerateResponse:
+        """Generate a response from a text prompt."""
+        config = google_genai_types.GenerateContentConfig(
+            system_instruction=system_instruction,
+        )
+
+        response = self._client.models.generate_content(
+            model=self._model_name,
+            contents=prompt,
+            config=config,
+        )
+
+        main_response = ""
+        for part in response.candidates[0].content.parts:
+            if part.text:
+                main_response += part.text
+
+        return GenerateResponse(main_response=main_response)
