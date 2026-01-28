@@ -29,18 +29,23 @@ _retry_decorator = tenacity.retry(
 @dataclasses.dataclass
 class GenerateResponse:
     """Simple response container with the model's output."""
+
     main_response: str
 
 
 class GeminiModel:
     """Simple wrapper for Google Gemini API."""
 
-    def __init__(self, model_name: str = "gemini-2.5-flash", api_key: str | None = None):
+    def __init__(
+        self, model_name: str = "gemini-2.5-flash", api_key: str | None = None
+    ):
         self._model_name = model_name
         # Use provided key, or fall back to GEMINI_API_KEY env var
         key = api_key or os.environ.get("GEMINI_API_KEY")
         if not key:
-            raise ValueError("No API key provided. Set GEMINI_API_KEY environment variable or pass api_key argument.")
+            raise ValueError(
+                "No API key provided. Set GEMINI_API_KEY environment variable or pass api_key argument."
+            )
         self._client = google_genai.Client(api_key=key)
 
     @_retry_decorator
