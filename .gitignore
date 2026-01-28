@@ -3,3 +3,5 @@
 __pycache__/
 *.py[cod]
 .vscode/
+
+.github/workflows/require-approval.yaml
