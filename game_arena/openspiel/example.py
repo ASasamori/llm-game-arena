@@ -61,7 +61,8 @@ def main(_):
             state.apply_action(action)
         elif state.is_simultaneous_node():
             # Simultaneous node: sample actions for all players.
-            random_choice = lambda a: np.random.choice(a) if a else [0]
+            def random_choice(a):
+                return np.random.choice(a) if a else [0]
             chosen_actions = [
                 random_choice(state.legal_actions(pid))
                 for pid in range(game.num_players())
