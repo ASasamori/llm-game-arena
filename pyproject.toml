@@ -12,3 +12,8 @@ dependencies = [
     "ruff>=0.14.14",
     "termcolor>=3.3.0",
 ]
+
+[tool.pyright]
+# Ignore missing imports in CI where dependencies aren't installed
+reportMissingImports = "none"
+reportAttributeAccessIssue = "warning"
