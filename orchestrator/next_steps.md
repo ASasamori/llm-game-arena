@@ -6,7 +6,7 @@
     def run_ep(ep_id: str, run_id: str, env_name: str, agent_config: dict, seed: int) -> EpisodeResult
     ```
 
-After created that:
+After create that:
 - FastAPI
 - Redis
 - Postgres
