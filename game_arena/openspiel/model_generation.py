@@ -3,11 +3,15 @@ import datetime
 import os
 
 from absl import logging
+from dotenv import load_dotenv
 from google import genai as google_genai
 from google.genai import types as google_genai_types
 import tenacity
 
+load_dotenv()
 
+
+# TODO: Setup retry logic for when I reach the rate limit, and can no longer use the API key
 def _log_retry_warning(retry_state: tenacity.RetryCallState) -> None:
     """Log a warning when retrying."""
     logging.warning(

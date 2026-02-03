@@ -1,8 +1,7 @@
-'''
+"""
 Harness/library for running OpenSpiel games
 Not sure if absl/app will work properly with queuing systems, however
-'''
-from absl import app
+"""
 
 import pyspiel
 import termcolor
@@ -17,6 +16,7 @@ from game_arena.openspiel import parsers
 from game_arena.openspiel import notations
 
 colored = termcolor.colored
+
 
 class EpisodeResult(TypedDict):
     episode_id: str
@@ -33,11 +33,9 @@ class EpisodeResult(TypedDict):
 # TODO: Add logic to get metrics of both players, just one for now
 # Specific featuers I want right now: AI models, turns, skills of the player (skills should be based upon prompt, so build later)
 # AI_Model should be of class AIModel, will fix later
-def main(NUM_MOVES: int, AI_MODEL: str) -> EpisodeResult:
-    
+def harness(NUM_MOVES: int, AI_MODEL: str) -> EpisodeResult:
     # Generate dynamic UUIDs for this episode
     episode_id = str(uuid.uuid4())
-    run_id = str(uuid.uuid4())
     # _NUM_MOVES = 3
     pyspiel_game = pyspiel.load_game("connect_four")
     pyspiel_state = pyspiel_game.new_initial_state()
@@ -115,17 +113,23 @@ def main(NUM_MOVES: int, AI_MODEL: str) -> EpisodeResult:
                 action_string,
             )
             pyspiel_state.apply_action(action)
-    
+
     returns = pyspiel_state.returns()
     error = "No errors"
-    
+
     # TODO: Add logic to get winner, just one for now
-    winner = "AI" if returns[0] > returns[1] else "Random" if returns[1] > returns[0] else "TIE"
+    winner = (
+        "AI"
+        if returns[0] > returns[1]
+        else "Random"
+        if returns[1] > returns[0]
+        else "TIE"
+    )
     return EpisodeResult(
         episode_id=episode_id,
         env="openspiel",
         game="connect_four",
-        agent="GEMINI",
+        agent=AI_MODEL,
         status="SUCCESS",
         winner=winner,
         num_steps=NUM_MOVES,
