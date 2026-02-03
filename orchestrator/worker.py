@@ -1,29 +1,14 @@
-from typing import TypedDict
+import redis
+from rq import SimpleWorker, Queue
 
-class EpisodeResult(TypedDict):
-    episode_id: str
-    run_id: str
-    env: str
-    game: str
-    agent: str
-    seed: int
-    status: str
-    winner: str
-    num_steps: int
-    error: str
+redis_conn = redis.Redis(host="localhost", port=6379)
 
-def run_ep(ep_id: str, run_id: str, env: str, game: str, agent: str, seed: int) -> EpisodeResult:
-    
-    # RUN ID should not be part of the epsidoe result, part of the run for now
-    return EpisodeResult(
-        episode_id=ep_id,
-        run_id=run_id,
-        env=env,
-        game=game,
-        agent=agent,
-        seed=seed,
-        status="PENDING",
-        winner="",
-        num_steps=0,
-        error="",
-    )
+if __name__ == "__main__":
+    queue = Queue("episodes", connection=redis_conn)
+    worker = SimpleWorker([queue], connection=redis_conn)
+
+    print("[WORKER] Starting worker...")
+    print("[WORKER] Listening on 'episodes' queue")
+    print("[WORKER] Press Ctrl+C to stop\n")
+
+    worker.work()
