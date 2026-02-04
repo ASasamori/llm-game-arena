@@ -94,3 +94,36 @@ Aggregation + analytics
 - Store metrics on run
 
 Can be created inline after every epsidoe or running background task
+
+To do better concurrency:
+  1. rq worker with the --burst flag + a launcher script — start N    
+  workers from one command:                                           
+                                                                      
+  for i in $(seq 5); do python -m orchestrator.worker & done          
+                                                                      
+  All 5 run as background processes in one terminal. kill %1 %2 %3 %4 
+  %5 or pkill -f orchestrator.worker to stop them.                                                                            
+  3. Docker Compose (later) — when you're ready, define redis and     
+  worker services with replicas: 5. This is the production-grade      
+  version of what you're doing manually.                              
+                                                                      
+  4. Drop RQ entirely, use concurrent.futures in jobs.py — since      
+  you're running everything on one machine anyway, you could skip     
+  Redis/RQ and just do:                                               
+                                                                      
+  from concurrent.futures import ProcessPoolExecutor                  
+                                                                      
+  with ProcessPoolExecutor(max_workers=5) as pool:                    
+      futures = [pool.submit(run_episode, run_id, i, 3, "Test Model") 
+  for i in range(5)]                                                  
+      results = [f.result() for f in futures]                         
+                                                                      
+  No Redis, no separate worker processes, no extra terminals. One     
+  script, true parallelism.                                           
+                                                                      
+  Option 4 is the simplest for where you are now. RQ pays off when you
+   need jobs submitted over time via an API, persistence across       
+  restarts, or workers on different machines. If you're always running
+   a fixed batch of episodes from one script, concurrent.futures does 
+  the same thing with less infrastructure. Worth considering which    
+  direction you want to go before building more on top of RQ.         

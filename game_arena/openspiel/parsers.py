@@ -9,6 +9,7 @@ import game_arena.openspiel.notations as notations
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class TextParserInput:
     text: str
+    summary: str | None = None # Not sure if I should put this here?
     state_str: str | None = None
     legal_moves: Sequence[str] | None = None
     player_number: int | None = None
@@ -23,7 +24,7 @@ def get_legal_action_strings(state: pyspiel.State) -> Sequence[str]:
 
 
 def parse_move_from_response(
-    response: str, action_tag: str = "Final Answer: "
+    response: str, action_tag: str = "Final Answer: ", want_summary: bool = True
 ) -> dict[str, str] | None:
     """Extracts move, and the text before the move from response."""
     if response is None:
@@ -32,10 +33,10 @@ def parse_move_from_response(
         last_index = -1
         final_split_token = ""
         for split_token in [action_tag, ":", "is"]:
-            tmp_index = response.rfind(split_token)
+            tmp_index = response.rfind(split_token) # rfind is reverse find
             if tmp_index > last_index:
                 last_index = tmp_index
-                final_split_token = split_token
+                final_split_token = split_token # This is length of final answer, or : or is
         if last_index == -1:
             return None
         # Split the string
@@ -60,9 +61,21 @@ def parse_move_from_response(
         if not move_str:
             return None
         prefix = response[:last_index]
+
+        # Retrieve prefix/summary string right here
+        summary = None
+        if want_summary:
+            def get_next_sentences_regex(text: str, marker: str, n: int = 3) -> str | None:
+                pattern = re.escape(marker) + r"(?:[^.]*\.){1," + str(n) + r"}"
+                match = re.search(pattern, text)
+                if not match:
+                    return None
+                return match.group(0)[len(marker):].strip()
+            summary = get_next_sentences_regex(text=response, marker="Summary:", n = 3)
         return {
             "move": move_str,
             "prefix": "" if prefix is None else prefix.strip(),
+            "summary": "" if summary is None else summary
         }
     except Exception as e:  # pylint: disable=broad-exception-caught
         logging.error(
@@ -74,10 +87,9 @@ def parse_move_from_response(
 class TextParser(Protocol):
     """Generic text parser."""
 
-    # TODO(google-deepmind): should we define a parser output type?
     def parse(self, parser_input: TextParserInput) -> str | None: ...
 
-
+#TODO: Implement fallback parsing if it doesn't parse correctly
 class ChainedMoveParser(TextParser):
     """Parses text into a move by successively applying parsers.
 
@@ -87,6 +99,7 @@ class ChainedMoveParser(TextParser):
 
     def __init__(self, parsers: Sequence[TextParser]):
         self._parsers = parsers
+        self._last_summary: str | None = None
 
     def parse(self, parser_input: TextParserInput) -> str | None:
         maybe_text_output = None
@@ -94,8 +107,15 @@ class ChainedMoveParser(TextParser):
             maybe_text_output = parser.parse(parser_input)
             if maybe_text_output is None:
                 return None
+            # Carry summary forward, update text for next parser
             parser_input = dataclasses.replace(parser_input, text=maybe_text_output)
+        # Store the summary so the caller can access it
+        self._last_summary = parser_input.summary
         return maybe_text_output
+
+    @property
+    def summary(self) -> str | None:
+        return self._last_summary
 
 
 class RuleBasedMoveParser(TextParser):
@@ -110,6 +130,9 @@ class RuleBasedMoveParser(TextParser):
         )
         if maybe_move_and_prefix is None:
             return None
+        # Stash summary on parser_input so the chain can carry it forward
+        if maybe_move_and_prefix["summary"]:
+            object.__setattr__(parser_input, "summary", maybe_move_and_prefix["summary"])
         return maybe_move_and_prefix["move"]
 
 
