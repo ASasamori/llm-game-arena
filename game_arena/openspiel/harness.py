@@ -14,6 +14,7 @@ from game_arena.openspiel import prompts
 from game_arena.openspiel import model_generation
 from game_arena.openspiel import parsers
 from game_arena.openspiel import notations
+from datetime import datetime
 
 colored = termcolor.colored
 
@@ -21,13 +22,16 @@ colored = termcolor.colored
 class EpisodeResult(TypedDict):
     episode_id: str
     env: str
-    agent: str
-    # Not sure what seed should be used for
+    agent: str # TODO: Change to a list later for if multiple players
     game: str
     status: str
     winner: str
     num_steps: int
     error: str
+    summary: list
+    action: list
+    start_time: datetime
+    end_time: datetime
 
 
 # TODO: Add logic to get metrics of both players, just one for now
@@ -36,7 +40,8 @@ class EpisodeResult(TypedDict):
 def harness(NUM_MOVES: int, AI_MODEL: str) -> EpisodeResult:
     # Generate dynamic UUIDs for this episode
     episode_id = str(uuid.uuid4())
-    # _NUM_MOVES = 3
+    start_time = datetime.now()
+
     pyspiel_game = pyspiel.load_game("connect_four")
     pyspiel_state = pyspiel_game.new_initial_state()
 
@@ -45,9 +50,11 @@ def harness(NUM_MOVES: int, AI_MODEL: str) -> EpisodeResult:
     # model_player_two = "RAND"  # Random player
 
     parser = parsers.ChainedMoveParser(
-        [parsers.RuleBasedMoveParser(), parsers.SoftMoveParser("connect_four")]
+        [parsers.RuleBasedMoveParser(), parsers.SoftMoveParser(game_short_name="connect_four")]
     )
-
+    
+    action_list = [] # String list
+    summary_list = [] # String list
     for move_number in range(NUM_MOVES):
         print(f"Pre-move debug string: {pyspiel_state.to_string()}")
         if pyspiel_state.is_terminal():
@@ -93,10 +100,12 @@ def harness(NUM_MOVES: int, AI_MODEL: str) -> EpisodeResult:
                 player_number=pyspiel_state.current_player(),
             )
             parser_output = parser.parse(parser_input)
+            summary_list.append(parser.summary)
             if parser_output is None:
                 print(colored("Parser output is None, ending game", "red"))
             else:
                 print(colored(f"Parser output: {parser_output}", "magenta"))
+            action_list.append(parser_output) 
             pyspiel_state.apply_action(pyspiel_state.string_to_action(parser_output))
         else:
             # Random player
@@ -113,6 +122,8 @@ def harness(NUM_MOVES: int, AI_MODEL: str) -> EpisodeResult:
                 action_string,
             )
             pyspiel_state.apply_action(action)
+            action_list.append(action_string)
+            summary_list.append("Random action")
 
     returns = pyspiel_state.returns()
     error = "No errors"
@@ -125,15 +136,24 @@ def harness(NUM_MOVES: int, AI_MODEL: str) -> EpisodeResult:
         if returns[1] > returns[0]
         else "TIE"
     )
+    end_time = datetime.now()
     return EpisodeResult(
         episode_id=episode_id,
         env="openspiel",
         game="connect_four",
+        # Change to multiple soon, and index based on players
+        # Ex: [GEM, GPT]; action_list: [x1,o2,...]
+        # Ex: GEM is x, GPT is o 
+        # There should be a dictionary in the DB to show how many players per game in future
         agent=AI_MODEL,
         status="SUCCESS",
         winner=winner,
         num_steps=NUM_MOVES,
         error=error,
+        summary=summary_list,
+        action=action_list,
+        start_time=start_time,
+        end_time=end_time,
     )
 
 
