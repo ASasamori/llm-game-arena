@@ -3,6 +3,7 @@ from redis import Redis
 from rq import Queue
 
 from orchestrator.tasks import run_episode
+from orchestrator.models import get_session, Run
 
 redis_conn = Redis(host="localhost", port=6379)
 queue = Queue("episodes", connection=redis_conn)
@@ -16,6 +17,20 @@ def enqueue_run(
     This function enqueues jobs but does NOT execute them.
     """
     run_id = str(uuid.uuid4())  # ONE run_id for all episodes
+
+    session = get_session()
+    try:
+        new_run = Run(run_id=run_id, num_episodes=num_episodes, status="PENDING")
+        session.add(new_run)
+        session.commit()
+        print(f"[JOBS.PY: DB] Created run {run_id} with status PENDING")
+    except Exception as e:
+        session.rollback()
+        print(f"[JOBS.PY: DB] Failed to create run: {e}")
+        raise
+    finally:
+        session.close()
+
     job_ids = []
 
     print(f"[JOBS.PY: ENQUEUE] Creating run {run_id} with {num_episodes} episodes")
@@ -39,7 +54,7 @@ def enqueue_run(
 
 if __name__ == "__main__":
     # This simulates what your FastAPI endpoint would do
-    run_id, job_ids = enqueue_run(num_episodes=1, num_games=3, model_name="Test Model")
+    run_id, job_ids = enqueue_run(num_episodes=2, num_games=3, model_name="Test Model")
     print(f"\n[JOBS.PY: MAIN] Run ID: {run_id}")
     print(f"[JOBS.PY: `MAIN] Job IDs: {job_ids}")
 
@@ -47,4 +62,3 @@ if __name__ == "__main__":
 # Next steps, update API key, create fast API to allow requests to occur and have proper error/return codes
 # Maybe change up to see how it would work on the raspberry Pi, add an evaluation metric or analysis to aggregate the metrics,
 # curate the environment to be hard coded steps instead of random steps for now, or rather have input (this would be quite hard)
-# MOST IMPORTANT: Store information in the database; not sure where docker would play here?
