@@ -1,4 +1,27 @@
 import pyspiel
+from typing import TypedDict
+from collections import deque
+from datetime import datetime
+
+class EpisodeResult(TypedDict):
+    episode_id: str
+    env: str
+    agent: list # TODO: Change to a list later for if multiple players
+    game: str
+    status: str
+    winner: str
+    num_steps: int
+    error: str
+    summary: list
+    action: list
+    start_time: datetime
+    end_time: datetime
+
+class HarnessOptions(TypedDict):
+    type: str
+    models: list
+    num_moves: int
+    input: deque | None
 
 
 def get_action_string_history(state: pyspiel.State) -> str:

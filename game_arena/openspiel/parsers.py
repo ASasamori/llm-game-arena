@@ -30,21 +30,30 @@ def parse_move_from_response(
     if response is None:
         return None
     try:
-        last_index = -1
-        final_split_token = ""
-        for split_token in [action_tag, ":", "is"]:
-            tmp_index = response.rfind(split_token) # rfind is reverse find
-            if tmp_index > last_index:
-                last_index = tmp_index
-                final_split_token = split_token # This is length of final answer, or : or is
-        if last_index == -1:
+        # Find "Final Answer: " explicitly
+        action_idx = response.find(action_tag)
+        if action_idx == -1:
             return None
-        # Split the string
-        suffix = response[last_index + len(final_split_token) :]
-        if suffix is None:
-            return None
+
+        after_action = response[action_idx + len(action_tag):]
+
+        # Extract move: everything up to newline or "Summary:"
+        summary_tag = "Summary:"
+        summary_idx = after_action.find(summary_tag)
+        newline_idx = after_action.find("\n")
+
+        # Find the end of the move (first of: Summary:, newline, or end of string)
+        end_idx = len(after_action)
+        if summary_idx != -1:
+            end_idx = min(end_idx, summary_idx)
+        if newline_idx != -1:
+            end_idx = min(end_idx, newline_idx)
+
+        move_str = after_action[:end_idx].strip()
+
+        # Clean up the move string
         move_str = (
-            suffix.strip(" .")
+            move_str.strip(" .")
             .replace("$", "")
             .replace("\\boxed{", "")
             .replace("\\text{", "")
@@ -54,30 +63,31 @@ def parse_move_from_response(
             .replace("*", "")
             .replace(" ", "")
             .replace("`", "")
-            .replace("\n", "")
         )
         clean = re.compile("<.*?>")
         move_str = re.sub(clean, "", move_str)
+
         if not move_str:
             return None
-        prefix = response[:last_index]
 
-        # Retrieve prefix/summary string right here
+        prefix = response[:action_idx]
+
+        # Extract summary
         summary = None
         if want_summary:
-            def get_next_sentences_regex(text: str, marker: str, n: int = 3) -> str | None:
-                pattern = re.escape(marker) + r"(?:[^.]*\.){1," + str(n) + r"}"
-                match = re.search(pattern, text)
-                if not match:
-                    return None
-                return match.group(0)[len(marker):].strip()
-            summary = get_next_sentences_regex(text=response, marker="Summary:", n = 3)
+            full_summary_idx = response.find(summary_tag)
+            if full_summary_idx != -1:
+                after_summary = response[full_summary_idx + len(summary_tag):]
+                # Take up to 3 sentences
+                sentences = re.findall(r"[^.]*\.", after_summary)
+                summary = "".join(sentences[:3]).strip()
+
         return {
             "move": move_str,
             "prefix": "" if prefix is None else prefix.strip(),
             "summary": "" if summary is None else summary
         }
-    except Exception as e:  # pylint: disable=broad-exception-caught
+    except Exception as e:
         logging.error(
             "parse_move_from_response failed with input response %s", response
         )

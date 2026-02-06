@@ -1,4 +1,5 @@
-from game_arena.openspiel.harness import harness, EpisodeResult
+from game_arena.openspiel import harness
+from game_arena.openspiel import utils
 from orchestrator.models import Episode, Run, get_session
 
 
@@ -9,7 +10,7 @@ def run_episode(run_id: str, episode_id: int, num_games: int, model_name: str):
     """
     print(f"[TASKS.PY: WORKER] Starting episode {episode_id} for run {run_id}")
 
-    result: EpisodeResult = harness(num_games, model_name, opt="Rand")
+    result: utils.EpisodeResult = harness.harness(num_games, model_name, options=)
 
     print(f"[TASKS.PY: WORKER] Completed episode {episode_id} for run {run_id}")
 

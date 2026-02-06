@@ -43,4 +43,4 @@ where X is your chosen move in {move_notation}.
 Finally, give a 1-3 sentence summary explaining your thought process and next possible actions in the format "Summary: Z".
 Remember, Summary and then Final Answer.
 
-IMPORTANT: You MUST include both "Summary:" and "Final Answer:" in your response, respectively."""
+IMPORTANT: You MUST include both "Summary:" and "Final Answer:" in your response in that order, respectively."""

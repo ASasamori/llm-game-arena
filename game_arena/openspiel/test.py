@@ -1,12 +1,13 @@
 import pyspiel
 
-game = pyspiel.load_game("tic_tac_toe")
+game = pyspiel.load_game("connect_four")
 state = game.new_initial_state()
 
 # Play out a win for 'x'.
-state.apply_action(4)
-state.apply_action(1)
-state.apply_action(2)
-state.apply_action(5)
-print(state)
-print(state.returns())
+print(state.legal_actions(state.current_player()))
+action_string = state.action_to_string(state.current_player(),0)
+print(action_string)
+state.apply_action(0)
+print(state.legal_actions(state.current_player()))
+action_string = state.action_to_string(state.current_player(),0)
+print(action_string)

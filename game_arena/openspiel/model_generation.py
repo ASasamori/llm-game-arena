@@ -57,8 +57,11 @@ class GeminiModel:
         self,
         prompt: str,
         system_instruction: str | None = None,
+        mock: bool = False
     ) -> GenerateResponse:
         """Generate a response from a text prompt."""
+        if mock:
+            return GenerateResponse(main_response="TestingGEMINI")
         config = google_genai_types.GenerateContentConfig(
             system_instruction=system_instruction,
         )
@@ -79,4 +82,43 @@ class GeminiModel:
                 if part.text:
                     main_response += part.text
 
+        return GenerateResponse(main_response=main_response)
+
+class GPTModel:
+    """Simple wrapper for OpenAI GPT API."""
+
+    def __init__(
+        self, model_name: str = "gpt-4o-mini", api_key: str | None = None
+    ):
+        from openai import OpenAI
+
+        self._model_name = model_name
+        key = api_key or os.environ.get("OPENAI_API_KEY")
+        if not key:
+            raise ValueError(
+                "No API key provided. Set OPENAI_API_KEY environment variable or pass api_key argument."
+            )
+        self._client = OpenAI(api_key=key)
+
+    @_retry_decorator
+    def generate_with_text_input(
+        self,
+        prompt: str,
+        system_instruction: str | None = None,
+        mock: bool = False
+    ) -> GenerateResponse:
+        """Generate a response from a text prompt."""
+        if mock:
+            return GenerateResponse(main_response="TestingGPT")
+        messages = []
+        if system_instruction:
+            messages.append({"role": "system", "content": system_instruction})
+        messages.append({"role": "user", "content": prompt})
+
+        response = self._client.chat.completions.create(
+            model=self._model_name,
+            messages=messages,
+        )
+
+        main_response = response.choices[0].message.content or ""
         return GenerateResponse(main_response=main_response)
