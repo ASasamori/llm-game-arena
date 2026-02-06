@@ -1,6 +1,5 @@
 """
 Harness/library for running OpenSpiel games
-Not sure if absl/app will work properly with queuing systems, however
 """
 
 import pyspiel
@@ -14,40 +13,27 @@ from game_arena.openspiel import prompts
 from game_arena.openspiel import model_generation
 from game_arena.openspiel import parsers
 from game_arena.openspiel import notations
-from datetime import datetime
 
 colored = termcolor.colored
-
-
-class EpisodeResult(TypedDict):
-    episode_id: str
-    env: str
-    agent: str # TODO: Change to a list later for if multiple players
-    game: str
-    status: str
-    winner: str
-    num_steps: int
-    error: str
-    summary: list
-    action: list
-    start_time: datetime
-    end_time: datetime
-
 
 # TODO: Add logic to get metrics of both players, just one for now
 # Specific featuers I want right now: AI models, turns, skills of the player (skills should be based upon prompt, so build later)
 # AI_Model should be of class AIModel, will fix later
-def harness(NUM_MOVES: int, AI_MODEL: str) -> EpisodeResult:
+def harness(options: utils.HarnessOptions) -> utils.EpisodeResult | None:
     # Generate dynamic UUIDs for this episode
     episode_id = str(uuid.uuid4())
-    start_time = datetime.now()
+    start_time = utils.datetime.now()
+    NUM_MOVES = options["num_moves"]
 
     pyspiel_game = pyspiel.load_game("connect_four")
     pyspiel_state = pyspiel_game.new_initial_state()
 
     model_player_one = model_generation.GeminiModel()
-    # TODO: Create non-rand model
-    # model_player_two = "RAND"  # Random player
+    type = options["type"]
+    model_player_two = model_generation.GPTModel() if type == "PVP" else None
+    input_q = options["input"] if options["input"] else None
+    
+    # model_player_two = opt # if opt in options # else throw error
 
     parser = parsers.ChainedMoveParser(
         [parsers.RuleBasedMoveParser(), parsers.SoftMoveParser(game_short_name="connect_four")]
@@ -71,6 +57,7 @@ def harness(NUM_MOVES: int, AI_MODEL: str) -> EpisodeResult:
                 current_player=pyspiel_state.current_player(),
             ),
             "move_history": utils.get_action_string_history(pyspiel_state) or "None",
+            # Change player name based on inputs
             "player_name": notations.game_player_map[pyspiel_state.current_player()],
             "move_notation": notations.GAME_SPECIFIC_NOTATIONS["connect_four"][
                 "move_notation"
@@ -83,8 +70,47 @@ def harness(NUM_MOVES: int, AI_MODEL: str) -> EpisodeResult:
         prompt = prompts.PROMPT_TEMPLATE_NO_LEGAL_ACTIONS.format(**prompt_subs)
 
         print(colored(f"Prompt: {prompt}", "blue"))
-        if pyspiel_state.current_player() == 0:
-            response = model_player_one.generate_with_text_input(prompt)
+        if pyspiel_state.current_player() != 0 and type != "PVP":
+            if type == "RAND":
+                action = random.choice(
+                    pyspiel_state.legal_actions(pyspiel_state.current_player())
+                )
+                action_string = pyspiel_state.action_to_string(
+                    pyspiel_state.current_player(), action
+                )
+                print(
+                    "Player ",
+                    pyspiel_state.current_player(),
+                    ", randomly sampled action: ",
+                    action_string,
+                )
+                pyspiel_state.apply_action(action)
+                action_list.append(action_string)
+                summary_list.append("Random action")
+            else:
+                if not input_q:
+                    return None # throw error
+                action = input_q.popleft()
+                if action not in pyspiel_state.legal_actions():
+                    return None # throw error
+                action_string = pyspiel_state.action_to_string(
+                    pyspiel_state.current_player(), action
+                )
+                print(
+                    "Player ",
+                    pyspiel_state.current_player(),
+                    ", randomly sampled action: ",
+                    action_string,
+                )
+                pyspiel_state.apply_action(action)
+                action_list.append(action_string)
+                summary_list.append("Input action")
+        else:
+            if pyspiel_state.current_player() == 0:
+                model = model_player_one
+            else:
+                model = model_player_two
+            response = model.generate_with_text_input(prompt) # type: ignore
             print(
                 colored(
                     f"Model player {pyspiel_state.current_player()} main response:\n"
@@ -92,7 +118,6 @@ def harness(NUM_MOVES: int, AI_MODEL: str) -> EpisodeResult:
                     "yellow",
                 )
             )
-            # TODO: Look into how this  actually works!
             parser_input = parsers.TextParserInput(
                 text=response.main_response,
                 state_str=pyspiel_state.to_string(),
@@ -100,44 +125,26 @@ def harness(NUM_MOVES: int, AI_MODEL: str) -> EpisodeResult:
                 player_number=pyspiel_state.current_player(),
             )
             parser_output = parser.parse(parser_input)
-            summary_list.append(parser.summary)
             if parser_output is None:
                 print(colored("Parser output is None, ending game", "red"))
             else:
                 print(colored(f"Parser output: {parser_output}", "magenta"))
-            action_list.append(parser_output) 
+            action_list.append(parser_output)
+            summary_list.append(parser.summary)
             pyspiel_state.apply_action(pyspiel_state.string_to_action(parser_output))
-        else:
-            # Random player
-            action = random.choice(
-                pyspiel_state.legal_actions(pyspiel_state.current_player())
-            )
-            action_string = pyspiel_state.action_to_string(
-                pyspiel_state.current_player(), action
-            )
-            print(
-                "Player ",
-                pyspiel_state.current_player(),
-                ", randomly sampled action: ",
-                action_string,
-            )
-            pyspiel_state.apply_action(action)
-            action_list.append(action_string)
-            summary_list.append("Random action")
 
     returns = pyspiel_state.returns()
     error = "No errors"
-
-    # TODO: Add logic to get winner, just one for now
+    # Redo winner logic later; especially with multiple model
     winner = (
         "AI"
         if returns[0] > returns[1]
         else "Random"
         if returns[1] > returns[0]
-        else "TIE"
+        else "UNDETERMINED/TIE"
     )
-    end_time = datetime.now()
-    return EpisodeResult(
+    end_time = utils.datetime.now()
+    return utils.EpisodeResult(
         episode_id=episode_id,
         env="openspiel",
         game="connect_four",
@@ -145,7 +152,7 @@ def harness(NUM_MOVES: int, AI_MODEL: str) -> EpisodeResult:
         # Ex: [GEM, GPT]; action_list: [x1,o2,...]
         # Ex: GEM is x, GPT is o 
         # There should be a dictionary in the DB to show how many players per game in future
-        agent=AI_MODEL,
+        agent=options["models"], 
         status="SUCCESS",
         winner=winner,
         num_steps=NUM_MOVES,
