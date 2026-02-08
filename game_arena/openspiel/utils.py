@@ -9,6 +9,7 @@ class EpisodeResult(TypedDict):
     episode_id: str
     env: str
     agent: list[str]
+    arena_type: str
     game: str
     status: str
     winner: str
@@ -22,7 +23,7 @@ class EpisodeResult(TypedDict):
 class HarnessOptions(TypedDict):
     type: str
     models: list[model_generation.LLMModel]
-    num_moves: int
+    num_steps: int
     input: deque | None
 
 

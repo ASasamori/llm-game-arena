@@ -12,7 +12,7 @@ queue = Queue("episodes", connection=redis_conn)
 
 # This is where we should define the params for how diff runs should operate
 def enqueue_run(
-    num_episodes: int = 1, num_games: int = 3, model_name: list[str] = ["GEMINI","GPT"]
+    num_episodes: int = 1, num_steps: int = 3, model_name: list[str] = ["GEMINI","GPT"]
 ):
     """
     Creates one run with multiple episodes.
@@ -43,7 +43,7 @@ def enqueue_run(
             run_episode,
             run_id=run_id,
             episode_id=episode_id,
-            num_games=num_games,
+            num_steps=num_steps,
             model_name=model_name,
             job_timeout="30m",  # Prevent jobs from hanging forever
         )
@@ -56,7 +56,7 @@ def enqueue_run(
 
 if __name__ == "__main__":
     # This simulates what your FastAPI endpoint would do
-    run_id, job_ids = enqueue_run(num_episodes=2, num_games=3, model_name=["GEMINI","GPT"])
+    run_id, job_ids = enqueue_run(num_episodes=1, num_steps=3, model_name=["GEMINI","GPT"])
     print(f"\n[JOBS.PY: MAIN] Run ID: {run_id}")
     print(f"[JOBS.PY: `MAIN] Job IDs: {job_ids}")
 
