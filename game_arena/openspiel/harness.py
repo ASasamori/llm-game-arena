@@ -16,6 +16,8 @@ from game_arena.openspiel import notations
 colored = termcolor.colored
 
 SUPPORTED_TYPES = ["INPUT", "RAND", "PVP"]
+ENV = "OPENSPIEL"
+GAME = "connect_four"
 
 # TODO: Specific featuers I want right now: AI models, turns, skills of the player (skills should be based upon prompt, so build later)
 # AI_Model should be of class AIModel, will fix later
@@ -23,10 +25,10 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
     
     episode_id = str(uuid.uuid4())
     start_time = utils.datetime.now()
-    NUM_MOVES = options["num_moves"]
+    NUM_STEPS = options["num_steps"]
 
 
-    pyspiel_game = pyspiel.load_game("connect_four")
+    pyspiel_game = pyspiel.load_game(GAME)
     pyspiel_state = pyspiel_game.new_initial_state()
 
     model_player_one = model_generation.GeminiModel()
@@ -50,7 +52,7 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
     
     action_list = [] 
     summary_list = []
-    for move_number in range(NUM_MOVES):
+    for move_number in range(NUM_STEPS):
         print(f"Pre-move debug string: {pyspiel_state.to_string()}")
         if pyspiel_state.is_terminal():
             print(colored("Game is terminal, ending move loop.", "red"))
@@ -162,8 +164,9 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
     end_time = utils.datetime.now()
     return utils.EpisodeResult(
         episode_id=episode_id,
-        env="openspiel",
-        game="connect_four",
+        env=ENV,
+        game=GAME,
+        arena_type=type,
         # Change to multiple soon, and index based on players
         # Ex: [GEM, GPT]; action_list: [x1,o2,...]
         # Ex: GEM is x, GPT is o 
@@ -171,7 +174,7 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
         agent=models_str, 
         status="SUCCESS",
         winner=winner,
-        num_steps=NUM_MOVES,
+        num_steps=NUM_STEPS,
         error=error,
         summary=summary_list,
         action=action_list,

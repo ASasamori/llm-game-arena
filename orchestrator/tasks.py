@@ -10,7 +10,7 @@ MODEL_REGISTRY = {
     "GPT": model_generation.GPTModel(),
 }
 
-def run_episode(run_id: str, episode_id: int, num_games: int, model_name: list[str]):
+def run_episode(run_id: str, episode_id: int, num_steps: int, model_name: list[str]):
     """
     Single job that runs one episode.
     Workers execute this function.
@@ -20,8 +20,8 @@ def run_episode(run_id: str, episode_id: int, num_games: int, model_name: list[s
     # Check to see how the order is maintained? I think stays since list not tup
     model_list = [MODEL_REGISTRY[model] for model in model_name]
     try_run = utils.HarnessOptions(
-        type="INPUT",
-        num_moves=num_games,
+        type="PVP",
+        num_steps=num_steps,
         models = model_list,
         input=deque([0,1,2,4])
     )
@@ -37,6 +37,7 @@ def run_episode(run_id: str, episode_id: int, num_games: int, model_name: list[s
             run_id=run_id,
             env=result["env"],
             agent=result["agent"],
+            type=result["arena_type"],
             game=result["game"],
             status=result["status"],
             winner=result["winner"],

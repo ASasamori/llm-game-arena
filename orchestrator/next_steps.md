@@ -128,3 +128,19 @@ To do better concurrency:
   the same thing with less infrastructure. Worth considering which    
   direction you want to go before building more on top of RQ.         
 
+	•	Entropy reduction rate
+	•	Policy divergence vs baseline
+	•	Move consistency across episodes
+	•	Symmetry breaking timing
+
+
+When you'd want Celery over RQ:                
+                                                 
+  - Multiple task queues with different          
+  priorities                                     
+  - Task chaining/workflows (run A, then B, then 
+  C)                                             
+  - Rate limiting per-task                       
+  - Canvas (groups, chords, chains)              
+  - Massive scale (thousands of workers)   
+

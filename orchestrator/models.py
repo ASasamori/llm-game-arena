@@ -46,6 +46,7 @@ class Episode(Base):
     run_id: Mapped[str] = mapped_column(String(36), ForeignKey("runs.run_id"), nullable=False)
     env: Mapped[str] = mapped_column(String(50))
     agent: Mapped[list] = mapped_column(JSON)
+    type: Mapped[str] = mapped_column(String(50))
     game: Mapped[str] = mapped_column(String(50))
     status: Mapped[str] = mapped_column(String(50), default="pending")
     winner: Mapped[str] = mapped_column(String(50))
