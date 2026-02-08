@@ -1,6 +1,7 @@
 import dataclasses
 import datetime
 import os
+from typing import Protocol
 
 from absl import logging
 from dotenv import load_dotenv
@@ -35,6 +36,21 @@ class GenerateResponse:
     """Simple response container with the model's output."""
 
     main_response: str
+
+
+class LLMModel(Protocol):
+    # Protocols are essentially an abstract base class that are not enforcing shared logic
+    # Protocols are also faster than abstracts
+    """Protocol for LLM model wrappers."""
+
+    def generate_with_text_input(
+        self,
+        prompt: str,
+        system_instruction: str | None = None,
+        mock: bool = False,
+    ) -> GenerateResponse: ...
+
+    def __str__(self) -> str: ...
 
 
 class GeminiModel:
@@ -83,6 +99,9 @@ class GeminiModel:
                     main_response += part.text
 
         return GenerateResponse(main_response=main_response)
+    
+    def __str__(self) -> str:
+        return f"GeminiModel({self._model_name})"
 
 class GPTModel:
     """Simple wrapper for OpenAI GPT API."""
@@ -122,3 +141,6 @@ class GPTModel:
 
         main_response = response.choices[0].message.content or ""
         return GenerateResponse(main_response=main_response)
+    
+    def __str__(self) -> str:
+        return f"GPTModel({self._model_name})"

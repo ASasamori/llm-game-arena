@@ -1,16 +1,31 @@
 from game_arena.openspiel import harness
 from game_arena.openspiel import utils
 from orchestrator.models import Episode, Run, get_session
+from game_arena.openspiel import model_generation
 
+from collections import deque
 
-def run_episode(run_id: str, episode_id: int, num_games: int, model_name: str):
+MODEL_REGISTRY = {
+    "GEMINI": model_generation.GeminiModel(),
+    "GPT": model_generation.GPTModel(),
+}
+
+def run_episode(run_id: str, episode_id: int, num_games: int, model_name: list[str]):
     """
     Single job that runs one episode.
     Workers execute this function.
     """
     print(f"[TASKS.PY: WORKER] Starting episode {episode_id} for run {run_id}")
 
-    result: utils.EpisodeResult = harness.harness(num_games, model_name, options=)
+    # Check to see how the order is maintained? I think stays since list not tup
+    model_list = [MODEL_REGISTRY[model] for model in model_name]
+    try_run = utils.HarnessOptions(
+        type="INPUT",
+        num_moves=num_games,
+        models = model_list,
+        input=deque([0,1,2,4])
+    )
+    result: utils.EpisodeResult = harness.harness(try_run)
 
     print(f"[TASKS.PY: WORKER] Completed episode {episode_id} for run {run_id}")
 
