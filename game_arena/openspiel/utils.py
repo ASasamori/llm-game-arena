@@ -3,23 +3,25 @@ from typing import TypedDict
 from collections import deque
 from datetime import datetime
 
+from game_arena.openspiel import model_generation
+
 class EpisodeResult(TypedDict):
     episode_id: str
     env: str
-    agent: list # TODO: Change to a list later for if multiple players
+    agent: list[str]
     game: str
     status: str
     winner: str
     num_steps: int
     error: str
-    summary: list
-    action: list
+    summary: list[str]
+    action: list[str]
     start_time: datetime
     end_time: datetime
 
 class HarnessOptions(TypedDict):
     type: str
-    models: list
+    models: list[model_generation.LLMModel]
     num_moves: int
     input: deque | None
 

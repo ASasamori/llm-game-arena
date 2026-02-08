@@ -9,8 +9,10 @@ redis_conn = Redis(host="localhost", port=6379)
 queue = Queue("episodes", connection=redis_conn)
 
 
+
+# This is where we should define the params for how diff runs should operate
 def enqueue_run(
-    num_episodes: int = 1, num_games: int = 3, model_name: str = "Test Model"
+    num_episodes: int = 1, num_games: int = 3, model_name: list[str] = ["GEMINI","GPT"]
 ):
     """
     Creates one run with multiple episodes.
@@ -54,11 +56,10 @@ def enqueue_run(
 
 if __name__ == "__main__":
     # This simulates what your FastAPI endpoint would do
-    run_id, job_ids = enqueue_run(num_episodes=2, num_games=3, model_name="Test Model")
+    run_id, job_ids = enqueue_run(num_episodes=2, num_games=3, model_name=["GEMINI","GPT"])
     print(f"\n[JOBS.PY: MAIN] Run ID: {run_id}")
     print(f"[JOBS.PY: `MAIN] Job IDs: {job_ids}")
 
 # TODO:
 # Next steps, update API key, create fast API to allow requests to occur and have proper error/return codes
 # Maybe change up to see how it would work on the raspberry Pi, add an evaluation metric or analysis to aggregate the metrics,
-# curate the environment to be hard coded steps instead of random steps for now, or rather have input (this would be quite hard)
