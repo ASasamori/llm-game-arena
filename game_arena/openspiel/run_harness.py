@@ -6,7 +6,7 @@ from collections import deque
 
 test = utils.HarnessOptions(
     type="INPUT",
-    num_moves=4,
+    num_steps=4,
     models=[model_generation.GeminiModel()],
     input=deque([0, 1, 2, 4]),
 )
