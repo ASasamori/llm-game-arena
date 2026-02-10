@@ -56,7 +56,7 @@ def enqueue_run(
 
 if __name__ == "__main__":
     # This simulates what your FastAPI endpoint would do
-    run_id, job_ids = enqueue_run(num_episodes=1, num_steps=3, model_name=["GEMINI","GPT"])
+    run_id, job_ids = enqueue_run(num_episodes=4, num_steps=3, model_name=["GEMINI"])
     print(f"\n[JOBS.PY: MAIN] Run ID: {run_id}")
     print(f"[JOBS.PY: `MAIN] Job IDs: {job_ids}")
 

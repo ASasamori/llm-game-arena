@@ -23,6 +23,7 @@ def get_legal_action_strings(state: pyspiel.State) -> Sequence[str]:
     ]
 
 
+#TODO: Fix incorrect summary logic to be a string, if not found, currently returns NULL
 def parse_move_from_response(
     response: str, action_tag: str = "Final Answer: ", want_summary: bool = True
 ) -> dict[str, str] | None:

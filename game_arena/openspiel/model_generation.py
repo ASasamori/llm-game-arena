@@ -4,12 +4,12 @@ import os
 from typing import Protocol
 
 from absl import logging
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 from google import genai as google_genai
 from google.genai import types as google_genai_types
 import tenacity
 
-load_dotenv()
+load_dotenv(find_dotenv())
 
 
 # TODO: Setup retry logic for when I reach the rate limit, and can no longer use the API key

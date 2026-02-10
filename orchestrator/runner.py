@@ -1,161 +1,249 @@
 """
-Runner script that spawns multiple RQ workers using ThreadPoolExecutor.
+Multi-threaded RQ SimpleWorker runner.
 
-Usage:
-    python -m orchestrator_rq.runner           # Start 5 workers (default)
-    python -m orchestrator_rq.runner --workers 3  # Start 3 workers
-
-This replaces manually opening N terminal tabs for workers.
-Now you only need 3 terminals total:
-    1. redis-server
-    2. python -m orchestrator_rq.runner (spawns all workers)
-    3. python -m orchestrator_rq.jobs (enqueue runs)
-
-Logs are written to logs/worker_0.log, logs/worker_1.log, etc.
+One Python process, N workers in threads, graceful Ctrl+C shutdown.
+This is Phase 1 local infrastructure - disappears in production.
 """
 
-import redis
-import signal
+import io
 import logging
-import argparse
+import os
+import signal
+import sys
 import threading
 import uuid
-from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor
+import redis
 from rq import SimpleWorker, Queue
+from rq.timeouts import TimerDeathPenalty
 
 
-class NoOpDeathPenalty:
-    """Dummy death penalty that doesn't use signals (for threads)."""
+# Configuration
+NUM_WORKERS = 4
+REDIS_HOST = "localhost"
+REDIS_PORT = 6379
+QUEUE_NAME = "episodes"
+LOG_DIR = "logs"
 
-    def __init__(self, timeout, exception, **kwargs):
-        pass
+# Thread-local storage for log files
+_thread_log_files: dict[int | None, io.TextIOWrapper] = {}
+_thread_log_lock = threading.Lock()
 
-    def __enter__(self):
-        pass
 
-    def __exit__(self, *args):
+class ThreadFilter(logging.Filter):
+    """Only allow log records from a specific thread."""
+
+    def __init__(self, thread_id: int | None):
+        super().__init__()
+        self.thread_id = thread_id
+
+    def filter(self, record):
+        return record.thread == self.thread_id
+
+
+class ThreadLocalWriter:
+    """
+    A stdout/stderr replacement that routes output to thread-specific log files.
+    Falls back to the original stream for the main thread.
+    """
+
+    def __init__(self, original_stream, stream_name: str = "stdout"):
+        self._original = original_stream
+        self._stream_name = stream_name
+        self._main_thread_id = threading.main_thread().ident
+
+    def write(self, text):
+        thread_id = threading.current_thread().ident
+
+        # Main thread writes to original stream
+        if thread_id == self._main_thread_id:
+            self._original.write(text)
+            self._original.flush()
+            return
+
+        # Worker threads write to their log file
+        with _thread_log_lock:
+            log_file = _thread_log_files.get(thread_id)
+
+        if log_file and not log_file.closed:
+            try:
+                log_file.write(text)
+                log_file.flush()
+            except (ValueError, IOError):
+                pass  # File was closed
+        else:
+            # Fallback to original if no log file registered
+            self._original.write(text)
+            self._original.flush()
+
+    def flush(self):
+        thread_id = threading.current_thread().ident
+
+        if thread_id == self._main_thread_id:
+            self._original.flush()
+            return
+
+        with _thread_log_lock:
+            log_file = _thread_log_files.get(thread_id)
+
+        if log_file and not log_file.closed:
+            try:
+                log_file.flush()
+            except (ValueError, IOError):
+                pass
+
+    def fileno(self):
+        return self._original.fileno()
+
+    def isatty(self):
         return False
 
 
-class ThreadSafeWorker(SimpleWorker):
-    """SimpleWorker that doesn't use signals (for use in threads)."""
-    death_penalty_class = NoOpDeathPenalty
+class ThreadedWorker(SimpleWorker):
+    """
+    SimpleWorker subclass safe for running in threads.
+    - Skips signal handler installation (only main thread can do that)
+    - Uses timer-based timeouts instead of SIGALRM
+    """
+
+    death_penalty_class = TimerDeathPenalty
 
     def _install_signal_handlers(self):
-        pass
+        pass  # No-op: main thread handles signals
 
 
-# Shared state
-shutdown_event = threading.Event()
-workers = []
-workers_lock = threading.Lock()
+def worker_thread(worker: ThreadedWorker, worker_id: str, log_file_path: str):
+    """Thread target: run the worker's blocking loop with redirected output."""
+    thread_id = threading.current_thread().ident
 
+    # Open log file for this thread
+    log_file = open(log_file_path, 'w', buffering=1)  # Line buffered
 
-def setup_logger(worker_id: int, log_dir: Path) -> logging.Logger:
-    """Create a logger that writes to a dedicated file for this worker."""
-    log_dir.mkdir(parents=True, exist_ok=True)
+    # Register this thread's log file
+    with _thread_log_lock:
+        _thread_log_files[thread_id] = log_file
 
-    logger = logging.getLogger(f"worker_{worker_id}")
-    logger.setLevel(logging.INFO)
-    logger.handlers.clear()
-    logger.propagate = False
+    # Create a handler that only accepts logs from THIS thread
+    handler = logging.StreamHandler(log_file)
+    handler.setFormatter(logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%H:%M:%S"
+    ))
+    handler.addFilter(ThreadFilter(thread_id))  # Only logs from this thread
 
-    handler = logging.FileHandler(log_dir / f"worker_{worker_id}.log")
-    handler.setFormatter(logging.Formatter("%(asctime)s | %(message)s"))
-    logger.addHandler(handler)
-
-    return logger
-
-
-def run_worker(worker_id: int, log_dir: Path, queue_name: str):
-    """Run a single RQ worker in a thread."""
-    logger = setup_logger(worker_id, log_dir)
-    logger.info(f"Worker {worker_id} starting")
-    worker = None
+    # Add handler to root logger
+    root_logger = logging.getLogger()
+    root_logger.addHandler(handler)
 
     try:
-        redis_conn = redis.Redis(host="localhost", port=6379)
-        queue = Queue(queue_name, connection=redis_conn)
-        worker_name = f"worker_{worker_id}_{uuid.uuid4().hex[:8]}"
-        worker = ThreadSafeWorker([queue], connection=redis_conn, name=worker_name)
+        print(f"={'=' * 60}")
+        print(f"Worker: {worker_id[:8]}")
+        print(f"Queue: {QUEUE_NAME}")
+        print(f"{'=' * 60}")
 
-        with workers_lock:
-            workers.append(worker)
-
-        logger.info(f"Listening on '{queue_name}' queue")
-
-        # Process jobs until shutdown (work() blocks until stopped via signal)
-        worker.work(logging_level="INFO")
-
-        logger.info(f"Worker {worker_id} stopped")
-
+        worker.work(burst=False, logging_level="INFO")
     except Exception as e:
-        logger.exception(f"Worker {worker_id} error: {e}")
+        print(f"Worker crashed: {e}")
     finally:
-        # Deregister worker from Redis
-        if worker:
-            try:
-                worker.register_death()
-            except Exception:
-                pass
+        print(f"{'=' * 60}")
+        print(f"Worker {worker_id[:8]} stopped")
+        print(f"{'=' * 60}")
 
+        # Cleanup
+        root_logger.removeHandler(handler)
+        handler.close()
 
-shutdown_count = 0
+        with _thread_log_lock:
+            _thread_log_files.pop(thread_id, None)
 
-
-def signal_handler(signum, frame):
-    """Handle shutdown signals. First Ctrl+C = warm, second = force exit."""
-    global shutdown_count
-    shutdown_count += 1
-    shutdown_event.set()
-
-    if shutdown_count == 1:
-        print(f"\n[RUNNER] Shutting down (Ctrl+C again to force)...")
-        with workers_lock:
-            for worker in workers:
-                try:
-                    worker.request_stop(signum, frame)
-                except Exception:
-                    pass
-    else:
-        print(f"\n[RUNNER] Force exit")
-        # Deregister workers from Redis before exiting
-        with workers_lock:
-            for worker in workers:
-                try:
-                    worker.register_death()
-                except Exception:
-                    pass
-        import os
-        os._exit(0)
+        log_file.close()
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run multiple RQ workers")
-    parser.add_argument("--workers", "-w", type=int, default=3, help="Number of workers (default: 5)")
-    parser.add_argument("--log-dir", "-l", type=Path, default=Path("logs"), help="Log directory")
-    parser.add_argument("--queue", "-q", type=str, default="episodes", help="Queue name")
-    args = parser.parse_args()
+    os.makedirs(LOG_DIR, exist_ok=True)
 
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
+    # Install thread-local stdout/stderr redirectors
+    sys.stdout = ThreadLocalWriter(sys.__stdout__, "stdout")
+    sys.stderr = ThreadLocalWriter(sys.__stderr__, "stderr")
 
-    print(f"[RUNNER] Starting {args.workers} workers on '{args.queue}' queue")
-    print(f"[RUNNER] Logs: {args.log_dir.absolute()}/worker_N.log")
-    print(f"[RUNNER] Press Ctrl+C to stop\n")
+    # Configure root logger to DEBUG so handlers receive everything
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)
 
-    with ThreadPoolExecutor(max_workers=args.workers) as executor:
-        futures = [
-            executor.submit(run_worker, i, args.log_dir, args.queue)
-            for i in range(args.workers)
-        ]
+    # Remove default handlers that would print to terminal
+    for h in root_logger.handlers[:]:
+        root_logger.removeHandler(h)
 
-        # Wait for all workers to complete
-        for future in futures:
-            future.result()
+    redis_conn = redis.Redis(host=REDIS_HOST, port=REDIS_PORT)
+    queue = Queue(QUEUE_NAME, connection=redis_conn)
 
-    print("[RUNNER] All workers stopped")
+    workers = []
+    threads = []
+    worker_ids = []
+
+    for _ in range(NUM_WORKERS):
+        worker_id = str(uuid.uuid4())
+        worker_ids.append(worker_id)
+        log_file_path = os.path.join(LOG_DIR, f"{worker_id}_worker.log")
+
+        conn = redis.Redis(host=REDIS_HOST, port=REDIS_PORT)
+        worker = ThreadedWorker(
+            [queue],
+            connection=conn,
+            name=f"worker-{worker_id}",
+        )
+        workers.append(worker)
+
+        t = threading.Thread(
+            target=worker_thread,
+            args=(worker, worker_id, log_file_path),
+            daemon=True
+        )
+        threads.append(t)
+
+    # Start all threads
+    for t in threads:
+        t.start()
+
+    print(f"[RUNNER] Started {NUM_WORKERS} workers")
+    print(f"[RUNNER] Listening on '{QUEUE_NAME}' queue")
+    print(f"[RUNNER] Worker logs (real-time):")
+    for wid in worker_ids:
+        print(f"         - {LOG_DIR}/{wid}_worker.log")
+    print(f"\n[RUNNER] Watch all logs: tail -f {LOG_DIR}/*_worker.log")
+    print("[RUNNER] Press Ctrl+C to stop\n")
+
+    # Signal handler for graceful shutdown
+    shutdown_requested = threading.Event()
+
+    def shutdown_handler(_signum, _frame):
+        if shutdown_requested.is_set():
+            return
+        shutdown_requested.set()
+        print("\n[RUNNER] Shutdown signal received...")
+        for w in workers:
+            w._stop_requested = True
+        print("[RUNNER] Waiting for workers to finish current jobs...")
+
+    signal.signal(signal.SIGINT, shutdown_handler)
+    signal.signal(signal.SIGTERM, shutdown_handler)
+
+    # Block until shutdown
+    try:
+        while not shutdown_requested.is_set():
+            shutdown_requested.wait(timeout=1.0)
+    except KeyboardInterrupt:
+        pass
+
+    for t in threads:
+        t.join(timeout=1.0)
+
+    alive = [t for t in threads if t.is_alive()]
+    if alive:
+        print(f"[RUNNER] {len(alive)} workers still busy, forcing exit...")
+    else:
+        print("[RUNNER] All workers stopped cleanly.")
+
+    sys.exit(0)
 
 
 if __name__ == "__main__":

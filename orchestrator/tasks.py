@@ -20,10 +20,10 @@ def run_episode(run_id: str, episode_id: int, num_steps: int, model_name: list[s
     # Check to see how the order is maintained? I think stays since list not tup
     model_list = [MODEL_REGISTRY[model] for model in model_name]
     try_run = utils.HarnessOptions(
-        type="PVP",
+        type="RAND",
         num_steps=num_steps,
         models = model_list,
-        input=deque([0,1,2,4])
+        input=None
     )
     result: utils.EpisodeResult = harness.harness(try_run)
 
