@@ -3,12 +3,12 @@ from game_arena.openspiel import utils
 from orchestrator.models import Episode, Run, get_session
 from game_arena.openspiel import model_generation
 
-from collections import deque
 
 MODEL_REGISTRY = {
     "GEMINI": model_generation.GeminiModel(),
     "GPT": model_generation.GPTModel(),
 }
+
 
 def run_episode(run_id: str, episode_id: int, num_steps: int, model_name: list[str]):
     """
@@ -20,10 +20,7 @@ def run_episode(run_id: str, episode_id: int, num_steps: int, model_name: list[s
     # Check to see how the order is maintained? I think stays since list not tup
     model_list = [MODEL_REGISTRY[model] for model in model_name]
     try_run = utils.HarnessOptions(
-        type="RAND",
-        num_steps=num_steps,
-        models = model_list,
-        input=None
+        type="RAND", num_steps=num_steps, models=model_list, input=None
     )
     result: utils.EpisodeResult = harness.harness(try_run)
 
@@ -78,12 +75,17 @@ def _check_run_completion(session, run_id: str):
     if completed_count >= run.num_episodes:
         run.status = "COMPLETED"
         session.commit()
-        print(f"[TASKS.PY: DB] Run {run_id} marked COMPLETED ({completed_count}/{run.num_episodes})")
+        print(
+            f"[TASKS.PY: DB] Run {run_id} marked COMPLETED ({completed_count}/{run.num_episodes})"
+        )
     else:
-        print(f"[TASKS.PY: DB] Run {run_id} progress: {completed_count}/{run.num_episodes}")
+        print(
+            f"[TASKS.PY: DB] Run {run_id} progress: {completed_count}/{run.num_episodes}"
+        )
+
 
 #      │ 1. Start Redis, start worker, run python -m orchestrator.jobs                        │
 #      │ 2. Check: psql -h <pi-ip> -U arena_user -d llm_game_arena -c "SELECT * FROM runs;"   │
 #      │ 3. Check: psql -h <pi-ip> -U arena_user -d llm_game_arena -c "SELECT * FROM          │
 #      │ episodes;"                                                                           │
-#      │ 4. Verify run status flips from PENDING to COMPLETED after all episodes finish   
+#      │ 4. Verify run status flips from PENDING to COMPLETED after all episodes finish

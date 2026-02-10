@@ -19,14 +19,13 @@ SUPPORTED_TYPES = ["INPUT", "RAND", "PVP"]
 ENV = "OPENSPIEL"
 GAME = "connect_four"
 
+
 # TODO: Specific featuers I want right now: AI models, turns, skills of the player (skills should be based upon prompt, so build later)
 # AI_Model should be of class AIModel, will fix later
 def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
-    
     episode_id = str(uuid.uuid4())
     start_time = utils.datetime.now()
     NUM_STEPS = options["num_steps"]
-
 
     pyspiel_game = pyspiel.load_game(GAME)
     pyspiel_state = pyspiel_game.new_initial_state()
@@ -40,17 +39,20 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
 
     if type == "INPUT" and not options["input"]:
         raise ValueError(f"Type is {type} and the input queue is {options['input']}")
-    
+
     if type == "PVP" and not len(options["models"]) > 1:
         raise ValueError(f"Need more models other than just {options['models']}")
 
     model_player_two = options["models"][1] if options["type"] == "PVP" else None
 
     parser = parsers.ChainedMoveParser(
-        [parsers.RuleBasedMoveParser(), parsers.SoftMoveParser(game_short_name="connect_four")]
+        [
+            parsers.RuleBasedMoveParser(),
+            parsers.SoftMoveParser(game_short_name="connect_four"),
+        ]
     )
-    
-    action_list = [] 
+
+    action_list = []
     summary_list = []
     for move_number in range(NUM_STEPS):
         print(f"Pre-move debug string: {pyspiel_state.to_string()}")
@@ -59,7 +61,13 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
             break
 
         print(colored(f"Commencing move {move_number}...", "green"))
-        player_name = str(model_player_one) if pyspiel_state.current_player() == 0 else str(model_player_two) if type == "PVP" else type
+        player_name = (
+            str(model_player_one)
+            if pyspiel_state.current_player() == 0
+            else str(model_player_two)
+            if type == "PVP"
+            else type
+        )
 
         prompt_subs = {
             "game_short_name": "Connect Four",
@@ -90,8 +98,10 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
                     pyspiel_state.current_player(), action
                 )
                 print(
-                    colored(f"Player {pyspiel_state.current_player()}"
-                            f"randomly sampled action: {action_string}", "light_cyan"
+                    colored(
+                        f"Player {pyspiel_state.current_player()}"
+                        f"randomly sampled action: {action_string}",
+                        "light_cyan",
                     )
                 )
                 pyspiel_state.apply_action(action)
@@ -108,15 +118,17 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
                     pyspiel_state.current_player(), action
                 )
                 print(
-                    colored(f"Player {pyspiel_state.current_player()},"
-                            f"randomly sampled action: {action_string}",
-                            "light_magenta")
+                    colored(
+                        f"Player {pyspiel_state.current_player()},"
+                        f"randomly sampled action: {action_string}",
+                        "light_magenta",
+                    )
                 )
                 pyspiel_state.apply_action(action)
                 action_list.append(action_string)
                 summary_list.append("Input action")
             else:
-                raise ValueError(f"There is no such mode called {options["type"]}")
+                raise ValueError(f"There is no such mode called {options['type']}")
         else:
             if pyspiel_state.current_player() == 0:
                 model: model_generation.LLMModel = model_player_one
@@ -160,7 +172,11 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
         else options["type"]
     )
 
-    models_str = [str(model) for model in options["models"]] if type == "PVP" else [str(options["models"][0])]
+    models_str = (
+        [str(model) for model in options["models"]]
+        if type == "PVP"
+        else [str(options["models"][0])]
+    )
     end_time = utils.datetime.now()
     return utils.EpisodeResult(
         episode_id=episode_id,
@@ -169,9 +185,9 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
         arena_type=type,
         # Change to multiple soon, and index based on players
         # Ex: [GEM, GPT]; action_list: [x1,o2,...]
-        # Ex: GEM is x, GPT is o 
+        # Ex: GEM is x, GPT is o
         # There should be a dictionary in the DB to show how many players per game in future
-        agent=models_str, 
+        agent=models_str,
         status="SUCCESS",
         winner=winner,
         num_steps=NUM_STEPS,

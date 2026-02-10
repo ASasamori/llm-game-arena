@@ -40,6 +40,8 @@ class ThreadFilter(logging.Filter):
         return record.thread == self.thread_id
 
 
+# TODO: Rework so that whenever this is called or when workers SHOULD die
+# they delete the log files.
 class ThreadLocalWriter:
     """
     A stdout/stderr replacement that routes output to thread-specific log files.
@@ -116,7 +118,7 @@ def worker_thread(worker: ThreadedWorker, worker_id: str, log_file_path: str):
     thread_id = threading.current_thread().ident
 
     # Open log file for this thread
-    log_file = open(log_file_path, 'w', buffering=1)  # Line buffered
+    log_file = open(log_file_path, "w", buffering=1)  # Line buffered
 
     # Register this thread's log file
     with _thread_log_lock:
@@ -124,10 +126,11 @@ def worker_thread(worker: ThreadedWorker, worker_id: str, log_file_path: str):
 
     # Create a handler that only accepts logs from THIS thread
     handler = logging.StreamHandler(log_file)
-    handler.setFormatter(logging.Formatter(
-        "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%H:%M:%S"
-    ))
+    handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s [%(levelname)s] %(name)s: %(message)s", datefmt="%H:%M:%S"
+        )
+    )
     handler.addFilter(ThreadFilter(thread_id))  # Only logs from this thread
 
     # Add handler to root logger
@@ -194,9 +197,7 @@ def main():
         workers.append(worker)
 
         t = threading.Thread(
-            target=worker_thread,
-            args=(worker, worker_id, log_file_path),
-            daemon=True
+            target=worker_thread, args=(worker, worker_id, log_file_path), daemon=True
         )
         threads.append(t)
 
@@ -206,7 +207,7 @@ def main():
 
     print(f"[RUNNER] Started {NUM_WORKERS} workers")
     print(f"[RUNNER] Listening on '{QUEUE_NAME}' queue")
-    print(f"[RUNNER] Worker logs (real-time):")
+    print("[RUNNER] Worker logs (real-time):")
     for wid in worker_ids:
         print(f"         - {LOG_DIR}/{wid}_worker.log")
     print(f"\n[RUNNER] Watch all logs: tail -f {LOG_DIR}/*_worker.log")
