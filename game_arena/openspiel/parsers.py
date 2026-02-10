@@ -9,7 +9,7 @@ import game_arena.openspiel.notations as notations
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class TextParserInput:
     text: str
-    summary: str | None = None # Not sure if I should put this here?
+    summary: str | None = None  # TODO: Look into this, probably why NULL is fine
     state_str: str | None = None
     legal_moves: Sequence[str] | None = None
     player_number: int | None = None
@@ -23,7 +23,7 @@ def get_legal_action_strings(state: pyspiel.State) -> Sequence[str]:
     ]
 
 
-#TODO: Fix incorrect summary logic to be a string, if not found, currently returns NULL
+# TODO: Fix incorrect summary logic to be a string, if not found, currently returns NULL
 def parse_move_from_response(
     response: str, action_tag: str = "Final Answer: ", want_summary: bool = True
 ) -> dict[str, str] | None:
@@ -36,7 +36,7 @@ def parse_move_from_response(
         if action_idx == -1:
             return None
 
-        after_action = response[action_idx + len(action_tag):]
+        after_action = response[action_idx + len(action_tag) :]
 
         # Extract move: everything up to newline or "Summary:"
         summary_tag = "Summary:"
@@ -78,7 +78,7 @@ def parse_move_from_response(
         if want_summary:
             full_summary_idx = response.find(summary_tag)
             if full_summary_idx != -1:
-                after_summary = response[full_summary_idx + len(summary_tag):]
+                after_summary = response[full_summary_idx + len(summary_tag) :]
                 # Take up to 3 sentences
                 sentences = re.findall(r"[^.]*\.", after_summary)
                 summary = "".join(sentences[:3]).strip()
@@ -86,7 +86,7 @@ def parse_move_from_response(
         return {
             "move": move_str,
             "prefix": "" if prefix is None else prefix.strip(),
-            "summary": "" if summary is None else summary
+            "summary": "" if summary is None else summary,
         }
     except Exception as e:
         logging.error(
@@ -100,7 +100,8 @@ class TextParser(Protocol):
 
     def parse(self, parser_input: TextParserInput) -> str | None: ...
 
-#TODO: Implement fallback parsing if it doesn't parse correctly
+
+# TODO: Implement fallback parsing if it doesn't parse correctly
 class ChainedMoveParser(TextParser):
     """Parses text into a move by successively applying parsers.
 
@@ -143,7 +144,9 @@ class RuleBasedMoveParser(TextParser):
             return None
         # Stash summary on parser_input so the chain can carry it forward
         if maybe_move_and_prefix["summary"]:
-            object.__setattr__(parser_input, "summary", maybe_move_and_prefix["summary"])
+            object.__setattr__(
+                parser_input, "summary", maybe_move_and_prefix["summary"]
+            )
         return maybe_move_and_prefix["move"]
 
 

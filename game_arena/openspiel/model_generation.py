@@ -70,10 +70,7 @@ class GeminiModel:
 
     @_retry_decorator
     def generate_with_text_input(
-        self,
-        prompt: str,
-        system_instruction: str | None = None,
-        mock: bool = False
+        self, prompt: str, system_instruction: str | None = None, mock: bool = False
     ) -> GenerateResponse:
         """Generate a response from a text prompt."""
         if mock:
@@ -99,16 +96,15 @@ class GeminiModel:
                     main_response += part.text
 
         return GenerateResponse(main_response=main_response)
-    
+
     def __str__(self) -> str:
         return f"GeminiModel({self._model_name})"
+
 
 class GPTModel:
     """Simple wrapper for OpenAI GPT API."""
 
-    def __init__(
-        self, model_name: str = "gpt-4o-mini", api_key: str | None = None
-    ):
+    def __init__(self, model_name: str = "gpt-4o-mini", api_key: str | None = None):
         from openai import OpenAI
 
         self._model_name = model_name
@@ -121,10 +117,7 @@ class GPTModel:
 
     @_retry_decorator
     def generate_with_text_input(
-        self,
-        prompt: str,
-        system_instruction: str | None = None,
-        mock: bool = False
+        self, prompt: str, system_instruction: str | None = None, mock: bool = False
     ) -> GenerateResponse:
         """Generate a response from a text prompt."""
         if mock:
@@ -141,6 +134,6 @@ class GPTModel:
 
         main_response = response.choices[0].message.content or ""
         return GenerateResponse(main_response=main_response)
-    
+
     def __str__(self) -> str:
         return f"GPTModel({self._model_name})"

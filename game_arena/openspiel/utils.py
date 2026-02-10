@@ -5,6 +5,7 @@ from datetime import datetime
 
 from game_arena.openspiel import model_generation
 
+
 class EpisodeResult(TypedDict):
     episode_id: str
     env: str
@@ -19,6 +20,7 @@ class EpisodeResult(TypedDict):
     action: list[str]
     start_time: datetime
     end_time: datetime
+
 
 class HarnessOptions(TypedDict):
     type: str

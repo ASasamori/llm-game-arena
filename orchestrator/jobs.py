@@ -9,10 +9,9 @@ redis_conn = Redis(host="localhost", port=6379)
 queue = Queue("episodes", connection=redis_conn)
 
 
-
 # This is where we should define the params for how diff runs should operate
 def enqueue_run(
-    num_episodes: int = 1, num_steps: int = 3, model_name: list[str] = ["GEMINI","GPT"]
+    num_episodes: int = 1, num_steps: int = 3, model_name: list[str] = ["GEMINI", "GPT"]
 ):
     """
     Creates one run with multiple episodes.
@@ -50,7 +49,9 @@ def enqueue_run(
         job_ids.append(job.id)
         print(f"[JOBS.PY: ENQUEUE] Queued episode {episode_id} (job {job.id})")
 
-    print(f"[JOBS.PY: ENQUEUE] Successfully queued {num_episodes} episodes for run {run_id}")
+    print(
+        f"[JOBS.PY: ENQUEUE] Successfully queued {num_episodes} episodes for run {run_id}"
+    )
     return run_id, job_ids
 
 
