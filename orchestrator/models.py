@@ -39,12 +39,29 @@ class Run(Base):
     __tablename__ = "runs"
 
     run_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="PENDING")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    matchups: Mapped[list["Matchup"]] = relationship("Matchup", back_populates="run")
+    episodes: Mapped[list["Episode"]] = relationship("Episode", back_populates="run")
+
+
+# Matchup model - tracks a specific model pair within a run
+class Matchup(Base):
+    __tablename__ = "matchups"
+
+    matchup_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    run_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("runs.run_id"), nullable=False
+    )
+    models: Mapped[list] = mapped_column(JSON)  # ["GEMINI", "GPT"]
     num_episodes: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="PENDING")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
-    # Relationship to episodes
-    episodes: Mapped[list["Episode"]] = relationship("Episode", back_populates="run")
+    run: Mapped["Run"] = relationship("Run", back_populates="matchups")
+    episodes: Mapped[list["Episode"]] = relationship("Episode", back_populates="matchup")
 
 
 # Episode model
@@ -54,6 +71,9 @@ class Episode(Base):
     episode_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     run_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("runs.run_id"), nullable=False
+    )
+    matchup_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("matchups.matchup_id"), nullable=False
     )
     env: Mapped[str] = mapped_column(String(50))
     agent: Mapped[list] = mapped_column(JSON)
@@ -69,6 +89,7 @@ class Episode(Base):
     end_time: Mapped[datetime] = mapped_column(DateTime)
 
     run: Mapped["Run"] = relationship("Run", back_populates="episodes")
+    matchup: Mapped["Matchup"] = relationship("Matchup", back_populates="episodes")
 
 
 # Engine and session factory

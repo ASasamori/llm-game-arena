@@ -18,7 +18,7 @@ from rq.timeouts import TimerDeathPenalty
 
 
 # Configuration
-NUM_WORKERS = 1
+NUM_WORKERS = 3
 REDIS_HOST = "localhost"
 REDIS_PORT = 6379
 QUEUE_NAME = "episodes"
