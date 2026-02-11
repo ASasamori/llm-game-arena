@@ -123,6 +123,8 @@ class ChainedMoveParser(TextParser):
             parser_input = dataclasses.replace(parser_input, text=maybe_text_output)
         # Store the summary so the caller can access it
         self._last_summary = parser_input.summary
+        if not self._last_summary:
+            self._last_summary = "AI DID NOT PARSE SUMMARY CORRECTLY"
         return maybe_text_output
 
     @property
@@ -143,10 +145,10 @@ class RuleBasedMoveParser(TextParser):
         if maybe_move_and_prefix is None:
             return None
         # Stash summary on parser_input so the chain can carry it forward
-        if maybe_move_and_prefix["summary"]:
-            object.__setattr__(
-                parser_input, "summary", maybe_move_and_prefix["summary"]
-            )
+        summary = maybe_move_and_prefix["summary"]
+        if not summary:
+            summary = "AI DID NOT PARSE SUMMARY CORRECTLY"
+        object.__setattr__(parser_input, "summary", summary)
         return maybe_move_and_prefix["move"]
 
 
