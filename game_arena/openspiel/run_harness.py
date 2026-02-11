@@ -5,10 +5,10 @@ from game_arena.openspiel import utils
 from collections import deque
 
 test = utils.HarnessOptions(
-    type="INPUT",
+    type="PVP",
     num_steps=4,
-    models=[model_generation.GeminiModel()],
-    input=deque([0, 1, 2, 4]),
+    models=[model_generation.ClaudeModel(),model_generation.GeminiModel()],
+    input=None
 )
 
 res: utils.EpisodeResult = harness.harness(test)

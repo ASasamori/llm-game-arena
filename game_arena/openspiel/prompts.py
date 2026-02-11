@@ -33,10 +33,12 @@ def is_image_text(prompt_template: PromptTemplate) -> bool:
     )
 
 
-PROMPT_TEMPLATE_NO_LEGAL_ACTIONS = (
-    PROMPT_TEMPLATE_NO_LEGAL_ACTIONS
-) = """Let's play {game_short_name}. The current game state in {notation} is:
+PROMPT_TEMPLATE_NO_LEGAL_ACTIONS = """Let's play {game_short_name}. The current game state in {notation} is:
 {readable_state_str}
+
+The moves played so far are:
+{move_history}
+
 You are playing as player {player_name}.
 It is now your turn. Play your strongest move. The move MUST be legal. 
 Reason step by step to come up with your move, 

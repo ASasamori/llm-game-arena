@@ -7,9 +7,10 @@ from absl import logging
 from dotenv import find_dotenv, load_dotenv
 from google import genai as google_genai
 from google.genai import types as google_genai_types
+from anthropic import Anthropic
 import tenacity
 
-load_dotenv(find_dotenv())
+load_dotenv(find_dotenv(usecwd=True), override=True)
 
 
 # TODO: Setup retry logic for when I reach the rate limit, and can no longer use the API key
@@ -137,3 +138,47 @@ class GPTModel:
 
     def __str__(self) -> str:
         return f"GPTModel({self._model_name})"
+
+
+class ClaudeModel:
+    """Simple wrapper for Anthropic Claude API."""
+
+    def __init__(
+        self, model_name: str = "claude-3-haiku-20240307", api_key: str | None = None
+    ):
+
+        self._model_name = model_name
+        key = api_key or os.environ.get("ANTHROPIC_API_KEY")
+        if not key:
+            raise ValueError(
+                "No API key provided. Set ANTHROPIC_API_KEY environment variable or pass api_key argument."
+            )
+        self._client = Anthropic(api_key=key)
+
+    @_retry_decorator
+    def generate_with_text_input(
+        self, prompt: str, system_instruction: str | None = None, mock: bool = False
+    ) -> GenerateResponse:
+        """Generate a response from a text prompt."""
+        if mock:
+            return GenerateResponse(main_response="TestingCLAUDE")
+
+        kwargs = {
+            "model": self._model_name,
+            "max_tokens": 1024,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        if system_instruction:
+            kwargs["system"] = system_instruction
+
+        response = self._client.messages.create(**kwargs)
+
+        main_response = ""
+        for block in response.content:
+            if block.type == "text":
+                main_response += block.text
+
+        return GenerateResponse(main_response=main_response)
+
+    def __str__(self) -> str:
+        return f"ClaudeModel({self._model_name})"
