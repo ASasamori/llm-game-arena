@@ -77,7 +77,7 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
                 current_player=pyspiel_state.current_player(),
             ),
             "move_history": utils.get_action_string_history(pyspiel_state) or "None",
-            "player_name": player_name,
+            "player_name": notations.GAME_SPECIFIC_NOTATIONS['connect_four']['player_map'][pyspiel_state.current_player()],
             "move_notation": notations.GAME_SPECIFIC_NOTATIONS["connect_four"][
                 "move_notation"
             ],

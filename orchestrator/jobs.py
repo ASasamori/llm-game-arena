@@ -4,6 +4,7 @@ from rq import Queue
 
 from orchestrator.tasks import run_episode
 from orchestrator.models import get_session, Run
+from itertools import combinations
 
 redis_conn = Redis(host="localhost", port=6379)
 queue = Queue("episodes", connection=redis_conn)
@@ -11,7 +12,7 @@ queue = Queue("episodes", connection=redis_conn)
 
 # This is where we should define the params for how diff runs should operate
 def enqueue_run(
-    num_episodes: int = 1, num_steps: int = 3, model_name: list[str] = ["GEMINI", "GPT"]
+    num_episodes: int, num_steps: int, model_name: list[str]
 ):
     """
     Creates one run with multiple episodes.
@@ -37,13 +38,17 @@ def enqueue_run(
     print(f"[JOBS.PY: ENQUEUE] Creating run {run_id} with {num_episodes} episodes")
 
     # Enqueue each episode as a separate job
+
+    # Change this to use different models, can think about that later
+    comb_list = list(combinations(model_name,2))
     for episode_id in range(num_episodes):
+        models = comb_list.pop()
         job = queue.enqueue(
             run_episode,
             run_id=run_id,
             episode_id=episode_id,
             num_steps=num_steps,
-            model_name=model_name,
+            model_name=models,
             job_timeout="30m",  # Prevent jobs from hanging forever
         )
         job_ids.append(job.id)
@@ -57,7 +62,8 @@ def enqueue_run(
 
 if __name__ == "__main__":
     # This simulates what your FastAPI endpoint would do
-    run_id, job_ids = enqueue_run(num_episodes=4, num_steps=3, model_name=["GEMINI"])
+    # run_id, job_ids = enqueue_run(num_episodes=2, num_steps=3, model_name=["GEMINI","CLAUDE","GPT"])
+    run_id, job_ids = enqueue_run(num_episodes=1, num_steps=3, model_name=["GEMINI","GPT"])
     print(f"\n[JOBS.PY: MAIN] Run ID: {run_id}")
     print(f"[JOBS.PY: `MAIN] Job IDs: {job_ids}")
 
