@@ -39,8 +39,11 @@ class Run(Base):
     __tablename__ = "runs"
 
     run_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    run_type: Mapped[str] = mapped_column(String(10), nullable=False)  # "PVP", "RAND", "INPUT"
+    num_episodes: Mapped[int] = mapped_column(Integer, nullable=False)  # For non-PVP runs
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="PENDING")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
 
     # Relationships
     matchups: Mapped[list["Matchup"]] = relationship("Matchup", back_populates="run")
@@ -72,9 +75,10 @@ class Episode(Base):
     run_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("runs.run_id"), nullable=False
     )
-    matchup_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("matchups.matchup_id"), nullable=False
+    matchup_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("matchups.matchup_id"), nullable=True  # Null for INPUT/RAND runs
     )
+    worker_name: Mapped[str | None] = mapped_column(String(100), nullable=True)  # Worker that executed this episode
     env: Mapped[str] = mapped_column(String(50))
     agent: Mapped[list] = mapped_column(JSON)
     type: Mapped[str] = mapped_column(String(50))
@@ -89,7 +93,7 @@ class Episode(Base):
     end_time: Mapped[datetime] = mapped_column(DateTime)
 
     run: Mapped["Run"] = relationship("Run", back_populates="episodes")
-    matchup: Mapped["Matchup"] = relationship("Matchup", back_populates="episodes")
+    matchup: Mapped["Matchup | None"] = relationship("Matchup", back_populates="episodes")
 
 
 # Engine and session factory
