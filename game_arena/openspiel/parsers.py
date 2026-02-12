@@ -124,7 +124,7 @@ class ChainedMoveParser(TextParser):
         # Store the summary so the caller can access it
         self._last_summary = parser_input.summary
         if not self._last_summary:
-            self._last_summary = "AI DID NOT PARSE SUMMARY CORRECTLY"
+            self._last_summary = "This summary was not supplied by the model."
         return maybe_text_output
 
     @property
@@ -147,7 +147,7 @@ class RuleBasedMoveParser(TextParser):
         # Stash summary on parser_input so the chain can carry it forward
         summary = maybe_move_and_prefix["summary"]
         if not summary:
-            summary = "AI DID NOT PARSE SUMMARY CORRECTLY"
+            summary = "This summary was not supplied by the model."
         object.__setattr__(parser_input, "summary", summary)
         return maybe_move_and_prefix["move"]
 
