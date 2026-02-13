@@ -1,10 +1,11 @@
+import uuid
 from collections import deque
 
 from rq import get_current_job
 
 from game_arena.openspiel import harness
 from game_arena.openspiel import utils
-from orchestrator.models import Episode, Run, Matchup, get_session
+from orchestrator.models import Episode, EpisodeStep, Run, Matchup, get_session
 from game_arena.openspiel import model_generation
 
 
@@ -67,8 +68,22 @@ def run_episode_pvp(matchup_id: str, run_id: str, episode_num: int, num_steps: i
             end_time=result["end_time"],
         )
         session.add(episode)
+
+        # Create EpisodeStep records for each action
+        actions = result.get("action") or []
+        for step_index, action_str in enumerate(actions):
+            if action_str and isinstance(action_str, str):
+                step = EpisodeStep(
+                    step_id=str(uuid.uuid4()),
+                    episode_id=result["episode_id"],
+                    step_index=step_index,
+                    player=action_str[0].lower(),
+                    action=action_str,
+                )
+                session.add(step)
+
         session.commit()
-        print(f"[TASKS.PY: DB] Saved episode {result['episode_id']} to database")
+        print(f"[TASKS.PY: DB] Saved episode {result['episode_id']} with {len(actions)} steps to database")
 
         _check_pvp_completion(session, matchup_id, run_id)
     except Exception as e:
@@ -137,8 +152,22 @@ def run_episode_single(
             end_time=result["end_time"],
         )
         session.add(episode)
+
+        # Create EpisodeStep records for each action
+        actions = result.get("action") or []
+        for step_index, action_str in enumerate(actions):
+            if action_str and isinstance(action_str, str):
+                step = EpisodeStep(
+                    step_id=str(uuid.uuid4()),
+                    episode_id=result["episode_id"],
+                    step_index=step_index,
+                    player=action_str[0].lower(),
+                    action=action_str,
+                )
+                session.add(step)
+
         session.commit()
-        print(f"[TASKS.PY: DB] Saved episode {result['episode_id']} to database")
+        print(f"[TASKS.PY: DB] Saved episode {result['episode_id']} with {len(actions)} steps to database")
 
         _check_run_completion(session, run_id)
     except Exception as e:
