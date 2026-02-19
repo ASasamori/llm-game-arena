@@ -56,6 +56,29 @@ Environment version, random seed, and opponent policy implementation
 - Metrics
 - Episode count
 
+### Run analytics CLI
+After a PVP run is completed and persisted in Postgres, generate plots from the
+`runs`, `matchups`, `episodes`, and `episode_steps` tables:
+
+```bash
+python -m orchestrator.analytics --run-id <PVP_RUN_ID>
+```
+
+Optional baseline mappings for delta-action plots (`MODEL=RAND_RUN_ID`):
+
+```bash
+python -m orchestrator.analytics \
+  --run-id <PVP_RUN_ID> \
+  --baseline-run GPT=<RAND_RUN_ID_FOR_GPT> \
+  --baseline-run GEMINI=<RAND_RUN_ID_FOR_GEMINI> \
+  --baseline-run CLAUDE=<RAND_RUN_ID_FOR_CLAUDE>
+```
+
+Outputs are written to `analytics/<run_id>/` by default:
+- `heatmap_<MODEL>.png`
+- `entropy_<MODEL>.png`
+- `delta_<MODEL>.png` (when baselines are found/provided)
+
 ---
 
 [Google Game Arena](https://github.com/google-deepmind/game_arena?tab=readme-ov-file)
