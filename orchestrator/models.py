@@ -9,7 +9,13 @@
 # models.py
 import os
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ModuleNotFoundError:
+    # Keep runtime working in minimal environments where python-dotenv
+    # is not installed but DATABASE_URL is already exported.
+    def load_dotenv(*args, **kwargs):
+        return False
 import uuid
 from sqlalchemy import Integer, String, Float, ForeignKey, DateTime, JSON, Index, create_engine
 from sqlalchemy.orm import (
@@ -37,7 +43,7 @@ class Base(DeclarativeBase):
 
 # Run model
 class Run(Base):
-    __tablename__ = "run"
+    __tablename__ = "runs"
 
     run_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     run_type: Mapped[str] = mapped_column(String(10), nullable=False)  # "PVP", "RAND", "INPUT"
@@ -53,7 +59,7 @@ class Run(Base):
 
 # Matchup model - tracks a specific model pair within a run
 class Matchup(Base):
-    __tablename__ = "matchup"
+    __tablename__ = "matchups"
 
     matchup_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     run_id: Mapped[str] = mapped_column(
@@ -70,7 +76,7 @@ class Matchup(Base):
 
 # Episode model
 class Episode(Base):
-    __tablename__ = "episode"
+    __tablename__ = "episodes"
 
     episode_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     run_id: Mapped[str] = mapped_column(

@@ -201,20 +201,20 @@ if __name__ == "__main__":
     # Uncomment the run type you want to test:
 
     # PVP: All model pairs compete, num_episodes per matchup
-    # run_id, job_ids = enqueue_run(
-    #     run_type="PVP",
-    #     num_episodes=2,
-    #     num_steps=3,
-    #     model_names=["GEMINI", "GPT"],
-    # )
+    run_id, job_ids = enqueue_run(
+        run_type="PVP",
+        num_episodes=4,
+        num_steps=3,
+        model_names=["CLAUDE", "GEMINI"],
+    )
 
     # RAND: Single model vs random opponent
-    run_id, job_ids = enqueue_run(
-        run_type="RAND",
-        num_episodes=2,
-        num_steps=3,
-        model_names=["CLAUDE"],
-    )
+    # run_id, job_ids = enqueue_run(
+    #     run_type="RAND",
+    #     num_episodes=2,
+    #     num_steps=3,
+    #     model_names=["CLAUDE"],
+    # )
 
     # INPUT: Single model vs predefined moves
     # run_id, job_ids = enqueue_run(
