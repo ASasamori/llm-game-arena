@@ -30,7 +30,6 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
     pyspiel_game = pyspiel.load_game(GAME)
     pyspiel_state = pyspiel_game.new_initial_state()
 
-    model_player_one = model_generation.GeminiModel()
     model_player_one = options["models"][0]
     type = options["type"]
 
@@ -54,6 +53,8 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
 
     action_list = []
     summary_list = []
+    status = "SUCCESS"
+    error = "No errors"
     for move_number in range(NUM_STEPS):
         print(f"Pre-move debug string: {pyspiel_state.to_string()}")
         if pyspiel_state.is_terminal():
@@ -153,14 +154,31 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
             parser_output = parser.parse(parser_input)
             if parser_output is None:
                 print(colored("Parser output is None, ending game", "red"))
+                status = "FAILED"
+                error = (
+                    "Parser produced no legal action string from model response. "
+                    f"Move {move_number}, player {pyspiel_state.current_player()}."
+                )
+                summary_list.append(parser.summary or "Parser failed")
+                break
             else:
                 print(colored(f"Parser output: {parser_output}", "magenta"))
             action_list.append(parser_output)
             summary_list.append(parser.summary)
-            pyspiel_state.apply_action(pyspiel_state.string_to_action(parser_output))
+            try:
+                parsed_action = pyspiel_state.string_to_action(parser_output)
+                pyspiel_state.apply_action(parsed_action)
+            except Exception as e:
+                status = "FAILED"
+                error = (
+                    "Failed to apply parsed action. "
+                    f"Move {move_number}, action={parser_output!r}, "
+                    f"player {pyspiel_state.current_player()}: {e}"
+                )
+                print(colored(error, "red"))
+                break
 
     returns = pyspiel_state.returns()
-    error = "No errors"
     # Redo for mmultiple models now (will inherently be different from different games though)
     winner = (
         str(options["models"][0])
@@ -188,7 +206,7 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
         # Ex: GEM is x, GPT is o
         # There should be a dictionary in the DB to show how many players per game in future
         agent=models_str,
-        status="SUCCESS",
+        status=status,
         winner=winner,
         num_steps=NUM_STEPS,
         error=error,

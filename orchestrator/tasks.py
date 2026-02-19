@@ -21,6 +21,34 @@ MODEL_REGISTRY = {
     "CLAUDE": model_generation.ClaudeModel(),
 }
 
+TERMINAL_MATCHUP_STATUSES = {"COMPLETED", "FAILED"}
+
+
+def _failed_episode_result(
+    *,
+    run_type: str,
+    game: str,
+    models: list[str],
+    num_steps: int,
+    error: str,
+) -> utils.EpisodeResult:
+    now = utils.datetime.now()
+    return utils.EpisodeResult(
+        episode_id=str(uuid.uuid4()),
+        env="OPENSPIEL",
+        game=game,
+        arena_type=run_type,
+        agent=models,
+        status="FAILED",
+        winner="UNDETERMINED/TIE",
+        num_steps=num_steps,
+        error=error[:255],
+        summary=["Episode failed before completion."],
+        action=[],
+        start_time=now,
+        end_time=now,
+    )
+
 
 def run_episode_pvp(matchup_id: str, run_id: str, episode_num: int, num_steps: int):
     """
@@ -42,7 +70,21 @@ def run_episode_pvp(matchup_id: str, run_id: str, episode_num: int, num_steps: i
     harness_options = utils.HarnessOptions(
         type="PVP", num_steps=num_steps, models=model_list, input=None
     )
-    result: utils.EpisodeResult = harness.harness(harness_options)
+    try:
+        result: utils.EpisodeResult = harness.harness(harness_options)
+    except Exception as e:
+        error = (
+            f"Episode execution failed for matchup {matchup_id[:8]} "
+            f"episode {episode_num}: {e}"
+        )
+        print(f"[TASKS.PY: WORKER] {error}")
+        result = _failed_episode_result(
+            run_type="PVP",
+            game="connect_four",
+            models=[str(model) for model in model_list],
+            num_steps=num_steps,
+            error=error,
+        )
 
     print(f"[TASKS.PY: WORKER] Completed PVP episode {episode_num} for matchup {matchup_id[:8]} ({model_names})")
 
@@ -126,7 +168,21 @@ def run_episode_single(
         models=[model],
         input=input_queue,
     )
-    result: utils.EpisodeResult = harness.harness(harness_options)
+    try:
+        result: utils.EpisodeResult = harness.harness(harness_options)
+    except Exception as e:
+        error = (
+            f"Episode execution failed for run {run_id[:8]} "
+            f"episode {episode_num}: {e}"
+        )
+        print(f"[TASKS.PY: WORKER] {error}")
+        result = _failed_episode_result(
+            run_type=run_type,
+            game="connect_four",
+            models=[str(model)],
+            num_steps=num_steps,
+            error=error,
+        )
 
     print(f"[TASKS.PY: WORKER] Completed {run_type} episode {episode_num} for run {run_id[:8]} ({model_name})")
 
@@ -194,20 +250,33 @@ def _check_pvp_completion(session, matchup_id: str, run_id: str):
     completed_count = session.query(Episode).filter_by(matchup_id=matchup_id).count()
 
     if completed_count >= matchup.num_episodes:
-        matchup.status = "COMPLETED"
+        failed_count = (
+            session.query(Episode)
+            .filter(Episode.matchup_id == matchup_id, Episode.status != "SUCCESS")
+            .count()
+        )
+        matchup.status = "FAILED" if failed_count > 0 else "COMPLETED"
         session.commit()
         print(
-            f"[TASKS.PY: DB] Matchup {matchup_id[:8]} marked COMPLETED ({completed_count}/{matchup.num_episodes})"
+            f"[TASKS.PY: DB] Matchup {matchup_id[:8]} marked {matchup.status} "
+            f"({completed_count}/{matchup.num_episodes}, failed={failed_count})"
         )
 
         # 2. Check if all matchups in run are complete
         all_matchups = session.query(Matchup).filter_by(run_id=run_id).all()
-        if all(m.status == "COMPLETED" for m in all_matchups):
+        if all(m.status in TERMINAL_MATCHUP_STATUSES for m in all_matchups):
             run = session.query(Run).filter_by(run_id=run_id).first()
             if run:
-                run.status = "COMPLETED"
+                run.status = (
+                    "FAILED"
+                    if any(m.status == "FAILED" for m in all_matchups)
+                    else "COMPLETED"
+                )
                 session.commit()
-                print(f"[TASKS.PY: DB] Run {run_id[:8]} marked COMPLETED (all matchups done)")
+                print(
+                    f"[TASKS.PY: DB] Run {run_id[:8]} marked {run.status} "
+                    "(all matchups terminal)"
+                )
     else:
         print(
             f"[TASKS.PY: DB] Matchup {matchup_id[:8]} progress: {completed_count}/{matchup.num_episodes}"
@@ -223,10 +292,16 @@ def _check_run_completion(session, run_id: str):
     completed_count = session.query(Episode).filter_by(run_id=run_id).count()
 
     if completed_count >= run.num_episodes:
-        run.status = "COMPLETED"
+        failed_count = (
+            session.query(Episode)
+            .filter(Episode.run_id == run_id, Episode.status != "SUCCESS")
+            .count()
+        )
+        run.status = "FAILED" if failed_count > 0 else "COMPLETED"
         session.commit()
         print(
-            f"[TASKS.PY: DB] Run {run_id[:8]} marked COMPLETED ({completed_count}/{run.num_episodes})"
+            f"[TASKS.PY: DB] Run {run_id[:8]} marked {run.status} "
+            f"({completed_count}/{run.num_episodes}, failed={failed_count})"
         )
     else:
         print(

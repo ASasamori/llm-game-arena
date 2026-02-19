@@ -5,6 +5,10 @@ from absl import logging
 import pyspiel
 import game_arena.openspiel.notations as notations
 
+ANSI_ESCAPE_RE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+MARKDOWN_EMPHASIS_RE = re.compile(r"[*_`]+")
+SUMMARY_RE = re.compile(r"summary\s*:\s*", re.IGNORECASE)
+
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
 class TextParserInput:
@@ -31,16 +35,23 @@ def parse_move_from_response(
     if response is None:
         return None
     try:
-        # Find "Final Answer: " explicitly
-        action_idx = response.find(action_tag)
-        if action_idx == -1:
-            return None
+        cleaned_response = ANSI_ESCAPE_RE.sub("", response)
+        cleaned_response = MARKDOWN_EMPHASIS_RE.sub("", cleaned_response)
+        action_tag_pattern = r"\s*".join(map(re.escape, action_tag.strip().split()))
+        final_answer_re = re.compile(action_tag_pattern + r"\s*", re.IGNORECASE)
 
-        after_action = response[action_idx + len(action_tag) :]
+        # Find the last final-answer tag to handle repeated generations.
+        action_matches = list(final_answer_re.finditer(cleaned_response))
+        if not action_matches:
+            return None
+        action_match = action_matches[-1]
+        action_idx = action_match.start()
+
+        after_action = cleaned_response[action_match.end() :]
 
         # Extract move: everything up to newline or "Summary:"
-        summary_tag = "Summary:"
-        summary_idx = after_action.find(summary_tag)
+        summary_match = SUMMARY_RE.search(after_action)
+        summary_idx = summary_match.start() if summary_match else -1
         newline_idx = after_action.find("\n")
 
         # Find the end of the move (first of: Summary:, newline, or end of string)
@@ -71,14 +82,14 @@ def parse_move_from_response(
         if not move_str:
             return None
 
-        prefix = response[:action_idx]
+        prefix = cleaned_response[:action_idx]
 
         # Extract summary
         summary = None
         if want_summary:
-            full_summary_idx = response.find(summary_tag)
-            if full_summary_idx != -1:
-                after_summary = response[full_summary_idx + len(summary_tag) :]
+            full_summary_match = SUMMARY_RE.search(cleaned_response)
+            if full_summary_match is not None:
+                after_summary = cleaned_response[full_summary_match.end() :]
                 # Take up to 3 sentences
                 sentences = re.findall(r"[^.]*\.", after_summary)
                 summary = "".join(sentences[:3]).strip()
@@ -198,6 +209,11 @@ class SoftMoveParser(TextParser):
                 )
             else:
                 selected_action = player_name + selected_action
+                if selected_action not in parser_input.legal_moves:
+                    # Fallback for verbose responses like "column 4".
+                    maybe_col = re.search(r"-?\d+", parser_input.text)
+                    if maybe_col is not None:
+                        selected_action = player_name + maybe_col.group(0)
         elif self._game_short_name.startswith("universal_poker"):
             selected_action = "player={} move={}".format(
                 parser_input.player_number, selected_action

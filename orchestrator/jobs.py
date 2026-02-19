@@ -1,5 +1,4 @@
 import uuid
-from itertools import combinations
 
 from redis import Redis
 from rq import Queue
@@ -15,15 +14,16 @@ SUPPORTED_TYPES = ["INPUT", "RAND", "PVP"]
 
 def enqueue_pvp_run(num_episodes: int, num_steps: int, model_names: list[str]):
     """
-    Creates a PVP run with matchups for each model pair.
-    Each matchup gets num_episodes jobs enqueued.
+    Creates a PVP run for exactly one model pair.
+    Jobs are chained with dependencies so episode order stays deterministic.
     """
-    if len(model_names) < 2:
-        raise ValueError("PVP requires at least 2 models")
+    if len(model_names) != 2:
+        raise ValueError(
+            f"PVP requires exactly 2 models (got {len(model_names)}): {model_names}"
+        )
 
     run_id = str(uuid.uuid4())
-    comb_list = list(combinations(model_names, 2))
-    total_episodes = len(comb_list) * num_episodes
+    total_episodes = num_episodes
 
     session = get_session()
     try:
@@ -36,21 +36,18 @@ def enqueue_pvp_run(num_episodes: int, num_steps: int, model_names: list[str]):
         )
         session.add(new_run)
 
-        matchup_ids = []
-        for models in comb_list:
-            matchup_id = str(uuid.uuid4())
-            matchup = Matchup(
-                matchup_id=matchup_id,
-                run_id=run_id,
-                models=list(models),
-                num_episodes=num_episodes,
-                status="PENDING",
-            )
-            session.add(matchup)
-            matchup_ids.append((matchup_id, models))
+        matchup_id = str(uuid.uuid4())
+        matchup = Matchup(
+            matchup_id=matchup_id,
+            run_id=run_id,
+            models=list(model_names),
+            num_episodes=num_episodes,
+            status="PENDING",
+        )
+        session.add(matchup)
 
         session.commit()
-        print(f"[JOBS.PY: DB] Created PVP run {run_id} with {len(comb_list)} matchups")
+        print(f"[JOBS.PY: DB] Created PVP run {run_id} for models {model_names}")
 
     except Exception as e:
         session.rollback()
@@ -60,22 +57,30 @@ def enqueue_pvp_run(num_episodes: int, num_steps: int, model_names: list[str]):
         session.close()
 
     job_ids = []
-    print(f"[JOBS.PY: ENQUEUE] Creating {total_episodes} total episodes ({num_episodes} per matchup)")
+    print(
+        f"[JOBS.PY: ENQUEUE] Creating {total_episodes} total episodes for matchup {model_names}"
+    )
 
-    for matchup_id, models in matchup_ids:
-        for ep_num in range(num_episodes):
-            job = queue.enqueue(
-                run_episode_pvp,
-                matchup_id=matchup_id,
-                run_id=run_id,
-                episode_num=ep_num,
-                num_steps=num_steps,
-                job_timeout="30m",
-            )
-            job_ids.append(job.id)
-            print(f"[JOBS.PY: ENQUEUE] Queued PVP {models} episode {ep_num} (job {job.id})")
+    previous_job = None
+    for ep_num in range(num_episodes):
+        job = queue.enqueue(
+            run_episode_pvp,
+            matchup_id=matchup_id,
+            run_id=run_id,
+            episode_num=ep_num,
+            num_steps=num_steps,
+            depends_on=previous_job,
+            job_timeout="30m",
+        )
+        previous_job = job
+        job_ids.append(job.id)
+        print(
+            f"[JOBS.PY: ENQUEUE] Queued PVP {model_names} episode {ep_num} (job {job.id})"
+        )
 
-    print(f"[JOBS.PY: ENQUEUE] Successfully queued {total_episodes} PVP episodes for run {run_id}")
+    print(
+        f"[JOBS.PY: ENQUEUE] Successfully queued {total_episodes} PVP episodes for run {run_id}"
+    )
     return run_id, job_ids
 
 
@@ -200,21 +205,21 @@ def enqueue_run(
 if __name__ == "__main__":
     # Uncomment the run type you want to test:
 
-    # PVP: All model pairs compete, num_episodes per matchup
-    run_id, job_ids = enqueue_run(
-        run_type="PVP",
-        num_episodes=4,
-        num_steps=3,
-        model_names=["CLAUDE", "GEMINI"],
-    )
+    # PVP: One matchup with exactly two models
+    # run_id, job_ids = enqueue_run(
+    #     run_type="PVP",
+    #     num_episodes=5,
+    #     num_steps=6,
+    #     model_names=["GEMINI", "GPT"],
+    # )
 
     # RAND: Single model vs random opponent
-    # run_id, job_ids = enqueue_run(
-    #     run_type="RAND",
-    #     num_episodes=2,
-    #     num_steps=3,
-    #     model_names=["CLAUDE"],
-    # )
+    run_id, job_ids = enqueue_run(
+        run_type="RAND",
+        num_episodes=10,
+        num_steps=3,
+        model_names=["GPT"],
+    )
 
     # INPUT: Single model vs predefined moves
     # run_id, job_ids = enqueue_run(

@@ -11,14 +11,17 @@ import os
 import signal
 import sys
 import threading
+import time
 import uuid
+from datetime import datetime, timezone
 import redis
-from rq import SimpleWorker, Queue
+from rq import SimpleWorker, Queue, Worker
+from rq.registry import StartedJobRegistry
 from rq.timeouts import TimerDeathPenalty
 
 
 # Configuration
-NUM_WORKERS = 1
+NUM_WORKERS = 3
 REDIS_HOST = "localhost"
 REDIS_PORT = 6379
 QUEUE_NAME = "episodes"
@@ -161,6 +164,47 @@ def worker_thread(worker: ThreadedWorker, worker_id: str, log_file_path: str):
         log_file.close()
 
 
+def requeue_orphaned_started_jobs(queue: Queue):
+    """
+    Requeue STARTED jobs owned by workers that are no longer active.
+    This recovers jobs left behind after crashes/restarts.
+    """
+    started_registry = StartedJobRegistry(queue=queue)
+    started_job_ids = started_registry.get_job_ids()
+    if not started_job_ids:
+        return
+
+    now_utc = datetime.now(timezone.utc)
+    active_worker_names = {
+        worker.name
+        for worker in Worker.all(connection=queue.connection)
+        if worker.last_heartbeat is not None
+        and (now_utc - worker.last_heartbeat).total_seconds() <= 120
+    }
+    requeued = 0
+    skipped = 0
+    print(
+        f"[RUNNER] Found {len(started_job_ids)} STARTED jobs. "
+        "Checking for orphaned jobs..."
+    )
+    for job_id in started_job_ids:
+        job = queue.fetch_job(job_id)
+        if job is None:
+            continue
+        if job.worker_name in active_worker_names:
+            skipped += 1
+            continue
+        try:
+            started_registry.requeue(job_id, at_front=True)
+            requeued += 1
+        except Exception as e:
+            print(f"[RUNNER] Failed to requeue orphaned job {job_id}: {e}")
+    print(
+        f"[RUNNER] Requeued {requeued} orphaned STARTED jobs "
+        f"(active and skipped: {skipped})."
+    )
+
+
 def main():
     os.makedirs(LOG_DIR, exist_ok=True)
 
@@ -178,6 +222,7 @@ def main():
 
     redis_conn = redis.Redis(host=REDIS_HOST, port=REDIS_PORT)
     queue = Queue(QUEUE_NAME, connection=redis_conn)
+    requeue_orphaned_started_jobs(queue)
 
     workers = []
     threads = []
@@ -230,8 +275,13 @@ def main():
 
     # Block until shutdown
     try:
+        last_recovery_ts = 0
         while not shutdown_requested.is_set():
             shutdown_requested.wait(timeout=1.0)
+            now = int(time.time())
+            if now - last_recovery_ts >= 60:
+                requeue_orphaned_started_jobs(queue)
+                last_recovery_ts = now
     except KeyboardInterrupt:
         pass
 

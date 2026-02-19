@@ -222,22 +222,23 @@ def _plot_heatmaps(
             continue
 
         max_step = max(by_step.keys())
-        matrix: list[list[float]] = []
+        # Build matrix as [action][step] so axes are x=step, y=action.
+        matrix: list[list[float]] = [[0.0 for _ in range(max_step + 1)] for _ in range(action_space)]
         for step in range(max_step + 1):
             row_counts = by_step.get(step, Counter())
             total = sum(row_counts.values())
             if total <= 0:
-                matrix.append([0.0] * action_space)
-            else:
-                matrix.append([row_counts.get(action, 0) / total for action in range(action_space)])
+                continue
+            for action in range(action_space):
+                matrix[action][step] = row_counts.get(action, 0) / total
 
         fig, ax = plt.subplots(figsize=(9, 5))
         im = ax.imshow(matrix, aspect="auto", cmap="viridis", origin="lower")
         ax.set_title(f"Action Preference Heatmap | {model}")
-        ax.set_xlabel("Action (column)")
-        ax.set_ylabel("Step")
-        ax.set_xticks(list(range(action_space)))
-        ax.set_yticks(list(range(len(matrix))))
+        ax.set_xlabel("Step")
+        ax.set_ylabel("Action (column)")
+        ax.set_xticks(list(range(max_step + 1)))
+        ax.set_yticks(list(range(action_space)))
         fig.colorbar(im, ax=ax, label="P(action | step)")
         fig.tight_layout()
         fig.savefig(os.path.join(output_dir, f"heatmap_{model}.png"), dpi=dpi)
