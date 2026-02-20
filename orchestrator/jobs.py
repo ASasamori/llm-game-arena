@@ -1,4 +1,5 @@
 import uuid
+from itertools import combinations
 
 from redis import Redis
 from rq import Queue
@@ -9,7 +10,7 @@ from orchestrator.models import get_session, Run, Matchup
 redis_conn = Redis(host="localhost", port=6379)
 queue = Queue("episodes", connection=redis_conn)
 
-SUPPORTED_TYPES = ["INPUT", "RAND", "PVP"]
+SUPPORTED_TYPES = ["INPUT", "RAND", "PVP", "PVP_RR"]
 
 
 def enqueue_pvp_run(num_episodes: int, num_steps: int, model_names: list[str]):
@@ -80,6 +81,87 @@ def enqueue_pvp_run(num_episodes: int, num_steps: int, model_names: list[str]):
 
     print(
         f"[JOBS.PY: ENQUEUE] Successfully queued {total_episodes} PVP episodes for run {run_id}"
+    )
+    return run_id, job_ids
+
+
+def enqueue_pvp_round_robin_run(
+    num_episodes: int, num_steps: int, model_names: list[str]
+):
+    """
+    Creates a round-robin PVP run across all unique model pairs.
+    Each pair gets its own matchup; episodes are serialized within each matchup.
+    """
+    if len(model_names) < 2:
+        raise ValueError(
+            f"PVP_RR requires at least 2 models (got {len(model_names)}): {model_names}"
+        )
+
+    run_id = str(uuid.uuid4())
+    pairings = list(combinations(model_names, 2))
+    total_episodes = len(pairings) * num_episodes
+
+    session = get_session()
+    try:
+        new_run = Run(
+            run_id=run_id,
+            run_type="PVP_RR",
+            num_episodes=total_episodes,
+            status="PENDING",
+        )
+        session.add(new_run)
+
+        matchup_data = []
+        for pairing in pairings:
+            matchup_id = str(uuid.uuid4())
+            matchup = Matchup(
+                matchup_id=matchup_id,
+                run_id=run_id,
+                models=list(pairing),
+                num_episodes=num_episodes,
+                status="PENDING",
+            )
+            session.add(matchup)
+            matchup_data.append((matchup_id, pairing))
+
+        session.commit()
+        print(
+            f"[JOBS.PY: DB] Created PVP_RR run {run_id} with {len(pairings)} matchups"
+        )
+    except Exception as e:
+        session.rollback()
+        print(f"[JOBS.PY: DB] Failed to create round-robin run: {e}")
+        raise
+    finally:
+        session.close()
+
+    job_ids = []
+    print(
+        f"[JOBS.PY: ENQUEUE] Creating {total_episodes} total episodes "
+        f"({num_episodes} per matchup)"
+    )
+    for matchup_id, pairing in matchup_data:
+        previous_job = None
+        for ep_num in range(num_episodes):
+            job = queue.enqueue(
+                run_episode_pvp,
+                matchup_id=matchup_id,
+                run_id=run_id,
+                episode_num=ep_num,
+                num_steps=num_steps,
+                depends_on=previous_job,
+                job_timeout="30m",
+            )
+            previous_job = job
+            job_ids.append(job.id)
+            print(
+                f"[JOBS.PY: ENQUEUE] Queued PVP_RR {pairing} episode {ep_num} "
+                f"(job {job.id})"
+            )
+
+    print(
+        f"[JOBS.PY: ENQUEUE] Successfully queued {total_episodes} PVP_RR episodes "
+        f"for run {run_id}"
     )
     return run_id, job_ids
 
@@ -180,10 +262,12 @@ def enqueue_run(
     Unified entry point for creating runs of any type.
 
     Args:
-        run_type: "PVP", "RAND", or "INPUT"
+        run_type: "PVP", "PVP_RR", "RAND", or "INPUT"
         num_episodes: Number of episodes per matchup (PVP) or total (RAND). Ignored for INPUT.
         num_steps: Max moves per episode
-        model_names: List of model names. PVP uses all pairs, RAND/INPUT use first model.
+        model_names: List of model names. PVP uses exactly 2.
+        PVP_RR uses all pairwise combinations.
+        RAND/INPUT use the first model.
         input_actions: Required for INPUT type - list of action integers for opponent
 
     Returns:
@@ -194,6 +278,8 @@ def enqueue_run(
 
     if run_type == "PVP":
         return enqueue_pvp_run(num_episodes, num_steps, model_names)
+    elif run_type == "PVP_RR":
+        return enqueue_pvp_round_robin_run(num_episodes, num_steps, model_names)
     elif run_type == "RAND":
         return enqueue_rand_run(num_episodes, num_steps, model_names[0])
     else:  # INPUT
@@ -204,6 +290,8 @@ def enqueue_run(
 
 if __name__ == "__main__":
     # Uncomment the run type you want to test:
+    run_id = None
+    job_ids = None
 
     # PVP: One matchup with exactly two models
     # run_id, job_ids = enqueue_run(
@@ -213,13 +301,21 @@ if __name__ == "__main__":
     #     model_names=["GEMINI", "GPT"],
     # )
 
+    # PVP_RR: Round-robin across all model pairs in one run
+    # run_id, job_ids = enqueue_run(
+    #     run_type="PVP_RR",
+    #     num_episodes=5,
+    #     num_steps=6,
+    #     model_names=["CLAUDE", "GEMINI", "GPT"],
+    # )
+
     # RAND: Single model vs random opponent
-    run_id, job_ids = enqueue_run(
-        run_type="RAND",
-        num_episodes=10,
-        num_steps=3,
-        model_names=["GPT"],
-    )
+    # run_id, job_ids = enqueue_run(
+    #     run_type="RAND",
+    #     num_episodes=10,
+    #     num_steps=3,
+    #     model_names=["GPT"],
+    # )
 
     # INPUT: Single model vs predefined moves
     # run_id, job_ids = enqueue_run(
@@ -229,6 +325,13 @@ if __name__ == "__main__":
     #     model_names=["GEMINI"],
     #     input_actions=[0, 1, 2, 3],
     # )
+
+    run_id, job_ids = enqueue_run(
+        run_type="RAND",
+        num_episodes=10,
+        num_steps=3,
+        model_names=["GPT"],
+    )
 
     print(f"\n[JOBS.PY: MAIN] Run ID: {run_id}")
     print(f"[JOBS.PY: MAIN] Job IDs: {job_ids}")

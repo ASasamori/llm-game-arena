@@ -40,6 +40,7 @@ if not DATABASE_URL:
 class Base(DeclarativeBase):
     pass
 
+#TODO: Create Meta-run for higher level; several PVP_RR runs with different settings
 
 # Run model
 class Run(Base):

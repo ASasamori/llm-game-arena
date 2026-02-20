@@ -4,6 +4,8 @@ __pycache__/
 *.py[cod]
 .vscode/
 
+analytics/
+
 *.rdb
 logs/
 .github/workflows/require-approval.yaml

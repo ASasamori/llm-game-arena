@@ -1,3 +1,33 @@
+"""
+CLI analytics for arena runs.
+
+Commands:
+1) Generate all available plots for a completed PVP run:
+   uv run python -m orchestrator.analytics --run-id <PVP_RUN_ID>
+
+2) Generate plots with explicit RAND baselines for delta charts:
+   uv run python -m orchestrator.analytics \
+     --run-id <PVP_RUN_ID> \
+     --baseline-run GPT=<RAND_RUN_ID_FOR_GPT> \
+     --baseline-run GEMINI=<RAND_RUN_ID_FOR_GEMINI> \
+     --baseline-run CLAUDE=<RAND_RUN_ID_FOR_CLAUDE>
+
+3) Generate plots into a custom directory:
+   uv run python -m orchestrator.analytics \
+     --run-id <PVP_RUN_ID> \
+     --output-dir analytics/custom_report
+
+4) Analyze before run completion (if needed):
+   uv run python -m orchestrator.analytics \
+     --run-id <PVP_RUN_ID> \
+     --allow-incomplete
+
+Outputs:
+- heatmap_<MODEL>.png       (x=step, y=action, color=P(action|step))
+- entropy_<MODEL>.png       (x=step, y=entropy)
+- delta_<MODEL>.png         (x=action, y=probability difference vs baseline)
+"""
+
 import argparse
 import math
 import os
@@ -31,6 +61,18 @@ class StepRecord:
     action: int
     acting_model: str
     opponent_model: str
+
+
+def _normalize_model_name(model_name: str) -> str:
+    raw = (model_name or "").strip()
+    upper = raw.upper()
+    if "GPT" in upper:
+        return "GPT"
+    if "GEMINI" in upper:
+        return "GEMINI"
+    if "CLAUDE" in upper:
+        return "CLAUDE"
+    return raw
 
 
 def _parse_action_column(action: str) -> int | None:
@@ -76,11 +118,11 @@ def _build_step_records(run_id: str) -> list[StepRecord]:
             continue
 
         if player == "x":
-            acting_model = str(agent_list[0])
-            opponent_model = str(agent_list[1])
+            acting_model = _normalize_model_name(str(agent_list[0]))
+            opponent_model = _normalize_model_name(str(agent_list[1]))
         elif player == "o":
-            acting_model = str(agent_list[1])
-            opponent_model = str(agent_list[0])
+            acting_model = _normalize_model_name(str(agent_list[1]))
+            opponent_model = _normalize_model_name(str(agent_list[0]))
         else:
             continue
 
@@ -154,7 +196,12 @@ def _auto_find_baseline_runs(models: set[str]) -> dict[str, str]:
                     .filter(Episode.run_id == run_id)
                     .first()
                 )
-                if ep and isinstance(ep.agent, list) and len(ep.agent) >= 1 and str(ep.agent[0]) == model:
+                if (
+                    ep
+                    and isinstance(ep.agent, list)
+                    and len(ep.agent) >= 1
+                    and _normalize_model_name(str(ep.agent[0])) == _normalize_model_name(model)
+                ):
                     baseline_map[model] = run_id
                     break
     finally:
@@ -172,7 +219,7 @@ def _parse_baseline_args(items: list[str]) -> dict[str, str]:
         run_id = run_id.strip()
         if not model or not run_id:
             raise ValueError(f"Invalid --baseline-run value '{item}'. Expected MODEL=RUN_ID")
-        parsed[model] = run_id
+        parsed[_normalize_model_name(model)] = run_id
     return parsed
 
 
@@ -198,7 +245,7 @@ def _fetch_baseline_distributions(baseline_runs: dict[str, str], action_space: i
                     continue
 
                 # In RAND runs, model is expected to be player x.
-                if player == "x" and str(agent_list[0]) == model:
+                if player == "x" and _normalize_model_name(str(agent_list[0])) == _normalize_model_name(model):
                     counts[action_col] += 1
 
             total = sum(counts.values())
@@ -352,7 +399,7 @@ def _fetch_run_models(run_id: str) -> set[str]:
         if isinstance(model_pair, list):
             for model in model_pair:
                 models.add(str(model))
-    return models
+    return {_normalize_model_name(model) for model in models}
 
 
 def _build_parser() -> argparse.ArgumentParser:
