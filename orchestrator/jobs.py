@@ -13,7 +13,7 @@ queue = Queue("episodes", connection=redis_conn)
 SUPPORTED_TYPES = ["INPUT", "RAND", "PVP", "PVP_RR"]
 
 
-def enqueue_pvp_run(num_episodes: int, num_steps: int, model_names: list[str]):
+def enqueue_pvp_run(num_episodes: int, num_steps: int | None, model_names: list[str]):
     """
     Creates a PVP run for exactly one model pair.
     Jobs are chained with dependencies so episode order stays deterministic.
@@ -86,7 +86,7 @@ def enqueue_pvp_run(num_episodes: int, num_steps: int, model_names: list[str]):
 
 
 def enqueue_pvp_round_robin_run(
-    num_episodes: int, num_steps: int, model_names: list[str]
+    num_episodes: int, num_steps: int | None, model_names: list[str]
 ):
     """
     Creates a round-robin PVP run across all unique model pairs.
@@ -166,7 +166,7 @@ def enqueue_pvp_round_robin_run(
     return run_id, job_ids
 
 
-def enqueue_rand_run(num_episodes: int, num_steps: int, model_name: str):
+def enqueue_rand_run(num_episodes: int, num_steps: int | None, model_name: str):
     """
     Creates a RAND run: single model vs random opponent.
     No matchups - episodes link directly to run.
@@ -214,7 +214,7 @@ def enqueue_rand_run(num_episodes: int, num_steps: int, model_name: str):
     return run_id, job_ids
 
 
-def enqueue_input_run(num_steps: int, model_name: str, input_actions: list[int]):
+def enqueue_input_run(num_steps: int | None, model_name: str, input_actions: list[int]):
     """
     Creates an INPUT run: single model vs predefined input actions.
     No matchups - single episode per run (input is specific to one game).
@@ -258,7 +258,7 @@ def enqueue_input_run(num_steps: int, model_name: str, input_actions: list[int])
 def enqueue_run(
     run_type: str,
     num_episodes: int,
-    num_steps: int,
+    num_steps: int | None,
     model_names: list[str],
     input_actions: list[int] | None = None,
 ) -> tuple[str, list[str]]:
@@ -268,7 +268,7 @@ def enqueue_run(
     Args:
         run_type: "PVP", "PVP_RR", "RAND", or "INPUT"
         num_episodes: Number of episodes per matchup (PVP) or total (RAND). Ignored for INPUT.
-        num_steps: Max moves per episode
+        num_steps: Max moves per episode. Use None to run until terminal state.
         model_names: List of model names. PVP uses exactly 2.
         PVP_RR uses all pairwise combinations.
         RAND/INPUT use the first model.
@@ -297,6 +297,7 @@ if __name__ == "__main__":
     run_id = None
     job_ids = None
 
+    # Set num_steps=None to run each episode until the game reaches terminal state.
     # PVP: One matchup with exactly two models
     # run_id, job_ids = enqueue_run(
     #     run_type="PVP",
@@ -306,12 +307,12 @@ if __name__ == "__main__":
     # )
 
     # PVP_RR: Round-robin across all model pairs in one run
-    # run_id, job_ids = enqueue_run(
-    #     run_type="PVP_RR",
-    #     num_episodes=5,
-    #     num_steps=6,
-    #     model_names=["CLAUDE", "GEMINI", "GPT"],
-    # )
+    run_id, job_ids = enqueue_run(
+        run_type="PVP_RR",
+        num_episodes=5,
+        num_steps=None,
+        model_names=["CLAUDE", "GEMINI", "GPT"],
+    )
 
     # RAND: Single model vs random opponent
     # run_id, job_ids = enqueue_run(
@@ -330,12 +331,12 @@ if __name__ == "__main__":
     #     input_actions=[0, 1, 2, 3],
     # )
 
-    run_id, job_ids = enqueue_run(
-        run_type="RAND",
-        num_episodes=10,
-        num_steps=3,
-        model_names=["GPT"],
-    )
+    # run_id, job_ids = enqueue_run(
+    #     run_type="RAND",
+    #     num_episodes=10,
+    #     num_steps=None,
+    #     model_names=["GPT"],
+    # )
 
     print(f"\n[JOBS.PY: MAIN] Run ID: {run_id}")
     print(f"[JOBS.PY: MAIN] Job IDs: {job_ids}")

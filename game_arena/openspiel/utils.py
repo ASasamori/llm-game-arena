@@ -25,7 +25,7 @@ class EpisodeResult(TypedDict):
 class HarnessOptions(TypedDict):
     type: str
     models: list[model_generation.LLMModel]
-    num_steps: int
+    num_steps: int | None
     input: deque | None
 
 

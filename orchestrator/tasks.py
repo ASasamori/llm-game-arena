@@ -29,7 +29,7 @@ def _failed_episode_result(
     run_type: str,
     game: str,
     models: list[str],
-    num_steps: int,
+    num_steps: int | None,
     error: str,
 ) -> utils.EpisodeResult:
     now = utils.datetime.now()
@@ -41,7 +41,7 @@ def _failed_episode_result(
         agent=models,
         status="FAILED",
         winner="UNDETERMINED/TIE",
-        num_steps=num_steps,
+        num_steps=num_steps if isinstance(num_steps, int) else 0,
         error=error[:255],
         summary=["Episode failed before completion."],
         action=[],
@@ -50,7 +50,9 @@ def _failed_episode_result(
     )
 
 
-def run_episode_pvp(matchup_id: str, run_id: str, episode_num: int, num_steps: int):
+def run_episode_pvp(
+    matchup_id: str, run_id: str, episode_num: int, num_steps: int | None
+):
     """
     PVP episode: two models compete.
     Uses Matchup to track model pairs.
@@ -152,7 +154,7 @@ def run_episode_pvp(matchup_id: str, run_id: str, episode_num: int, num_steps: i
 def run_episode_single(
     run_id: str,
     episode_num: int,
-    num_steps: int,
+    num_steps: int | None,
     model_name: str,
     run_type: str,
     input_actions: list[int] | None = None,

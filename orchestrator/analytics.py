@@ -2,24 +2,24 @@
 CLI analytics for arena runs.
 
 Commands:
-1) Generate all available plots for a completed PVP run:
-   uv run python -m orchestrator.analytics --run-id <PVP_RUN_ID>
+1) Generate all available plots for a completed competitive run (PVP or PVP_RR):
+   uv run python -m orchestrator.analytics --run-id <COMPETITIVE_RUN_ID>
 
 2) Generate plots with explicit RAND baselines for delta charts:
    uv run python -m orchestrator.analytics \
-     --run-id <PVP_RUN_ID> \
-     --baseline-run GPT=<RAND_RUN_ID_FOR_GPT> \
-     --baseline-run GEMINI=<RAND_RUN_ID_FOR_GEMINI> \
-     --baseline-run CLAUDE=<RAND_RUN_ID_FOR_CLAUDE>
+     --run-id <COMPETITIVE_RUN_ID> \
+     --baseline-run 'GPTModel(gpt-4o-mini)'=<RAND_RUN_ID_FOR_GPT_4O_MINI> \
+     --baseline-run 'GeminiModel(gemini-2.5-flash-lite)'=<RAND_RUN_ID_FOR_GEMINI_2_5_FLASH_LITE> \
+     --baseline-run 'ClaudeModel(claude-3-haiku-20240307)'=<RAND_RUN_ID_FOR_CLAUDE_HAIKU>
 
 3) Generate plots into a custom directory:
    uv run python -m orchestrator.analytics \
-     --run-id <PVP_RUN_ID> \
+     --run-id <COMPETITIVE_RUN_ID> \
      --output-dir analytics/custom_report
 
 4) Analyze before run completion (if needed):
    uv run python -m orchestrator.analytics \
-     --run-id <PVP_RUN_ID> \
+     --run-id <COMPETITIVE_RUN_ID> \
      --allow-incomplete
 
 Outputs:
@@ -35,7 +35,7 @@ import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 
-from orchestrator.models import Episode, EpisodeStep, Matchup, Run, get_session
+from orchestrator.models import Episode, EpisodeStep, Run, get_session
 
 
 ACTION_RE = re.compile(r"^[a-zA-Z](\d+)$")
@@ -64,15 +64,31 @@ class StepRecord:
 
 
 def _normalize_model_name(model_name: str) -> str:
-    raw = (model_name or "").strip()
-    upper = raw.upper()
+    return (model_name or "").strip()
+
+
+def _model_aliases(model_name: str) -> set[str]:
+    full = _normalize_model_name(model_name)
+    upper = full.upper()
+    aliases = {full, upper}
     if "GPT" in upper:
-        return "GPT"
+        aliases.add("GPT")
     if "GEMINI" in upper:
-        return "GEMINI"
+        aliases.add("GEMINI")
     if "CLAUDE" in upper:
-        return "CLAUDE"
-    return raw
+        aliases.add("CLAUDE")
+    return aliases
+
+
+def _resolve_model_key(model_key: str, known_models: set[str]) -> str:
+    normalized = _normalize_model_name(model_key)
+    if normalized in known_models:
+        return normalized
+
+    matches = [m for m in known_models if normalized.upper() in _model_aliases(m)]
+    if len(matches) == 1:
+        return matches[0]
+    return normalized
 
 
 def _parse_action_column(action: str) -> int | None:
@@ -408,9 +424,9 @@ def _validate_run(run_id: str, allow_incomplete: bool) -> Run:
 
     if run is None:
         raise ValueError(f"Run {run_id} not found")
-    if run.run_type != "PVP":
+    if run.run_type not in {"PVP", "PVP_RR"}:
         raise ValueError(
-            f"Analytics CLI currently expects a PVP run. Got run_type={run.run_type}"
+            f"Analytics CLI expects run_type in {{'PVP', 'PVP_RR'}}. Got run_type={run.run_type}"
         )
     if not allow_incomplete and run.status != "COMPLETED":
         raise ValueError(
@@ -422,14 +438,14 @@ def _validate_run(run_id: str, allow_incomplete: bool) -> Run:
 def _fetch_run_models(run_id: str) -> set[str]:
     session = get_session()
     try:
-        rows = session.query(Matchup.models).filter(Matchup.run_id == run_id).all()
+        rows = session.query(Episode.agent).filter(Episode.run_id == run_id).all()
     finally:
         session.close()
 
     models: set[str] = set()
-    for (model_pair,) in rows:
-        if isinstance(model_pair, list):
-            for model in model_pair:
+    for (agent_list,) in rows:
+        if isinstance(agent_list, list):
+            for model in agent_list:
                 models.add(str(model))
     return {_normalize_model_name(model) for model in models}
 
@@ -438,7 +454,9 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Generate run-level analytics plots from Postgres episode tables"
     )
-    parser.add_argument("--run-id", required=True, help="PVP run_id to analyze")
+    parser.add_argument(
+        "--run-id", required=True, help="Competitive run_id (PVP or PVP_RR) to analyze"
+    )
     parser.add_argument(
         "--output-dir",
         default=None,
@@ -487,7 +505,10 @@ def main() -> None:
     manual_baselines = _parse_baseline_args(args.baseline_run)
     run_models = _fetch_run_models(args.run_id)
 
-    baseline_run_map = dict(manual_baselines)
+    baseline_run_map: dict[str, str] = {}
+    for model_key, baseline_run_id in manual_baselines.items():
+        resolved_key = _resolve_model_key(model_key, run_models)
+        baseline_run_map[resolved_key] = baseline_run_id
     missing_models = run_models - set(baseline_run_map.keys())
     if missing_models:
         baseline_run_map.update(_auto_find_baseline_runs(missing_models))

@@ -4,23 +4,8 @@
 #  summary (JSON), action (JSON), start_time, end_time
 #  - get_session() factory, create_tables() utility
 #  - Run python -m orchestrator.models once to create tables
-
-
-# models.py
 import os
 from typing import Any, Callable
-
-try:
-    from dotenv import load_dotenv as _load_dotenv
-except ModuleNotFoundError:
-    # Keep runtime working in minimal environments where python-dotenv
-    # is not installed but DATABASE_URL is already exported.
-    def _load_dotenv(*args: Any, **kwargs: Any) -> bool:
-        return False
-
-load_dotenv: Callable[..., bool] = _load_dotenv
-
-
 import uuid
 from sqlalchemy import (
     Integer,
@@ -30,6 +15,7 @@ from sqlalchemy import (
     DateTime,
     JSON,
     Index,
+    UniqueConstraint,
     create_engine,
 )
 from sqlalchemy.orm import (
@@ -40,6 +26,17 @@ from sqlalchemy.orm import (
     sessionmaker,
 )
 from datetime import datetime
+
+try:
+    from dotenv import load_dotenv as _load_dotenv
+except ModuleNotFoundError:
+    # Keep runtime working in minimal environments where python-dotenv
+    # is not installed but DATABASE_URL is already exported.
+    def _load_dotenv(*args: Any, **kwargs: Any) -> bool:
+        return False
+
+
+load_dotenv: Callable[..., bool] = _load_dotenv
 
 load_dotenv()
 
@@ -153,6 +150,74 @@ class EpisodeStep(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     episode: Mapped["Episode"] = relationship("Episode", back_populates="steps")
+
+
+class ModelRating(Base):
+    """
+    Current Elo-style rating snapshot for a model in a specific game.
+    """
+
+    __tablename__ = "model_ratings"
+    __table_args__ = (
+        UniqueConstraint("model_name", "game", name="uq_model_ratings_model_game"),
+        Index("ix_model_ratings_game_rating", "game", "rating"),
+    )
+
+    rating_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    model_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    game: Mapped[str] = mapped_column(String(50), nullable=False)
+    rating: Mapped[float] = mapped_column(Float, nullable=False, default=1500.0)
+    games_played: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    wins: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    draws: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    losses: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    games_as_x: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    games_as_o: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    wins_as_x: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    wins_as_o: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class RatingEvent(Base):
+    """
+    Immutable Elo update event for a single episode result.
+    `episode_id` is unique to guarantee idempotent ingestion.
+    """
+
+    __tablename__ = "rating_events"
+    __table_args__ = (
+        UniqueConstraint("episode_id", name="uq_rating_events_episode_id"),
+        Index("ix_rating_events_game_created", "game", "created_at"),
+    )
+
+    event_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    run_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("runs.run_id"), nullable=False
+    )
+    episode_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("episodes.episode_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    game: Mapped[str] = mapped_column(String(50), nullable=False)
+    model_a: Mapped[str] = mapped_column(String(100), nullable=False)
+    model_b: Mapped[str] = mapped_column(String(100), nullable=False)
+    player_x_model: Mapped[str] = mapped_column(String(100), nullable=False)
+    player_o_model: Mapped[str] = mapped_column(String(100), nullable=False)
+    winner_model: Mapped[str] = mapped_column(String(100), nullable=False)
+
+    score_a: Mapped[float] = mapped_column(Float, nullable=False)
+    expected_a: Mapped[float] = mapped_column(Float, nullable=False)
+    k_factor_a: Mapped[float] = mapped_column(Float, nullable=False)
+    k_factor_b: Mapped[float] = mapped_column(Float, nullable=False)
+    model_a_pre: Mapped[float] = mapped_column(Float, nullable=False)
+    model_b_pre: Mapped[float] = mapped_column(Float, nullable=False)
+    model_a_post: Mapped[float] = mapped_column(Float, nullable=False)
+    model_b_post: Mapped[float] = mapped_column(Float, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    run: Mapped["Run"] = relationship("Run")
+    episode: Mapped["Episode"] = relationship("Episode")
 
 
 # Engine and session factory

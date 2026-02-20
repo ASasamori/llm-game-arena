@@ -25,10 +25,16 @@ GAME = "connect_four"
 def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
     episode_id = str(uuid.uuid4())
     start_time = utils.datetime.now()
-    NUM_STEPS = options["num_steps"]
+    requested_num_steps = options["num_steps"]
 
     pyspiel_game = pyspiel.load_game(GAME)
     pyspiel_state = pyspiel_game.new_initial_state()
+
+    game_max_steps = pyspiel_game.max_game_length()
+    if requested_num_steps is None or requested_num_steps <= 0:
+        max_steps = game_max_steps if game_max_steps and game_max_steps > 0 else 1000
+    else:
+        max_steps = requested_num_steps
 
     model_player_one = options["models"][0]
     type = options["type"]
@@ -55,7 +61,7 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
     summary_list = []
     status = "SUCCESS"
     error = "No errors"
-    for move_number in range(NUM_STEPS):
+    for move_number in range(max_steps):
         print(f"Pre-move debug string: {pyspiel_state.to_string()}")
         if pyspiel_state.is_terminal():
             print(colored("Game is terminal, ending move loop.", "red"))
@@ -139,7 +145,28 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
                 if model_player_two is None:
                     raise ValueError("Player 2 model is None but game type requires it")
                 model = model_player_two
-            response = model.generate_with_text_input(prompt)
+            legal_actions = pyspiel_state.legal_actions(pyspiel_state.current_player())
+            legal_action_strings = parsers.get_legal_action_strings(pyspiel_state)
+            try:
+                response = model.generate_with_text_input(prompt)
+            except Exception as e:
+                fallback_action = random.choice(legal_actions)
+                fallback_action_str = pyspiel_state.action_to_string(
+                    pyspiel_state.current_player(), fallback_action
+                )
+                pyspiel_state.apply_action(fallback_action)
+                action_list.append(fallback_action_str)
+                summary_list.append(
+                    "Model API failed (likely rate-limit/credits/network); random legal action fallback."
+                )
+                print(
+                    colored(
+                        f"Model API call failed for player {pyspiel_state.current_player()}: {e}. "
+                        f"Fallback action={fallback_action_str}",
+                        "red",
+                    )
+                )
+                continue
             print(
                 colored(
                     f"Model player {pyspiel_state.current_player()} main response:\n"
@@ -150,19 +177,28 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
             parser_input = parsers.TextParserInput(
                 text=response.main_response,
                 state_str=pyspiel_state.to_string(),
-                legal_moves=parsers.get_legal_action_strings(pyspiel_state),
+                legal_moves=legal_action_strings,
                 player_number=pyspiel_state.current_player(),
             )
             parser_output = parser.parse(parser_input)
             if parser_output is None:
-                print(colored("Parser output is None, ending game", "red"))
-                status = "FAILED"
-                error = (
-                    "Parser produced no legal action string from model response. "
-                    f"Move {move_number}, player {pyspiel_state.current_player()}."
+                fallback_action = random.choice(legal_actions)
+                fallback_action_str = pyspiel_state.action_to_string(
+                    pyspiel_state.current_player(), fallback_action
                 )
-                summary_list.append(parser.summary or "Parser failed")
-                break
+                pyspiel_state.apply_action(fallback_action)
+                action_list.append(fallback_action_str)
+                summary_list.append(
+                    "Parser produced no legal action; random legal action fallback."
+                )
+                print(
+                    colored(
+                        f"Parser output is None for player {pyspiel_state.current_player()}. "
+                        f"Fallback action={fallback_action_str}",
+                        "red",
+                    )
+                )
+                continue
             else:
                 print(colored(f"Parser output: {parser_output}", "magenta"))
             action_list.append(parser_output)
@@ -171,14 +207,33 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
                 parsed_action = pyspiel_state.string_to_action(parser_output)
                 pyspiel_state.apply_action(parsed_action)
             except Exception as e:
-                status = "FAILED"
-                error = (
-                    "Failed to apply parsed action. "
-                    f"Move {move_number}, action={parser_output!r}, "
-                    f"player {pyspiel_state.current_player()}: {e}"
+                # Keep episode alive by applying a random legal move.
+                fallback_action = random.choice(legal_actions)
+                fallback_action_str = pyspiel_state.action_to_string(
+                    pyspiel_state.current_player(), fallback_action
                 )
-                print(colored(error, "red"))
-                break
+                pyspiel_state.apply_action(fallback_action)
+                # Replace bad parsed action in record with the applied fallback.
+                action_list[-1] = fallback_action_str
+                summary_list[-1] = (
+                    f"{parser.summary or 'Parser output invalid'} "
+                    "(invalid action applied; random legal action fallback)."
+                )
+                print(
+                    colored(
+                        "Failed to apply parsed action. "
+                        f"Move {move_number}, action={parser_output!r}: {e}. "
+                        f"Fallback action={fallback_action_str}",
+                        "red",
+                    )
+                )
+                continue
+
+    if not pyspiel_state.is_terminal() and requested_num_steps is not None:
+        status = "TRUNCATED"
+        error = (
+            f"Reached configured num_steps={requested_num_steps} before terminal state."
+        )
 
     returns = pyspiel_state.returns()
     # Redo for mmultiple models now (will inherently be different from different games though)
@@ -210,7 +265,7 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
         agent=models_str,
         status=status,
         winner=winner,
-        num_steps=NUM_STEPS,
+        num_steps=len(action_list),
         error=error,
         summary=summary_list,
         action=action_list,

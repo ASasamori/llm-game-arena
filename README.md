@@ -64,20 +64,68 @@ After a PVP run is completed and persisted in Postgres, generate plots from the
 python -m orchestrator.analytics --run-id <PVP_RUN_ID>
 ```
 
-Optional baseline mappings for delta-action plots (`MODEL=RAND_RUN_ID`):
+Optional baseline mappings for delta-action plots (`MODEL_NAME_WITH_VERSION=RAND_RUN_ID`):
 
 ```bash
 python -m orchestrator.analytics \
   --run-id <PVP_RUN_ID> \
-  --baseline-run GPT=<RAND_RUN_ID_FOR_GPT> \
-  --baseline-run GEMINI=<RAND_RUN_ID_FOR_GEMINI> \
-  --baseline-run CLAUDE=<RAND_RUN_ID_FOR_CLAUDE>
+  --baseline-run 'GPTModel(gpt-4o-mini)'=<RAND_RUN_ID_FOR_GPT_4O_MINI> \
+  --baseline-run 'GeminiModel(gemini-2.5-flash-lite)'=<RAND_RUN_ID_FOR_GEMINI_2_5_FLASH_LITE> \
+  --baseline-run 'ClaudeModel(claude-3-haiku-20240307)'=<RAND_RUN_ID_FOR_CLAUDE_HAIKU>
 ```
 
 Outputs are written to `analytics/<run_id>/` by default:
 - `heatmap_<MODEL>.png`
 - `entropy_<MODEL>.png`
 - `delta_<MODEL>.png` (when baselines are found/provided)
+
+### Elo ratings CLI
+Create/update Elo ratings from completed PVP episodes. Ratings are persisted in:
+- `model_ratings` (current aggregate rating rows)
+- `rating_events` (immutable per-episode Elo update log)
+
+If needed, create tables first:
+
+```bash
+python -m orchestrator.models
+```
+
+Incrementally rate one run:
+
+```bash
+uv run python -m orchestrator.ratings --run-id <PVP_RUN_ID>
+```
+
+Rebuild from all completed PVP data:
+
+```bash
+uv run python -m orchestrator.ratings --rebuild-all
+```
+
+Optional: export a JSON leaderboard summary:
+
+```bash
+uv run python -m orchestrator.ratings --rebuild-all --summary-json ratings_summary.json
+```
+
+### Health / Hung Detection CLI
+Inspect queue and run health, including STARTED/DEFERRED jobs:
+
+```bash
+uv run python -m orchestrator.health --run-id <RUN_ID>
+```
+
+Mark stale `PENDING` runs as `FAILED` when no runnable jobs remain:
+
+```bash
+uv run python -m orchestrator.health --reconcile-stale --stale-seconds 900
+```
+
+Rate-limit/credit retry budget for model API calls is configurable:
+
+```bash
+export MODEL_API_RETRY_MAX_SECONDS=90
+```
 
 ---
 

@@ -12,6 +12,10 @@ import tenacity
 
 load_dotenv(find_dotenv(usecwd=True), override=True)
 
+MAX_RETRY_SECONDS = int(os.environ.get("MODEL_API_RETRY_MAX_SECONDS", "90"))
+if MAX_RETRY_SECONDS < 1:
+    MAX_RETRY_SECONDS = 1
+
 
 # TODO: Setup retry logic for when I reach the rate limit, and can no longer use the API key
 def _log_retry_warning(retry_state: tenacity.RetryCallState) -> None:
@@ -26,7 +30,7 @@ def _log_retry_warning(retry_state: tenacity.RetryCallState) -> None:
 # Retry decorator for handling rate limits and transient errors
 _retry_decorator = tenacity.retry(
     wait=tenacity.wait_random_exponential(min=1, max=60),
-    stop=tenacity.stop_after_delay(datetime.timedelta(minutes=60)),
+    stop=tenacity.stop_after_delay(datetime.timedelta(seconds=MAX_RETRY_SECONDS)),
     before_sleep=_log_retry_warning,
     reraise=True,
 )

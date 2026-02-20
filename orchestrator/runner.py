@@ -18,6 +18,7 @@ import redis
 from rq import SimpleWorker, Queue, Worker
 from rq.registry import StartedJobRegistry
 from rq.timeouts import TimerDeathPenalty
+from termcolor import colored
 
 
 # Configuration
@@ -26,6 +27,7 @@ REDIS_HOST = "localhost"
 REDIS_PORT = 6379
 QUEUE_NAME = "episodes"
 LOG_DIR = "logs"
+STALE_JOB_WARN_SECONDS = 900
 
 # Thread-local storage for log files
 _thread_log_files: dict[int | None, io.TextIOWrapper] = {}
@@ -100,7 +102,14 @@ class ThreadLocalWriter:
         return self._original.fileno()
 
     def isatty(self):
+        thread_id = threading.current_thread().ident
+        if thread_id == self._main_thread_id:
+            return self._original.isatty()
         return False
+
+
+def _runner_msg(message: str, color: str = "white") -> str:
+    return colored(f"[RUNNER] {message}", color)
 
 
 class ThreadedWorker(SimpleWorker):
@@ -184,8 +193,10 @@ def requeue_orphaned_started_jobs(queue: Queue):
     requeued = 0
     skipped = 0
     print(
-        f"[RUNNER] Found {len(started_job_ids)} STARTED jobs. "
-        "Checking for orphaned jobs..."
+        _runner_msg(
+            f"Found {len(started_job_ids)} STARTED jobs. Checking for orphaned jobs...",
+            "cyan",
+        )
     )
     for job_id in started_job_ids:
         job = queue.fetch_job(job_id)
@@ -198,11 +209,55 @@ def requeue_orphaned_started_jobs(queue: Queue):
             started_registry.requeue(job_id, at_front=True)
             requeued += 1
         except Exception as e:
-            print(f"[RUNNER] Failed to requeue orphaned job {job_id}: {e}")
+            print(_runner_msg(f"Failed to requeue orphaned job {job_id}: {e}", "red"))
     print(
-        f"[RUNNER] Requeued {requeued} orphaned STARTED jobs "
-        f"(active and skipped: {skipped})."
+        _runner_msg(
+            f"Requeued {requeued} orphaned STARTED jobs (active and skipped: {skipped}).",
+            "green",
+        )
     )
+
+
+def report_stale_started_jobs(queue: Queue, stale_seconds: int) -> None:
+    """
+    Emit warning logs for STARTED jobs that have exceeded a runtime threshold.
+    This does not requeue/kill jobs; it is an operator signal for potentially hung work.
+    """
+    started_registry = StartedJobRegistry(queue=queue)
+    started_job_ids = started_registry.get_job_ids()
+    if not started_job_ids:
+        return
+
+    now_utc = datetime.now(timezone.utc)
+    stale_jobs = []
+    for job_id in started_job_ids:
+        job = queue.fetch_job(job_id)
+        if job is None or job.started_at is None:
+            continue
+        elapsed = (now_utc - job.started_at).total_seconds()
+        if elapsed >= stale_seconds:
+            stale_jobs.append((job, int(elapsed)))
+
+    if not stale_jobs:
+        return
+
+    print(
+        _runner_msg(
+            f"Detected {len(stale_jobs)} long-running STARTED job(s) "
+            f"(>{stale_seconds}s).",
+            "yellow",
+        )
+    )
+    for job, elapsed in stale_jobs:
+        run_id = (job.kwargs or {}).get("run_id")
+        matchup_id = (job.kwargs or {}).get("matchup_id")
+        print(
+            _runner_msg(
+                f"stale job={job.id} elapsed={elapsed}s run_id={run_id} "
+                f"matchup_id={matchup_id} func={job.func_name}",
+                "yellow",
+            )
+        )
 
 
 def main():
@@ -250,13 +305,14 @@ def main():
     for t in threads:
         t.start()
 
-    print(f"[RUNNER] Started {NUM_WORKERS} workers")
-    print(f"[RUNNER] Listening on '{QUEUE_NAME}' queue")
-    print("[RUNNER] Worker logs (real-time):")
+    print(_runner_msg(f"Started {NUM_WORKERS} workers", "green"))
+    print(_runner_msg(f"Listening on '{QUEUE_NAME}' queue", "green"))
+    print(_runner_msg("Worker logs (real-time):", "cyan"))
     for wid in worker_ids:
         print(f"         - {LOG_DIR}/{wid}_worker.log")
-    print(f"\n[RUNNER] Watch all logs: tail -f {LOG_DIR}/*_worker.log")
-    print("[RUNNER] Press Ctrl+C to stop\n")
+    print(_runner_msg(f"Watch all logs: tail -f {LOG_DIR}/*_worker.log", "cyan"))
+    print(_runner_msg("Press Ctrl+C to stop", "yellow"))
+    print("")
 
     # Signal handler for graceful shutdown
     shutdown_requested = threading.Event()
@@ -265,10 +321,10 @@ def main():
         if shutdown_requested.is_set():
             return
         shutdown_requested.set()
-        print("\n[RUNNER] Shutdown signal received...")
+        print("\n" + _runner_msg("Shutdown signal received...", "yellow"))
         for w in workers:
             w._stop_requested = True
-        print("[RUNNER] Waiting for workers to finish current jobs...")
+        print(_runner_msg("Waiting for workers to finish current jobs...", "yellow"))
 
     signal.signal(signal.SIGINT, shutdown_handler)
     signal.signal(signal.SIGTERM, shutdown_handler)
@@ -281,6 +337,7 @@ def main():
             now = int(time.time())
             if now - last_recovery_ts >= 60:
                 requeue_orphaned_started_jobs(queue)
+                report_stale_started_jobs(queue, STALE_JOB_WARN_SECONDS)
                 last_recovery_ts = now
     except KeyboardInterrupt:
         pass
@@ -290,9 +347,9 @@ def main():
 
     alive = [t for t in threads if t.is_alive()]
     if alive:
-        print(f"[RUNNER] {len(alive)} workers still busy, forcing exit...")
+        print(_runner_msg(f"{len(alive)} workers still busy, forcing exit...", "red"))
     else:
-        print("[RUNNER] All workers stopped cleanly.")
+        print(_runner_msg("All workers stopped cleanly.", "green"))
 
     sys.exit(0)
 
