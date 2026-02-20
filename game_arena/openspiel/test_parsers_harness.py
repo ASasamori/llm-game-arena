@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch
 
 from game_arena.openspiel import harness, parsers, utils
+from game_arena.openspiel import model_generation
 from game_arena.openspiel.model_generation import GenerateResponse
 
 
@@ -28,21 +29,24 @@ class _AlwaysNoneParser:
 class ParserHarnessRegressionTests(unittest.TestCase):
     def test_parse_move_strips_ansi_from_final_answer(self) -> None:
         parsed = parsers.parse_move_from_response("Final Answer: 5\x1b[0m")
-        self.assertIsNotNone(parsed)
+        if parsed is None:
+            self.fail("Expected parsed move, got None")
         self.assertEqual(parsed["move"], "5")
 
     def test_parse_move_handles_repeated_sections(self) -> None:
         parsed = parsers.parse_move_from_response(
             "Summary: win line.\nFinal Answer: 2Summary: duplicate.\nFinal Answer: 5"
         )
-        self.assertIsNotNone(parsed)
+        if parsed is None:
+            self.fail("Expected parsed move, got None")
         self.assertEqual(parsed["move"], "5")
 
     def test_parse_move_handles_markdown_bold_labels(self) -> None:
         parsed = parsers.parse_move_from_response(
             "**Summary:** Good move.\n**Final Answer:** 4\x1b[0m"
         )
-        self.assertIsNotNone(parsed)
+        if parsed is None:
+            self.fail("Expected parsed move, got None")
         self.assertEqual(parsed["move"], "4")
 
     def test_soft_parser_handles_verbose_column_text(self) -> None:
@@ -56,7 +60,7 @@ class ParserHarnessRegressionTests(unittest.TestCase):
         self.assertEqual(parser.parse(parser_input), "x4")
 
     def test_harness_fails_cleanly_when_parser_returns_none(self) -> None:
-        fake_models = [_FakeModel(), _FakeModel()]
+        fake_models: list[model_generation.LLMModel] = [_FakeModel(), _FakeModel()]
         options = utils.HarnessOptions(
             type="PVP",
             models=fake_models,

@@ -8,14 +8,17 @@
 
 # models.py
 import os
+from typing import Any, Callable
 
 try:
-    from dotenv import load_dotenv
+    from dotenv import load_dotenv as _load_dotenv
 except ModuleNotFoundError:
     # Keep runtime working in minimal environments where python-dotenv
     # is not installed but DATABASE_URL is already exported.
-    def load_dotenv(*args, **kwargs):
+    def _load_dotenv(*args: Any, **kwargs: Any) -> bool:
         return False
+
+load_dotenv: Callable[..., bool] = _load_dotenv
 
 
 import uuid
