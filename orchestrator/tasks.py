@@ -55,7 +55,9 @@ def run_episode_pvp(matchup_id: str, run_id: str, episode_num: int, num_steps: i
     PVP episode: two models compete.
     Uses Matchup to track model pairs.
     """
-    print(f"[TASKS.PY: WORKER] Starting PVP episode {episode_num} for matchup {matchup_id[:8]}")
+    print(
+        f"[TASKS.PY: WORKER] Starting PVP episode {episode_num} for matchup {matchup_id[:8]}"
+    )
 
     # Look up matchup to get model pair
     session = get_session()
@@ -86,7 +88,9 @@ def run_episode_pvp(matchup_id: str, run_id: str, episode_num: int, num_steps: i
             error=error,
         )
 
-    print(f"[TASKS.PY: WORKER] Completed PVP episode {episode_num} for matchup {matchup_id[:8]} ({model_names})")
+    print(
+        f"[TASKS.PY: WORKER] Completed PVP episode {episode_num} for matchup {matchup_id[:8]} ({model_names})"
+    )
 
     # Write episode result to Postgres
     session = get_session()
@@ -125,7 +129,9 @@ def run_episode_pvp(matchup_id: str, run_id: str, episode_num: int, num_steps: i
                 session.add(step)
 
         session.commit()
-        print(f"[TASKS.PY: DB] Saved episode {result['episode_id']} with {len(actions)} steps to database")
+        print(
+            f"[TASKS.PY: DB] Saved episode {result['episode_id']} with {len(actions)} steps to database"
+        )
 
         _check_pvp_completion(session, matchup_id, run_id)
     except Exception as e:
@@ -155,7 +161,9 @@ def run_episode_single(
     Single-model episode: RAND or INPUT mode.
     No matchup - links directly to run.
     """
-    print(f"[TASKS.PY: WORKER] Starting {run_type} episode {episode_num} for run {run_id[:8]}")
+    print(
+        f"[TASKS.PY: WORKER] Starting {run_type} episode {episode_num} for run {run_id[:8]}"
+    )
 
     model = MODEL_REGISTRY[model_name]
 
@@ -172,8 +180,7 @@ def run_episode_single(
         result: utils.EpisodeResult = harness.harness(harness_options)
     except Exception as e:
         error = (
-            f"Episode execution failed for run {run_id[:8]} "
-            f"episode {episode_num}: {e}"
+            f"Episode execution failed for run {run_id[:8]} episode {episode_num}: {e}"
         )
         print(f"[TASKS.PY: WORKER] {error}")
         result = _failed_episode_result(
@@ -184,7 +191,9 @@ def run_episode_single(
             error=error,
         )
 
-    print(f"[TASKS.PY: WORKER] Completed {run_type} episode {episode_num} for run {run_id[:8]} ({model_name})")
+    print(
+        f"[TASKS.PY: WORKER] Completed {run_type} episode {episode_num} for run {run_id[:8]} ({model_name})"
+    )
 
     # Write episode result to Postgres
     session = get_session()
@@ -223,7 +232,9 @@ def run_episode_single(
                 session.add(step)
 
         session.commit()
-        print(f"[TASKS.PY: DB] Saved episode {result['episode_id']} with {len(actions)} steps to database")
+        print(
+            f"[TASKS.PY: DB] Saved episode {result['episode_id']} with {len(actions)} steps to database"
+        )
 
         _check_run_completion(session, run_id)
     except Exception as e:

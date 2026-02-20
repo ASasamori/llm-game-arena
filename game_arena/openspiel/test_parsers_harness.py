@@ -15,9 +15,7 @@ class _FakeModel:
         system_instruction: str | None = None,
         mock: bool = False,
     ) -> GenerateResponse:
-        return GenerateResponse(
-            main_response="Summary: test\nFinal Answer: 5"
-        )
+        return GenerateResponse(main_response="Summary: test\nFinal Answer: 5")
 
 
 class _AlwaysNoneParser:
@@ -42,7 +40,7 @@ class ParserHarnessRegressionTests(unittest.TestCase):
 
     def test_parse_move_handles_markdown_bold_labels(self) -> None:
         parsed = parsers.parse_move_from_response(
-            '**Summary:** Good move.\n**Final Answer:** 4\x1b[0m'
+            "**Summary:** Good move.\n**Final Answer:** 4\x1b[0m"
         )
         self.assertIsNotNone(parsed)
         self.assertEqual(parsed["move"], "4")

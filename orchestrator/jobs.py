@@ -204,9 +204,13 @@ def enqueue_rand_run(num_episodes: int, num_steps: int, model_name: str):
             job_timeout="30m",
         )
         job_ids.append(job.id)
-        print(f"[JOBS.PY: ENQUEUE] Queued RAND {model_name} episode {ep_num} (job {job.id})")
+        print(
+            f"[JOBS.PY: ENQUEUE] Queued RAND {model_name} episode {ep_num} (job {job.id})"
+        )
 
-    print(f"[JOBS.PY: ENQUEUE] Successfully queued {num_episodes} RAND episodes for run {run_id}")
+    print(
+        f"[JOBS.PY: ENQUEUE] Successfully queued {num_episodes} RAND episodes for run {run_id}"
+    )
     return run_id, job_ids
 
 

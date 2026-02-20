@@ -16,8 +16,19 @@ except ModuleNotFoundError:
     # is not installed but DATABASE_URL is already exported.
     def load_dotenv(*args, **kwargs):
         return False
+
+
 import uuid
-from sqlalchemy import Integer, String, Float, ForeignKey, DateTime, JSON, Index, create_engine
+from sqlalchemy import (
+    Integer,
+    String,
+    Float,
+    ForeignKey,
+    DateTime,
+    JSON,
+    Index,
+    create_engine,
+)
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -40,18 +51,23 @@ if not DATABASE_URL:
 class Base(DeclarativeBase):
     pass
 
-#TODO: Create Meta-run for higher level; several PVP_RR runs with different settings
+
+# TODO: Create Meta-run for higher level; several PVP_RR runs with different settings
+
 
 # Run model
 class Run(Base):
     __tablename__ = "runs"
 
     run_id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    run_type: Mapped[str] = mapped_column(String(10), nullable=False)  # "PVP", "RAND", "INPUT"
-    num_episodes: Mapped[int] = mapped_column(Integer, nullable=False)  # For non-PVP runs
+    run_type: Mapped[str] = mapped_column(
+        String(10), nullable=False
+    )  # "PVP", "RAND", "INPUT"
+    num_episodes: Mapped[int] = mapped_column(
+        Integer, nullable=False
+    )  # For non-PVP runs
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="PENDING")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-
 
     # Relationships
     matchups: Mapped[list["Matchup"]] = relationship("Matchup", back_populates="run")
@@ -72,7 +88,9 @@ class Matchup(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     run: Mapped["Run"] = relationship("Run", back_populates="matchups")
-    episodes: Mapped[list["Episode"]] = relationship("Episode", back_populates="matchup")
+    episodes: Mapped[list["Episode"]] = relationship(
+        "Episode", back_populates="matchup"
+    )
 
 
 # Episode model
@@ -84,9 +102,13 @@ class Episode(Base):
         String(36), ForeignKey("runs.run_id"), nullable=False
     )
     matchup_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("matchups.matchup_id"), nullable=True  # Null for INPUT/RAND runs
+        String(36),
+        ForeignKey("matchups.matchup_id"),
+        nullable=True,  # Null for INPUT/RAND runs
     )
-    worker_name: Mapped[str | None] = mapped_column(String(100), nullable=True)  # Worker that executed this episode
+    worker_name: Mapped[str | None] = mapped_column(
+        String(100), nullable=True
+    )  # Worker that executed this episode
     env: Mapped[str] = mapped_column(String(50))
     agent: Mapped[list] = mapped_column(JSON)
     type: Mapped[str] = mapped_column(String(50))
@@ -101,7 +123,9 @@ class Episode(Base):
     end_time: Mapped[datetime] = mapped_column(DateTime)
 
     run: Mapped["Run"] = relationship("Run", back_populates="episodes")
-    matchup: Mapped["Matchup | None"] = relationship("Matchup", back_populates="episodes")
+    matchup: Mapped["Matchup | None"] = relationship(
+        "Matchup", back_populates="episodes"
+    )
     steps: Mapped[list["EpisodeStep"]] = relationship(
         "EpisodeStep", back_populates="episode", cascade="all, delete-orphan"
     )

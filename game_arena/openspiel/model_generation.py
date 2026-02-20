@@ -146,7 +146,6 @@ class ClaudeModel:
     def __init__(
         self, model_name: str = "claude-3-haiku-20240307", api_key: str | None = None
     ):
-
         self._model_name = model_name
         key = api_key or os.environ.get("ANTHROPIC_API_KEY")
         if not key:

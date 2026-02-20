@@ -101,7 +101,12 @@ def _build_step_records(run_id: str) -> list[StepRecord]:
     session = get_session()
     try:
         rows = (
-            session.query(Episode.agent, EpisodeStep.step_index, EpisodeStep.player, EpisodeStep.action)
+            session.query(
+                Episode.agent,
+                EpisodeStep.step_index,
+                EpisodeStep.player,
+                EpisodeStep.action,
+            )
             .join(EpisodeStep, Episode.episode_id == EpisodeStep.episode_id)
             .filter(Episode.run_id == run_id)
             .all()
@@ -141,7 +146,9 @@ def _build_step_records(run_id: str) -> list[StepRecord]:
 def _build_model_step_action_counts(
     records: list[StepRecord],
 ) -> dict[str, dict[int, Counter[int]]]:
-    counts: dict[str, dict[int, Counter[int]]] = defaultdict(lambda: defaultdict(Counter))
+    counts: dict[str, dict[int, Counter[int]]] = defaultdict(
+        lambda: defaultdict(Counter)
+    )
     for record in records:
         counts[record.acting_model][record.step_index][record.action] += 1
     return counts
@@ -154,18 +161,24 @@ def _build_model_opponent_step_action_counts(
         lambda: defaultdict(lambda: defaultdict(Counter))
     )
     for record in records:
-        counts[record.acting_model][record.opponent_model][record.step_index][record.action] += 1
+        counts[record.acting_model][record.opponent_model][record.step_index][
+            record.action
+        ] += 1
     return counts
 
 
-def _distribution_from_records(records: list[StepRecord], action_space: int) -> dict[str, dict[str, list[float]]]:
+def _distribution_from_records(
+    records: list[StepRecord], action_space: int
+) -> dict[str, dict[str, list[float]]]:
     model_vs_opponent_counts: dict[str, dict[str, Counter[int]]] = defaultdict(
         lambda: defaultdict(Counter)
     )
 
     for record in records:
         if 0 <= record.action < action_space:
-            model_vs_opponent_counts[record.acting_model][record.opponent_model][record.action] += 1
+            model_vs_opponent_counts[record.acting_model][record.opponent_model][
+                record.action
+            ] += 1
 
     distributions: dict[str, dict[str, list[float]]] = defaultdict(dict)
     for model, by_opp in model_vs_opponent_counts.items():
@@ -173,7 +186,9 @@ def _distribution_from_records(records: list[StepRecord], action_space: int) -> 
             total = sum(counter.values())
             if total <= 0:
                 continue
-            distributions[model][opponent] = [counter.get(action, 0) / total for action in range(action_space)]
+            distributions[model][opponent] = [
+                counter.get(action, 0) / total for action in range(action_space)
+            ]
 
     return distributions
 
@@ -200,7 +215,8 @@ def _auto_find_baseline_runs(models: set[str]) -> dict[str, str]:
                     ep
                     and isinstance(ep.agent, list)
                     and len(ep.agent) >= 1
-                    and _normalize_model_name(str(ep.agent[0])) == _normalize_model_name(model)
+                    and _normalize_model_name(str(ep.agent[0]))
+                    == _normalize_model_name(model)
                 ):
                     baseline_map[model] = run_id
                     break
@@ -213,17 +229,23 @@ def _parse_baseline_args(items: list[str]) -> dict[str, str]:
     parsed: dict[str, str] = {}
     for item in items:
         if "=" not in item:
-            raise ValueError(f"Invalid --baseline-run value '{item}'. Expected MODEL=RUN_ID")
+            raise ValueError(
+                f"Invalid --baseline-run value '{item}'. Expected MODEL=RUN_ID"
+            )
         model, run_id = item.split("=", 1)
         model = model.strip()
         run_id = run_id.strip()
         if not model or not run_id:
-            raise ValueError(f"Invalid --baseline-run value '{item}'. Expected MODEL=RUN_ID")
+            raise ValueError(
+                f"Invalid --baseline-run value '{item}'. Expected MODEL=RUN_ID"
+            )
         parsed[_normalize_model_name(model)] = run_id
     return parsed
 
 
-def _fetch_baseline_distributions(baseline_runs: dict[str, str], action_space: int) -> dict[str, list[float]]:
+def _fetch_baseline_distributions(
+    baseline_runs: dict[str, str], action_space: int
+) -> dict[str, list[float]]:
     baseline_distributions: dict[str, list[float]] = {}
     session = get_session()
     try:
@@ -245,12 +267,16 @@ def _fetch_baseline_distributions(baseline_runs: dict[str, str], action_space: i
                     continue
 
                 # In RAND runs, model is expected to be player x.
-                if player == "x" and _normalize_model_name(str(agent_list[0])) == _normalize_model_name(model):
+                if player == "x" and _normalize_model_name(
+                    str(agent_list[0])
+                ) == _normalize_model_name(model):
                     counts[action_col] += 1
 
             total = sum(counts.values())
             if total > 0:
-                baseline_distributions[model] = [counts.get(a, 0) / total for a in range(action_space)]
+                baseline_distributions[model] = [
+                    counts.get(a, 0) / total for a in range(action_space)
+                ]
     finally:
         session.close()
 
@@ -270,7 +296,9 @@ def _plot_heatmaps(
 
         max_step = max(by_step.keys())
         # Build matrix as [action][step] so axes are x=step, y=action.
-        matrix: list[list[float]] = [[0.0 for _ in range(max_step + 1)] for _ in range(action_space)]
+        matrix: list[list[float]] = [
+            [0.0 for _ in range(max_step + 1)] for _ in range(action_space)
+        ]
         for step in range(max_step + 1):
             row_counts = by_step.get(step, Counter())
             total = sum(row_counts.values())
@@ -354,7 +382,9 @@ def _plot_delta_vs_baseline(
         for idx, opponent in enumerate(opponents):
             cur = by_opponent[opponent]
             deltas = [cur[action] - baseline[action] for action in range(action_space)]
-            offsets = [x + (idx - (len(opponents) - 1) / 2.0) * width for x in x_positions]
+            offsets = [
+                x + (idx - (len(opponents) - 1) / 2.0) * width for x in x_positions
+            ]
             ax.bar(offsets, deltas, width=width, label=f"vs {opponent}")
 
         ax.axhline(0.0, color="black", linewidth=1)
@@ -379,7 +409,9 @@ def _validate_run(run_id: str, allow_incomplete: bool) -> Run:
     if run is None:
         raise ValueError(f"Run {run_id} not found")
     if run.run_type != "PVP":
-        raise ValueError(f"Analytics CLI currently expects a PVP run. Got run_type={run.run_type}")
+        raise ValueError(
+            f"Analytics CLI currently expects a PVP run. Got run_type={run.run_type}"
+        )
     if not allow_incomplete and run.status != "COMPLETED":
         raise ValueError(
             f"Run {run_id} status is {run.status}. Wait for COMPLETED or pass --allow-incomplete"
@@ -460,7 +492,9 @@ def main() -> None:
     if missing_models:
         baseline_run_map.update(_auto_find_baseline_runs(missing_models))
 
-    baseline_distributions = _fetch_baseline_distributions(baseline_run_map, args.action_space)
+    baseline_distributions = _fetch_baseline_distributions(
+        baseline_run_map, args.action_space
+    )
 
     _plot_heatmaps(
         counts=model_step_counts,

@@ -1,4 +1,4 @@
-'''
+"""
 Ideally this file should be used to collect information from the database
 
 For now:
@@ -16,4 +16,4 @@ Needs a baseline instance for the delta action table
 Otherwise, entropy and heatmap are done just using information that just happened
 
 
-'''
+"""

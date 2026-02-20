@@ -62,13 +62,13 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
             break
 
         print(colored(f"Commencing move {move_number}...", "green"))
-        player_name = (
-            str(model_player_one)
-            if pyspiel_state.current_player() == 0
-            else str(model_player_two)
-            if type == "PVP"
-            else type
-        )
+        # player_name = (
+        #     str(model_player_one)
+        #     if pyspiel_state.current_player() == 0
+        #     else str(model_player_two)
+        #     if type == "PVP"
+        #     else type
+        # )
 
         prompt_subs = {
             "game_short_name": "Connect Four",
@@ -78,7 +78,9 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
                 current_player=pyspiel_state.current_player(),
             ),
             "move_history": utils.get_action_string_history(pyspiel_state) or "None",
-            "player_name": notations.GAME_SPECIFIC_NOTATIONS['connect_four']['player_map'][pyspiel_state.current_player()],
+            "player_name": notations.GAME_SPECIFIC_NOTATIONS["connect_four"][
+                "player_map"
+            ][pyspiel_state.current_player()],
             "move_notation": notations.GAME_SPECIFIC_NOTATIONS["connect_four"][
                 "move_notation"
             ],
