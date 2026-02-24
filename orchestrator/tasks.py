@@ -15,13 +15,25 @@ def get_worker_name() -> str | None:
     return job.worker_name if job else None
 
 
-MODEL_REGISTRY = {
-    "GEMINI": model_generation.GeminiModel(),
-    "GPT": model_generation.GPTModel(),
-    "CLAUDE": model_generation.ClaudeModel(),
+MODEL_FACTORIES = {
+    "GEMINI": model_generation.GeminiModel,
+    "GPT": model_generation.GPTModel,
+    "CLAUDE": model_generation.ClaudeModel,
 }
+MODEL_CACHE: dict[str, model_generation.LLMModel] = {}
 
 TERMINAL_MATCHUP_STATUSES = {"COMPLETED", "FAILED"}
+
+
+def _get_model(model_name: str) -> model_generation.LLMModel:
+    upper_name = model_name.upper()
+    if upper_name not in MODEL_FACTORIES:
+        raise ValueError(
+            f"Unsupported model '{model_name}'. Supported models: {list(MODEL_FACTORIES.keys())}"
+        )
+    if upper_name not in MODEL_CACHE:
+        MODEL_CACHE[upper_name] = MODEL_FACTORIES[upper_name]()
+    return MODEL_CACHE[upper_name]
 
 
 def _failed_episode_result(
@@ -70,7 +82,7 @@ def run_episode_pvp(
     model_names = matchup.models  # e.g., ["GEMINI", "GPT"]
     session.close()
 
-    model_list = [MODEL_REGISTRY[model] for model in model_names]
+    model_list = [_get_model(model) for model in model_names]
     harness_options = utils.HarnessOptions(
         type="PVP", num_steps=num_steps, models=model_list, input=None
     )
@@ -167,7 +179,7 @@ def run_episode_single(
         f"[TASKS.PY: WORKER] Starting {run_type} episode {episode_num} for run {run_id[:8]}"
     )
 
-    model = MODEL_REGISTRY[model_name]
+    model = _get_model(model_name)
 
     # Build input queue if INPUT mode
     input_queue = deque(input_actions) if input_actions else None

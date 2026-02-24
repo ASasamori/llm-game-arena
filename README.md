@@ -4,6 +4,61 @@
 
 Client Request -> Run Orchestrator -> Workers -> Evals -> Client Polling
 
+## REST API Gateway (Pipelined Run Submission)
+
+Start the API gateway:
+
+```bash
+uv run python -m orchestrator.api_gateway
+```
+
+Required/important env vars:
+
+```bash
+# Comma-separated API keys accepted by the gateway
+export ARENA_API_KEYS="dev-key-1,dev-key-2"
+
+# Redis connection used for queue + API rate limiting
+export REDIS_HOST=localhost
+export REDIS_PORT=6379
+
+# Per-key limits
+export API_RATE_LIMIT_REQUESTS_PER_MINUTE=60
+export API_RATE_LIMIT_TOKENS_PER_MINUTE=30000
+
+# Retry/backoff upper bound for model API calls
+export MODEL_API_RETRY_MAX_SECONDS=90
+```
+
+Submit a run:
+
+```bash
+curl -X POST http://localhost:8000/v1/runs \
+  -H "Authorization: Bearer dev-key-1" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "run_type": "PVP",
+    "env": "connect_four_v1",
+    "num_episodes": 5,
+    "num_steps": 42,
+    "model_names": ["GEMINI", "GPT"]
+  }'
+```
+
+Poll run status:
+
+```bash
+curl http://localhost:8000/v1/runs/<RUN_ID> \
+  -H "Authorization: Bearer dev-key-1"
+```
+
+Check per-key minute usage counters (requests + tokenized request budget):
+
+```bash
+curl http://localhost:8000/v1/usage/me \
+  -H "Authorization: Bearer dev-key-1"
+```
+
 ### Client Request
 API Gateway and client request logic
 - Authorization
