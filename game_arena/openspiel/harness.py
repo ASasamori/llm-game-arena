@@ -2,8 +2,8 @@
 Harness/library for running OpenSpiel games
 """
 
+import logging
 import pyspiel
-import termcolor
 import random
 import uuid
 
@@ -12,8 +12,9 @@ from game_arena.openspiel import prompts
 from game_arena.openspiel import model_generation
 from game_arena.openspiel import parsers
 from game_arena.openspiel import notations
+from orchestrator.observability import increment_counter
 
-colored = termcolor.colored
+LOGGER = logging.getLogger("game_arena.openspiel.harness")
 
 SUPPORTED_TYPES = ["INPUT", "RAND", "PVP"]
 ENV = "OPENSPIEL"
@@ -38,6 +39,7 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
 
     model_player_one = options["models"][0]
     type = options["type"]
+    increment_counter("harness.episode.started", tags={"run_type": type})
 
     if type not in SUPPORTED_TYPES:
         raise ValueError(f"Type: {type} is not supported")
@@ -62,12 +64,15 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
     status = "SUCCESS"
     error = "No errors"
     for move_number in range(max_steps):
-        print(f"Pre-move debug string: {pyspiel_state.to_string()}")
+        LOGGER.debug(
+            "pre_move_state",
+            extra={"move_number": move_number, "state": pyspiel_state.to_string()},
+        )
         if pyspiel_state.is_terminal():
-            print(colored("Game is terminal, ending move loop.", "red"))
+            LOGGER.info("terminal_state_reached", extra={"move_number": move_number})
             break
 
-        print(colored(f"Commencing move {move_number}...", "green"))
+        LOGGER.debug("move_started", extra={"move_number": move_number})
         # player_name = (
         #     str(model_player_one)
         #     if pyspiel_state.current_player() == 0
@@ -97,7 +102,14 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
 
         prompt = prompts.PROMPT_TEMPLATE_NO_LEGAL_ACTIONS.format(**prompt_subs)
 
-        print(colored(f"Prompt: {prompt}", "blue"))
+        LOGGER.debug(
+            "prompt_built",
+            extra={
+                "move_number": move_number,
+                "current_player": pyspiel_state.current_player(),
+                "prompt_chars": len(prompt),
+            },
+        )
         if pyspiel_state.current_player() != 0 and type != "PVP":
             if type == "RAND":
                 action = random.choice(
@@ -106,12 +118,12 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
                 action_string = pyspiel_state.action_to_string(
                     pyspiel_state.current_player(), action
                 )
-                print(
-                    colored(
-                        f"Player {pyspiel_state.current_player()}"
-                        f"randomly sampled action: {action_string}",
-                        "light_cyan",
-                    )
+                LOGGER.debug(
+                    "rand_action_applied",
+                    extra={
+                        "current_player": pyspiel_state.current_player(),
+                        "action": action_string,
+                    },
                 )
                 pyspiel_state.apply_action(action)
                 action_list.append(action_string)
@@ -126,12 +138,12 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
                 action_string = pyspiel_state.action_to_string(
                     pyspiel_state.current_player(), action
                 )
-                print(
-                    colored(
-                        f"Player {pyspiel_state.current_player()},"
-                        f"randomly sampled action: {action_string}",
-                        "light_magenta",
-                    )
+                LOGGER.debug(
+                    "input_action_applied",
+                    extra={
+                        "current_player": pyspiel_state.current_player(),
+                        "action": action_string,
+                    },
                 )
                 pyspiel_state.apply_action(action)
                 action_list.append(action_string)
@@ -150,6 +162,9 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
             try:
                 response = model.generate_with_text_input(prompt)
             except Exception as e:
+                increment_counter(
+                    "harness.fallback.total", tags={"reason": "model_api_error"}
+                )
                 fallback_action = random.choice(legal_actions)
                 fallback_action_str = pyspiel_state.action_to_string(
                     pyspiel_state.current_player(), fallback_action
@@ -159,20 +174,23 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
                 summary_list.append(
                     "Model API failed (likely rate-limit/credits/network); random legal action fallback."
                 )
-                print(
-                    colored(
-                        f"Model API call failed for player {pyspiel_state.current_player()}: {e}. "
-                        f"Fallback action={fallback_action_str}",
-                        "red",
-                    )
+                LOGGER.warning(
+                    "model_api_fallback_action_applied",
+                    extra={
+                        "move_number": move_number,
+                        "current_player": pyspiel_state.current_player(),
+                        "fallback_action": fallback_action_str,
+                        "error": str(e),
+                    },
                 )
                 continue
-            print(
-                colored(
-                    f"Model player {pyspiel_state.current_player()} main response:\n"
-                    f" {response.main_response}",
-                    "yellow",
-                )
+            LOGGER.debug(
+                "model_response_received",
+                extra={
+                    "move_number": move_number,
+                    "current_player": pyspiel_state.current_player(),
+                    "response_chars": len(response.main_response or ""),
+                },
             )
             parser_input = parsers.TextParserInput(
                 text=response.main_response,
@@ -182,6 +200,9 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
             )
             parser_output = parser.parse(parser_input)
             if parser_output is None:
+                increment_counter(
+                    "harness.fallback.total", tags={"reason": "parser_none"}
+                )
                 fallback_action = random.choice(legal_actions)
                 fallback_action_str = pyspiel_state.action_to_string(
                     pyspiel_state.current_player(), fallback_action
@@ -191,22 +212,33 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
                 summary_list.append(
                     "Parser produced no legal action; random legal action fallback."
                 )
-                print(
-                    colored(
-                        f"Parser output is None for player {pyspiel_state.current_player()}. "
-                        f"Fallback action={fallback_action_str}",
-                        "red",
-                    )
+                LOGGER.warning(
+                    "parser_none_fallback_action_applied",
+                    extra={
+                        "move_number": move_number,
+                        "current_player": pyspiel_state.current_player(),
+                        "fallback_action": fallback_action_str,
+                    },
                 )
                 continue
             else:
-                print(colored(f"Parser output: {parser_output}", "magenta"))
+                LOGGER.debug(
+                    "parser_output",
+                    extra={
+                        "move_number": move_number,
+                        "current_player": pyspiel_state.current_player(),
+                        "parser_output": parser_output,
+                    },
+                )
             action_list.append(parser_output)
             summary_list.append(parser.summary)
             try:
                 parsed_action = pyspiel_state.string_to_action(parser_output)
                 pyspiel_state.apply_action(parsed_action)
             except Exception as e:
+                increment_counter(
+                    "harness.fallback.total", tags={"reason": "invalid_parsed_action"}
+                )
                 # Keep episode alive by applying a random legal move.
                 fallback_action = random.choice(legal_actions)
                 fallback_action_str = pyspiel_state.action_to_string(
@@ -219,13 +251,15 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
                     f"{parser.summary or 'Parser output invalid'} "
                     "(invalid action applied; random legal action fallback)."
                 )
-                print(
-                    colored(
-                        "Failed to apply parsed action. "
-                        f"Move {move_number}, action={parser_output!r}: {e}. "
-                        f"Fallback action={fallback_action_str}",
-                        "red",
-                    )
+                LOGGER.warning(
+                    "invalid_parsed_action_fallback_applied",
+                    extra={
+                        "move_number": move_number,
+                        "current_player": pyspiel_state.current_player(),
+                        "parser_output": parser_output,
+                        "fallback_action": fallback_action_str,
+                        "error": str(e),
+                    },
                 )
                 continue
 
@@ -253,6 +287,27 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
         else [str(options["models"][0])]
     )
     end_time = utils.datetime.now()
+    increment_counter("harness.episode.completed", tags={"run_type": type})
+    if status != "SUCCESS":
+        increment_counter(
+            "harness.episode.non_success_status",
+            tags={"run_type": type, "status": status},
+        )
+    LOGGER.info(
+        "episode_finished",
+        extra={
+            "episode_id": episode_id,
+            "run_type": type,
+            "status": status,
+            "winner": winner,
+            "num_steps": len(action_list),
+            "fallback_events": sum(
+                1
+                for summary in summary_list
+                if isinstance(summary, str) and "fallback" in summary.lower()
+            ),
+        },
+    )
     return utils.EpisodeResult(
         episode_id=episode_id,
         env=ENV,

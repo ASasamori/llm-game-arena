@@ -33,6 +33,12 @@ from redis.exceptions import TimeoutError as RedisTimeoutError
 from sqlalchemy import func
 
 from orchestrator.models import Episode, Matchup, Run, get_session
+from orchestrator.observability import (
+    configure_json_logging,
+    increment_counter,
+    observe_timing_ms,
+    time_now_ms,
+)
 
 try:
     import tiktoken
@@ -41,7 +47,9 @@ except ModuleNotFoundError:
 
 
 LOGGER = logging.getLogger("orchestrator.api_gateway")
-logging.basicConfig(level=os.environ.get("API_LOG_LEVEL", "INFO"))
+configure_json_logging(
+    service="api_gateway", level=os.environ.get("API_LOG_LEVEL", "INFO")
+)
 
 REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
@@ -262,6 +270,7 @@ def _enforce_rate_limit(api_key: str, token_cost: int) -> tuple[int, int, int]:
         )
     allowed, req_count, tok_count = result
     if int(allowed) != 1:
+        increment_counter("api.rate_limit.exceeded", tags={"reason": "quota"})
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=(
@@ -364,7 +373,58 @@ app = FastAPI(
 async def request_context_middleware(request: Request, call_next):
     request_id = request.headers.get("x-request-id", str(uuid4()))
     request.state.request_id = request_id
-    response = await call_next(request)
+    start_ms = time_now_ms()
+    try:
+        response = await call_next(request)
+    except Exception:
+        duration_ms = time_now_ms() - start_ms
+        increment_counter(
+            "api.requests.total",
+            tags={
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": 500,
+            },
+        )
+        observe_timing_ms(
+            "api.request.duration_ms",
+            duration_ms=duration_ms,
+            tags={"method": request.method, "path": request.url.path},
+        )
+        LOGGER.exception(
+            "request_failed",
+            extra={
+                "request_id": request_id,
+                "method": request.method,
+                "path": request.url.path,
+                "duration_ms": round(duration_ms, 2),
+            },
+        )
+        raise
+    duration_ms = time_now_ms() - start_ms
+    increment_counter(
+        "api.requests.total",
+        tags={
+            "method": request.method,
+            "path": request.url.path,
+            "status_code": response.status_code,
+        },
+    )
+    observe_timing_ms(
+        "api.request.duration_ms",
+        duration_ms=duration_ms,
+        tags={"method": request.method, "path": request.url.path},
+    )
+    LOGGER.info(
+        "request_complete",
+        extra={
+            "request_id": request_id,
+            "method": request.method,
+            "path": request.url.path,
+            "status_code": response.status_code,
+            "duration_ms": round(duration_ms, 2),
+        },
+    )
     response.headers["x-request-id"] = request_id
     response.headers["x-api-gateway"] = API_GATEWAY_NAME
     return response
@@ -411,18 +471,30 @@ def healthz():
     openapi_extra={"security": [{"BearerAuth": []}, {"APIKeyHeader": []}]},
 )
 def create_run(request: RunCreateRequest, api_key: str = Depends(_authenticate)):
+    increment_counter("api.runs.create.attempt")
     token_cost = _estimate_tokens(request.model_dump())
     _enforce_rate_limit(api_key, token_cost)
 
     try:
         run_id, job_ids = _enqueue_with_backoff(request)
     except Exception as e:
+        increment_counter("api.runs.create.error", tags={"reason": "enqueue_failed"})
         LOGGER.exception("Failed to enqueue run after retries: %s", e)
         raise HTTPException(
             status_code=503,
             detail="Failed to submit run after retry/backoff attempts",
         ) from e
 
+    increment_counter("api.runs.create.success")
+    LOGGER.info(
+        "run_created",
+        extra={
+            "run_id": run_id,
+            "run_type": request.run_type,
+            "job_count": len(job_ids),
+            "num_episodes": request.num_episodes,
+        },
+    )
     now = datetime.now(timezone.utc)
     return RunCreateResponse(
         run_id=run_id,

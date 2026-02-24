@@ -17,6 +17,36 @@ if MAX_RETRY_SECONDS < 1:
     MAX_RETRY_SECONDS = 1
 
 
+def _is_truthy(value: str | None) -> bool:
+    return (value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+MODEL_API_MOCK_MODE = _is_truthy(os.environ.get("MODEL_API_MOCK_MODE", "false"))
+MODEL_API_MOCK_CASE = os.environ.get("MODEL_API_MOCK_CASE", "default").strip().lower()
+
+MOCK_TEST_CASES: dict[str, str] = {
+    # Valid shape expected by parser.
+    "default": "Final Answer: 3\nSummary: Mock default response choosing center column.",
+    # Useful for parser fallback testing.
+    "parser_none": "I think maybe column three but not sure.",
+    # Useful for invalid parsed action fallback testing.
+    "invalid_action": "Final Answer: 99\nSummary: Deliberately invalid move for testing.",
+    # Deterministic alternate legal response.
+    "edge_col": "Final Answer: 0\nSummary: Mock response choosing edge column.",
+}
+
+
+def _mock_response_text(provider: str, prompt: str) -> str:
+    case = MODEL_API_MOCK_CASE
+    base = MOCK_TEST_CASES.get(case, MOCK_TEST_CASES["default"])
+    if case not in MOCK_TEST_CASES:
+        logging.warning(
+            "Unknown MODEL_API_MOCK_CASE=%s, using default case.", MODEL_API_MOCK_CASE
+        )
+    # Keep response deterministic but provider-tagged for traceability.
+    return f"{base}\nMeta: provider={provider} prompt_chars={len(prompt)}"
+
+
 # TODO: Setup retry logic for when I reach the rate limit, and can no longer use the API key
 def _log_retry_warning(retry_state: tenacity.RetryCallState) -> None:
     """Log a warning when retrying."""
@@ -62,9 +92,16 @@ class GeminiModel:
     """Simple wrapper for Google Gemini API."""
 
     def __init__(
-        self, model_name: str = "gemini-2.5-flash-lite", api_key: str | None = None
+        self,
+        model_name: str = "gemini-2.5-flash-lite",
+        api_key: str | None = None,
+        mock_mode: bool | None = None,
     ):
         self._model_name = model_name
+        self._mock_mode = MODEL_API_MOCK_MODE if mock_mode is None else mock_mode
+        if self._mock_mode:
+            self._client = None
+            return
         # Use provided key, or fall back to GEMINI_API_KEY env var
         key = api_key or os.environ.get("GEMINI_API_KEY")
         if not key:
@@ -78,8 +115,8 @@ class GeminiModel:
         self, prompt: str, system_instruction: str | None = None, mock: bool = False
     ) -> GenerateResponse:
         """Generate a response from a text prompt."""
-        if mock:
-            return GenerateResponse(main_response="TestingGEMINI")
+        if mock or self._mock_mode:
+            return GenerateResponse(main_response=_mock_response_text("GEMINI", prompt))
         config = google_genai_types.GenerateContentConfig(
             system_instruction=system_instruction,
         )
@@ -109,10 +146,19 @@ class GeminiModel:
 class GPTModel:
     """Simple wrapper for OpenAI GPT API."""
 
-    def __init__(self, model_name: str = "gpt-4o-mini", api_key: str | None = None):
+    def __init__(
+        self,
+        model_name: str = "gpt-4o-mini",
+        api_key: str | None = None,
+        mock_mode: bool | None = None,
+    ):
         from openai import OpenAI
 
         self._model_name = model_name
+        self._mock_mode = MODEL_API_MOCK_MODE if mock_mode is None else mock_mode
+        if self._mock_mode:
+            self._client = None
+            return
         key = api_key or os.environ.get("OPENAI_API_KEY")
         if not key:
             raise ValueError(
@@ -125,8 +171,8 @@ class GPTModel:
         self, prompt: str, system_instruction: str | None = None, mock: bool = False
     ) -> GenerateResponse:
         """Generate a response from a text prompt."""
-        if mock:
-            return GenerateResponse(main_response="TestingGPT")
+        if mock or self._mock_mode:
+            return GenerateResponse(main_response=_mock_response_text("GPT", prompt))
         messages = []
         if system_instruction:
             messages.append({"role": "system", "content": system_instruction})
@@ -148,9 +194,16 @@ class ClaudeModel:
     """Simple wrapper for Anthropic Claude API."""
 
     def __init__(
-        self, model_name: str = "claude-3-haiku-20240307", api_key: str | None = None
+        self,
+        model_name: str = "claude-3-haiku-20240307",
+        api_key: str | None = None,
+        mock_mode: bool | None = None,
     ):
         self._model_name = model_name
+        self._mock_mode = MODEL_API_MOCK_MODE if mock_mode is None else mock_mode
+        if self._mock_mode:
+            self._client = None
+            return
         key = api_key or os.environ.get("ANTHROPIC_API_KEY")
         if not key:
             raise ValueError(
@@ -163,8 +216,8 @@ class ClaudeModel:
         self, prompt: str, system_instruction: str | None = None, mock: bool = False
     ) -> GenerateResponse:
         """Generate a response from a text prompt."""
-        if mock:
-            return GenerateResponse(main_response="TestingCLAUDE")
+        if mock or self._mock_mode:
+            return GenerateResponse(main_response=_mock_response_text("CLAUDE", prompt))
 
         kwargs = {
             "model": self._model_name,

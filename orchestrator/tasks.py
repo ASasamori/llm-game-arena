@@ -1,4 +1,5 @@
 import uuid
+import logging
 from collections import deque
 
 from rq import get_current_job
@@ -7,6 +8,14 @@ from game_arena.openspiel import harness
 from game_arena.openspiel import utils
 from orchestrator.models import Episode, EpisodeStep, Run, Matchup, get_session
 from game_arena.openspiel import model_generation
+from orchestrator.observability import (
+    configure_json_logging,
+    increment_counter,
+)
+
+
+configure_json_logging(service="worker_tasks")
+LOGGER = logging.getLogger("orchestrator.tasks")
 
 
 def get_worker_name() -> str | None:
@@ -69,8 +78,16 @@ def run_episode_pvp(
     PVP episode: two models compete.
     Uses Matchup to track model pairs.
     """
-    print(
-        f"[TASKS.PY: WORKER] Starting PVP episode {episode_num} for matchup {matchup_id[:8]}"
+    increment_counter("worker.episode.started", tags={"run_type": "PVP"})
+    LOGGER.info(
+        "episode_started",
+        extra={
+            "run_type": "PVP",
+            "run_id": run_id,
+            "matchup_id": matchup_id,
+            "episode_num": episode_num,
+            "num_steps": num_steps,
+        },
     )
 
     # Look up matchup to get model pair
@@ -89,11 +106,20 @@ def run_episode_pvp(
     try:
         result: utils.EpisodeResult = harness.harness(harness_options)
     except Exception as e:
+        increment_counter("worker.episode.error", tags={"reason": "execution_exception"})
         error = (
             f"Episode execution failed for matchup {matchup_id[:8]} "
             f"episode {episode_num}: {e}"
         )
-        print(f"[TASKS.PY: WORKER] {error}")
+        LOGGER.exception(
+            "episode_execution_failed",
+            extra={
+                "run_type": "PVP",
+                "run_id": run_id,
+                "matchup_id": matchup_id,
+                "episode_num": episode_num,
+            },
+        )
         result = _failed_episode_result(
             run_type="PVP",
             game="connect_four",
@@ -102,8 +128,23 @@ def run_episode_pvp(
             error=error,
         )
 
-    print(
-        f"[TASKS.PY: WORKER] Completed PVP episode {episode_num} for matchup {matchup_id[:8]} ({model_names})"
+    increment_counter("worker.episode.completed", tags={"run_type": "PVP"})
+    if result["status"] != "SUCCESS":
+        increment_counter(
+            "worker.episode.non_success_status",
+            tags={"run_type": "PVP", "status": result["status"]},
+        )
+    LOGGER.info(
+        "episode_completed",
+        extra={
+            "run_type": "PVP",
+            "run_id": run_id,
+            "matchup_id": matchup_id,
+            "episode_num": episode_num,
+            "status": result["status"],
+            "winner": result["winner"],
+            "models": model_names,
+        },
     )
 
     # Write episode result to Postgres
@@ -143,14 +184,31 @@ def run_episode_pvp(
                 session.add(step)
 
         session.commit()
-        print(
-            f"[TASKS.PY: DB] Saved episode {result['episode_id']} with {len(actions)} steps to database"
+        increment_counter("worker.episode.persist.success", tags={"run_type": "PVP"})
+        LOGGER.info(
+            "episode_persisted",
+            extra={
+                "run_type": "PVP",
+                "run_id": run_id,
+                "matchup_id": matchup_id,
+                "episode_id": result["episode_id"],
+                "step_count": len(actions),
+            },
         )
 
         _check_pvp_completion(session, matchup_id, run_id)
-    except Exception as e:
+    except Exception:
         session.rollback()
-        print(f"[TASKS.PY: DB] Failed to save episode: {e}")
+        increment_counter("worker.episode.persist.error", tags={"run_type": "PVP"})
+        LOGGER.exception(
+            "episode_persist_failed",
+            extra={
+                "run_type": "PVP",
+                "run_id": run_id,
+                "matchup_id": matchup_id,
+                "episode_num": episode_num,
+            },
+        )
         raise
     finally:
         session.close()
@@ -175,8 +233,16 @@ def run_episode_single(
     Single-model episode: RAND or INPUT mode.
     No matchup - links directly to run.
     """
-    print(
-        f"[TASKS.PY: WORKER] Starting {run_type} episode {episode_num} for run {run_id[:8]}"
+    increment_counter("worker.episode.started", tags={"run_type": run_type})
+    LOGGER.info(
+        "episode_started",
+        extra={
+            "run_type": run_type,
+            "run_id": run_id,
+            "episode_num": episode_num,
+            "num_steps": num_steps,
+            "model_name": model_name,
+        },
     )
 
     model = _get_model(model_name)
@@ -193,10 +259,18 @@ def run_episode_single(
     try:
         result: utils.EpisodeResult = harness.harness(harness_options)
     except Exception as e:
+        increment_counter("worker.episode.error", tags={"reason": "execution_exception"})
         error = (
             f"Episode execution failed for run {run_id[:8]} episode {episode_num}: {e}"
         )
-        print(f"[TASKS.PY: WORKER] {error}")
+        LOGGER.exception(
+            "episode_execution_failed",
+            extra={
+                "run_type": run_type,
+                "run_id": run_id,
+                "episode_num": episode_num,
+            },
+        )
         result = _failed_episode_result(
             run_type=run_type,
             game="connect_four",
@@ -205,8 +279,22 @@ def run_episode_single(
             error=error,
         )
 
-    print(
-        f"[TASKS.PY: WORKER] Completed {run_type} episode {episode_num} for run {run_id[:8]} ({model_name})"
+    increment_counter("worker.episode.completed", tags={"run_type": run_type})
+    if result["status"] != "SUCCESS":
+        increment_counter(
+            "worker.episode.non_success_status",
+            tags={"run_type": run_type, "status": result["status"]},
+        )
+    LOGGER.info(
+        "episode_completed",
+        extra={
+            "run_type": run_type,
+            "run_id": run_id,
+            "episode_num": episode_num,
+            "status": result["status"],
+            "winner": result["winner"],
+            "model_name": model_name,
+        },
     )
 
     # Write episode result to Postgres
@@ -246,14 +334,31 @@ def run_episode_single(
                 session.add(step)
 
         session.commit()
-        print(
-            f"[TASKS.PY: DB] Saved episode {result['episode_id']} with {len(actions)} steps to database"
+        increment_counter(
+            "worker.episode.persist.success", tags={"run_type": run_type}
+        )
+        LOGGER.info(
+            "episode_persisted",
+            extra={
+                "run_type": run_type,
+                "run_id": run_id,
+                "episode_id": result["episode_id"],
+                "step_count": len(actions),
+            },
         )
 
         _check_run_completion(session, run_id)
-    except Exception as e:
+    except Exception:
         session.rollback()
-        print(f"[TASKS.PY: DB] Failed to save episode: {e}")
+        increment_counter("worker.episode.persist.error", tags={"run_type": run_type})
+        LOGGER.exception(
+            "episode_persist_failed",
+            extra={
+                "run_type": run_type,
+                "run_id": run_id,
+                "episode_num": episode_num,
+            },
+        )
         raise
     finally:
         session.close()
@@ -282,9 +387,19 @@ def _check_pvp_completion(session, matchup_id: str, run_id: str):
         )
         matchup.status = "FAILED" if failed_count > 0 else "COMPLETED"
         session.commit()
-        print(
-            f"[TASKS.PY: DB] Matchup {matchup_id[:8]} marked {matchup.status} "
-            f"({completed_count}/{matchup.num_episodes}, failed={failed_count})"
+        increment_counter(
+            "worker.matchup.status_transition", tags={"status": matchup.status}
+        )
+        LOGGER.info(
+            "matchup_status_updated",
+            extra={
+                "run_id": run_id,
+                "matchup_id": matchup_id,
+                "status": matchup.status,
+                "completed_count": completed_count,
+                "num_episodes": matchup.num_episodes,
+                "failed_count": failed_count,
+            },
         )
 
         # 2. Check if all matchups in run are complete
@@ -298,13 +413,26 @@ def _check_pvp_completion(session, matchup_id: str, run_id: str):
                     else "COMPLETED"
                 )
                 session.commit()
-                print(
-                    f"[TASKS.PY: DB] Run {run_id[:8]} marked {run.status} "
-                    "(all matchups terminal)"
+                increment_counter(
+                    "worker.run.status_transition", tags={"status": run.status}
+                )
+                LOGGER.info(
+                    "run_status_updated",
+                    extra={
+                        "run_id": run_id,
+                        "status": run.status,
+                        "reason": "all_matchups_terminal",
+                    },
                 )
     else:
-        print(
-            f"[TASKS.PY: DB] Matchup {matchup_id[:8]} progress: {completed_count}/{matchup.num_episodes}"
+        LOGGER.info(
+            "matchup_progress",
+            extra={
+                "run_id": run_id,
+                "matchup_id": matchup_id,
+                "completed_count": completed_count,
+                "num_episodes": matchup.num_episodes,
+            },
         )
 
 
@@ -324,11 +452,23 @@ def _check_run_completion(session, run_id: str):
         )
         run.status = "FAILED" if failed_count > 0 else "COMPLETED"
         session.commit()
-        print(
-            f"[TASKS.PY: DB] Run {run_id[:8]} marked {run.status} "
-            f"({completed_count}/{run.num_episodes}, failed={failed_count})"
+        increment_counter("worker.run.status_transition", tags={"status": run.status})
+        LOGGER.info(
+            "run_status_updated",
+            extra={
+                "run_id": run_id,
+                "status": run.status,
+                "completed_count": completed_count,
+                "num_episodes": run.num_episodes,
+                "failed_count": failed_count,
+            },
         )
     else:
-        print(
-            f"[TASKS.PY: DB] Run {run_id[:8]} progress: {completed_count}/{run.num_episodes}"
+        LOGGER.info(
+            "run_progress",
+            extra={
+                "run_id": run_id,
+                "completed_count": completed_count,
+                "num_episodes": run.num_episodes,
+            },
         )

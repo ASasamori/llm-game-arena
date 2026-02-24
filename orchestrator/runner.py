@@ -22,7 +22,7 @@ from termcolor import colored
 
 
 # Configuration
-NUM_WORKERS = 3
+NUM_WORKERS = 1
 REDIS_HOST = "localhost"
 REDIS_PORT = 6379
 QUEUE_NAME = "episodes"

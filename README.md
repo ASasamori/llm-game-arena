@@ -59,6 +59,40 @@ curl http://localhost:8000/v1/usage/me \
   -H "Authorization: Bearer dev-key-1"
 ```
 
+### API Gateway Behavior (Current)
+- Framework: FastAPI (`orchestrator/api_gateway.py`)
+- Auth: `Authorization: Bearer <key>` or `x-api-key: <key>` where key is in `ARENA_API_KEYS`
+- Run types supported by `POST /v1/runs`:
+  - `PVP` (exactly 2 models)
+  - `PVP_RR` (2+ models, round robin)
+  - `RAND` (single model vs random opponent)
+  - `INPUT` (single model with required `input_actions`, `num_episodes=1`)
+- Backoff/retry: enqueue retry with exponential backoff on Redis/network transient failures
+- Rate limiting:
+  - Request budget per API key per minute
+  - Tokenized payload budget per API key per minute
+  - Usage visible via `GET /v1/usage/me`
+- OpenAPI docs:
+  - Swagger UI: `http://localhost:8000/docs`
+  - OpenAPI schema: `http://localhost:8000/openapi.json`
+
+### Observability (Current)
+Observability utilities live in `orchestrator/observability.py`.
+
+What it does:
+- Configures structured JSON logs to `stdout`
+- Tracks process-local counters/timings in memory
+
+Where output appears:
+- API logs: terminal/process running `python -m orchestrator.api_gateway`
+- Worker/harness logs: terminal/process running `python -m orchestrator.worker` or `python -m orchestrator.runner`
+- Redis terminal only shows Redis server logs (not app observability logs)
+
+Important limitation:
+- Metrics in `orchestrator/observability.py` are currently in-memory per process.
+- They are not persisted to Postgres and not exported to Prometheus/Grafana yet.
+- Process restart resets those counters/timings.
+
 ### Client Request
 API Gateway and client request logic
 - Authorization
