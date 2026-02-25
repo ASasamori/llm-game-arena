@@ -488,7 +488,7 @@ def main() -> None:
 
     _validate_run(args.run_id, args.allow_incomplete)
 
-    output_dir = args.output_dir or os.path.join("analytics", args.run_id)
+    output_dir = args.output_dir or os.path.join("analytics", "runs", args.run_id)
     os.makedirs(output_dir, exist_ok=True)
 
     records = _build_step_records(args.run_id)

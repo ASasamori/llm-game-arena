@@ -106,7 +106,9 @@ def run_episode_pvp(
     try:
         result: utils.EpisodeResult = harness.harness(harness_options)
     except Exception as e:
-        increment_counter("worker.episode.error", tags={"reason": "execution_exception"})
+        increment_counter(
+            "worker.episode.error", tags={"reason": "execution_exception"}
+        )
         error = (
             f"Episode execution failed for matchup {matchup_id[:8]} "
             f"episode {episode_num}: {e}"
@@ -259,7 +261,9 @@ def run_episode_single(
     try:
         result: utils.EpisodeResult = harness.harness(harness_options)
     except Exception as e:
-        increment_counter("worker.episode.error", tags={"reason": "execution_exception"})
+        increment_counter(
+            "worker.episode.error", tags={"reason": "execution_exception"}
+        )
         error = (
             f"Episode execution failed for run {run_id[:8]} episode {episode_num}: {e}"
         )
@@ -334,9 +338,7 @@ def run_episode_single(
                 session.add(step)
 
         session.commit()
-        increment_counter(
-            "worker.episode.persist.success", tags={"run_type": run_type}
-        )
+        increment_counter("worker.episode.persist.success", tags={"run_type": run_type})
         LOGGER.info(
             "episode_persisted",
             extra={

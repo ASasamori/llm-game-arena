@@ -1,7 +1,7 @@
 import dataclasses
 import datetime
 import os
-from typing import Protocol
+from typing import Any, Protocol
 
 from absl import logging
 from dotenv import find_dotenv, load_dotenv
@@ -99,8 +99,8 @@ class GeminiModel:
     ):
         self._model_name = model_name
         self._mock_mode = MODEL_API_MOCK_MODE if mock_mode is None else mock_mode
+        self._client: Any | None = None
         if self._mock_mode:
-            self._client = None
             return
         # Use provided key, or fall back to GEMINI_API_KEY env var
         key = api_key or os.environ.get("GEMINI_API_KEY")
@@ -117,11 +117,14 @@ class GeminiModel:
         """Generate a response from a text prompt."""
         if mock or self._mock_mode:
             return GenerateResponse(main_response=_mock_response_text("GEMINI", prompt))
+        client = self._client
+        if client is None:
+            raise RuntimeError("Gemini client is not initialized")
         config = google_genai_types.GenerateContentConfig(
-            system_instruction=system_instruction,
+            system_instruction=system_instruction, # type: ignore
         )
 
-        response = self._client.models.generate_content(
+        response = client.models.generate_content(
             model=self._model_name,
             contents=prompt,
             config=config,
@@ -156,8 +159,8 @@ class GPTModel:
 
         self._model_name = model_name
         self._mock_mode = MODEL_API_MOCK_MODE if mock_mode is None else mock_mode
+        self._client: Any | None = None
         if self._mock_mode:
-            self._client = None
             return
         key = api_key or os.environ.get("OPENAI_API_KEY")
         if not key:
@@ -173,12 +176,15 @@ class GPTModel:
         """Generate a response from a text prompt."""
         if mock or self._mock_mode:
             return GenerateResponse(main_response=_mock_response_text("GPT", prompt))
+        client = self._client
+        if client is None:
+            raise RuntimeError("OpenAI client is not initialized")
         messages = []
         if system_instruction:
             messages.append({"role": "system", "content": system_instruction})
         messages.append({"role": "user", "content": prompt})
 
-        response = self._client.chat.completions.create(
+        response = client.chat.completions.create(
             model=self._model_name,
             messages=messages,
         )
@@ -201,8 +207,8 @@ class ClaudeModel:
     ):
         self._model_name = model_name
         self._mock_mode = MODEL_API_MOCK_MODE if mock_mode is None else mock_mode
+        self._client: Any | None = None
         if self._mock_mode:
-            self._client = None
             return
         key = api_key or os.environ.get("ANTHROPIC_API_KEY")
         if not key:
@@ -218,6 +224,9 @@ class ClaudeModel:
         """Generate a response from a text prompt."""
         if mock or self._mock_mode:
             return GenerateResponse(main_response=_mock_response_text("CLAUDE", prompt))
+        client = self._client
+        if client is None:
+            raise RuntimeError("Anthropic client is not initialized")
 
         kwargs = {
             "model": self._model_name,
@@ -227,7 +236,7 @@ class ClaudeModel:
         if system_instruction:
             kwargs["system"] = system_instruction
 
-        response = self._client.messages.create(**kwargs)
+        response = client.messages.create(**kwargs)
 
         main_response = ""
         for block in response.content:

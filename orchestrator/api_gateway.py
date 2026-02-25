@@ -34,7 +34,9 @@ from sqlalchemy import func
 
 from orchestrator.models import Episode, Matchup, Run, get_session
 from orchestrator.observability import (
+    build_dashboard_view,
     configure_json_logging,
+    get_metrics_snapshot,
     increment_counter,
     observe_timing_ms,
     time_now_ms,
@@ -222,6 +224,21 @@ class ErrorResponse(BaseModel):
     status_code: int
 
 
+class ObservabilitySnapshotResponse(BaseModel):
+    exported_at: datetime
+    counter_count: int
+    timing_series_count: int
+    counters: dict[str, int]
+    timings: dict[str, dict[str, float | int]]
+
+
+class ObservabilityDashboardResponse(BaseModel):
+    generated_at: datetime
+    summary: dict[str, int]
+    top_counters: list[dict[str, Any]]
+    hottest_timings: list[dict[str, Any]]
+
+
 bearer_scheme = HTTPBearer(auto_error=False, scheme_name="BearerAuth")
 api_key_scheme = APIKeyHeader(name="x-api-key", auto_error=False)
 
@@ -365,6 +382,10 @@ app = FastAPI(
         {"name": "health", "description": "Gateway health and readiness checks."},
         {"name": "runs", "description": "Run submission and run status polling."},
         {"name": "usage", "description": "Per-API-key rate limit usage snapshots."},
+        {
+            "name": "observability",
+            "description": "Process-local counters/timing snapshots and dashboard views.",
+        },
     ],
 )
 
@@ -557,6 +578,32 @@ def get_my_usage(api_key: str = Depends(_authenticate)):
         tokens_per_minute_limit=TOKENS_PER_MINUTE,
         bucket_epoch_minute=minute_bucket,
     )
+
+
+@app.get(
+    "/v1/observability/metrics",
+    response_model=ObservabilitySnapshotResponse,
+    tags=["observability"],
+    operation_id="getObservabilityMetrics",
+    summary="Get process-local metrics snapshot",
+    description="Returns in-memory counters and timing aggregates for this API process.",
+    openapi_extra={"security": [{"BearerAuth": []}, {"APIKeyHeader": []}]},
+)
+def get_observability_metrics(_: str = Depends(_authenticate)):
+    return get_metrics_snapshot()
+
+
+@app.get(
+    "/v1/observability/dashboard",
+    response_model=ObservabilityDashboardResponse,
+    tags=["observability"],
+    operation_id="getObservabilityDashboard",
+    summary="Get dashboard-oriented observability view",
+    description="Returns top counters and highest-latency timing series for quick inspection.",
+    openapi_extra={"security": [{"BearerAuth": []}, {"APIKeyHeader": []}]},
+)
+def get_observability_dashboard(_: str = Depends(_authenticate)):
+    return build_dashboard_view()
 
 
 def main() -> None:

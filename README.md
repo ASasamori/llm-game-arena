@@ -93,6 +93,19 @@ Important limitation:
 - They are not persisted to Postgres and not exported to Prometheus/Grafana yet.
 - Process restart resets those counters/timings.
 
+### Observability Export + Dashboard (New)
+Export process-local metrics and a dashboard-oriented JSON summary:
+
+```bash
+uv run python -m orchestrator.observability_export \
+  --metrics-out analytics/observability/metrics.json \
+  --dashboard-out analytics/observability/dashboard.json
+```
+
+Read-only API endpoints (requires API key auth):
+- `GET /v1/observability/metrics`
+- `GET /v1/observability/dashboard`
+
 ### Client Request
 API Gateway and client request logic
 - Authorization
@@ -167,6 +180,26 @@ Outputs are written to `analytics/<run_id>/` by default:
 - `heatmap_<MODEL>.png`
 - `entropy_<MODEL>.png`
 - `delta_<MODEL>.png` (when baselines are found/provided)
+
+### Deterministic Mock E2E Pipeline (New)
+One-command local flow for:
+1) API run submission
+2) Queue drain to completion
+3) Run report export
+4) Observability export
+
+```bash
+uv run python -m orchestrator.mock_e2e \
+  --output-dir analytics/mock_e2e
+```
+
+Notes:
+- Requires local Redis and Postgres configured via existing env vars.
+- Uses `MODEL_API_MOCK_MODE=true` and deterministic `INPUT` flow by default.
+- Writes:
+  - `analytics/mock_e2e/report.json`
+  - `analytics/mock_e2e/observability_metrics.json`
+  - `analytics/mock_e2e/observability_dashboard.json`
 
 ### Elo ratings CLI
 Create/update Elo ratings from completed PVP episodes. Ratings are persisted in:
