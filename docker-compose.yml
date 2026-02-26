@@ -1,0 +1,65 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: llm_game_arena
+      POSTGRES_USER: arena_user
+      POSTGRES_PASSWORD: arena_pass
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U arena_user -d llm_game_arena"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://arena_user:arena_pass@postgres:5432/llm_game_arena
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      ARENA_API_KEYS: local-dev-key
+      API_HOST: 0.0.0.0
+      API_PORT: "8000"
+      MODEL_API_MOCK_MODE: "true"
+      MODEL_API_MOCK_CASE: "default"
+    command: >
+      sh -c ".venv/bin/python -m orchestrator.models && .venv/bin/python -m orchestrator.api_gateway"
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://arena_user:arena_pass@postgres:5432/llm_game_arena
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      MODEL_API_MOCK_MODE: "true"
+      MODEL_API_MOCK_CASE: "default"
+    command: .venv/bin/python -m orchestrator.worker
+    restart: unless-stopped
+
+volumes:
+  pgdata:

@@ -1,8 +1,12 @@
 import redis
+import os
 from rq import SimpleWorker, Queue
 from termcolor import colored
 
-redis_conn = redis.Redis(host="localhost", port=6379)
+REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
+
+redis_conn = redis.Redis(host=REDIS_HOST, port=REDIS_PORT)
 
 if __name__ == "__main__":
     queue = Queue("episodes", connection=redis_conn)
