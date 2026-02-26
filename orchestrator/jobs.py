@@ -1,4 +1,5 @@
 import uuid
+import os
 from itertools import combinations
 
 from redis import Redis
@@ -7,10 +8,24 @@ from rq import Queue
 from orchestrator.tasks import run_episode_pvp, run_episode_single
 from orchestrator.models import get_session, Run, Matchup
 
-redis_conn = Redis(host="localhost", port=6379)
+REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
+
+redis_conn = Redis(host=REDIS_HOST, port=REDIS_PORT)
 queue = Queue("episodes", connection=redis_conn)
 
 SUPPORTED_TYPES = ["INPUT", "RAND", "PVP", "PVP_RR"]
+JOB_TIMEOUT_SECONDS = int(os.environ.get("ORCH_JOB_TIMEOUT_SECONDS", "1800"))
+SERIALIZE_PVP_EPISODES = (
+    os.environ.get("ORCH_SERIALIZE_PVP_EPISODES", "true").strip().lower()
+    in {"1", "true", "yes", "on"}
+)
+SERIALIZE_PVP_RR_EPISODES = (
+    os.environ.get("ORCH_SERIALIZE_PVP_RR_EPISODES", "true").strip().lower()
+    in {"1", "true", "yes", "on"}
+)
+if JOB_TIMEOUT_SECONDS < 30:
+    JOB_TIMEOUT_SECONDS = 30
 
 
 def enqueue_pvp_run(num_episodes: int, num_steps: int | None, model_names: list[str]):
@@ -64,16 +79,18 @@ def enqueue_pvp_run(num_episodes: int, num_steps: int | None, model_names: list[
 
     previous_job = None
     for ep_num in range(num_episodes):
+        dependency = previous_job if SERIALIZE_PVP_EPISODES else None
         job = queue.enqueue(
             run_episode_pvp,
             matchup_id=matchup_id,
             run_id=run_id,
             episode_num=ep_num,
             num_steps=num_steps,
-            depends_on=previous_job,
-            job_timeout="30m",
+            depends_on=dependency,
+            job_timeout=JOB_TIMEOUT_SECONDS,
         )
-        previous_job = job
+        if SERIALIZE_PVP_EPISODES:
+            previous_job = job
         job_ids.append(job.id)
         print(
             f"[JOBS.PY: ENQUEUE] Queued PVP {model_names} episode {ep_num} (job {job.id})"
@@ -143,16 +160,18 @@ def enqueue_pvp_round_robin_run(
     for matchup_id, pairing in matchup_data:
         previous_job = None
         for ep_num in range(num_episodes):
+            dependency = previous_job if SERIALIZE_PVP_RR_EPISODES else None
             job = queue.enqueue(
                 run_episode_pvp,
                 matchup_id=matchup_id,
                 run_id=run_id,
                 episode_num=ep_num,
                 num_steps=num_steps,
-                depends_on=previous_job,
-                job_timeout="30m",
+                depends_on=dependency,
+                job_timeout=JOB_TIMEOUT_SECONDS,
             )
-            previous_job = job
+            if SERIALIZE_PVP_RR_EPISODES:
+                previous_job = job
             job_ids.append(job.id)
             print(
                 f"[JOBS.PY: ENQUEUE] Queued PVP_RR {pairing} episode {ep_num} "
@@ -201,7 +220,7 @@ def enqueue_rand_run(num_episodes: int, num_steps: int | None, model_name: str):
             num_steps=num_steps,
             model_name=model_name,
             run_type="RAND",
-            job_timeout="30m",
+            job_timeout=JOB_TIMEOUT_SECONDS,
         )
         job_ids.append(job.id)
         print(
@@ -248,7 +267,7 @@ def enqueue_input_run(num_steps: int | None, model_name: str, input_actions: lis
         model_name=model_name,
         run_type="INPUT",
         input_actions=input_actions,
-        job_timeout="30m",
+        job_timeout=JOB_TIMEOUT_SECONDS,
     )
     print(f"[JOBS.PY: ENQUEUE] Queued INPUT {model_name} episode (job {job.id})")
 

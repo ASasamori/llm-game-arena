@@ -22,12 +22,14 @@ from termcolor import colored
 
 
 # Configuration
-NUM_WORKERS = 1
-REDIS_HOST = "localhost"
-REDIS_PORT = 6379
-QUEUE_NAME = "episodes"
-LOG_DIR = "logs"
-STALE_JOB_WARN_SECONDS = 900
+NUM_WORKERS = int(os.environ.get("RUNNER_NUM_WORKERS", "1"))
+REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
+QUEUE_NAME = os.environ.get("RUNNER_QUEUE_NAME", "episodes")
+LOG_DIR = os.environ.get("RUNNER_LOG_DIR", "logs")
+STALE_JOB_WARN_SECONDS = int(os.environ.get("RUNNER_STALE_JOB_WARN_SECONDS", "900"))
+if NUM_WORKERS < 1:
+    NUM_WORKERS = 1
 
 # Thread-local storage for log files
 _thread_log_files: dict[int | None, io.TextIOWrapper] = {}
