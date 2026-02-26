@@ -6,6 +6,7 @@ import logging
 import pyspiel
 import random
 import uuid
+import os
 
 from game_arena.openspiel import utils
 from game_arena.openspiel import prompts
@@ -13,12 +14,23 @@ from game_arena.openspiel import model_generation
 from game_arena.openspiel import parsers
 from game_arena.openspiel import notations
 from orchestrator.observability import increment_counter
+from orchestrator.failures import FailureCategory, classify_exception
 
 LOGGER = logging.getLogger("game_arena.openspiel.harness")
 
 SUPPORTED_TYPES = ["INPUT", "RAND", "PVP"]
 ENV = "OPENSPIEL"
 GAME = "connect_four"
+HARNESS_RANDOM_SEED = os.environ.get("HARNESS_RANDOM_SEED")
+
+
+def _seeded_rng() -> random.Random:
+    if HARNESS_RANDOM_SEED is None:
+        return random.Random()
+    try:
+        return random.Random(int(HARNESS_RANDOM_SEED))
+    except ValueError:
+        return random.Random(HARNESS_RANDOM_SEED)
 
 
 # TODO: Specific featuers I want right now: AI models, turns, skills of the player (skills should be based upon prompt, so build later)
@@ -39,6 +51,7 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
 
     model_player_one = options["models"][0]
     type = options["type"]
+    rng = _seeded_rng()
     increment_counter("harness.episode.started", tags={"run_type": type})
 
     if type not in SUPPORTED_TYPES:
@@ -112,7 +125,7 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
         )
         if pyspiel_state.current_player() != 0 and type != "PVP":
             if type == "RAND":
-                action = random.choice(
+                action = rng.choice(
                     pyspiel_state.legal_actions(pyspiel_state.current_player())
                 )
                 action_string = pyspiel_state.action_to_string(
@@ -162,17 +175,27 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
             try:
                 response = model.generate_with_text_input(prompt)
             except Exception as e:
+                failure = classify_exception(
+                    e,
+                    stage="harness.model_call",
+                    default_category=FailureCategory.MODEL_API,
+                    default_code="model_call_failed",
+                )
                 increment_counter(
                     "harness.fallback.total", tags={"reason": "model_api_error"}
                 )
-                fallback_action = random.choice(legal_actions)
+                increment_counter(
+                    "harness.failure.total",
+                    tags={"category": failure.category.value, "code": failure.code},
+                )
+                fallback_action = rng.choice(legal_actions)
                 fallback_action_str = pyspiel_state.action_to_string(
                     pyspiel_state.current_player(), fallback_action
                 )
                 pyspiel_state.apply_action(fallback_action)
                 action_list.append(fallback_action_str)
                 summary_list.append(
-                    "Model API failed (likely rate-limit/credits/network); random legal action fallback."
+                    f"{failure.compact()} Random legal action fallback applied."
                 )
                 LOGGER.warning(
                     "model_api_fallback_action_applied",
@@ -203,14 +226,19 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
                 increment_counter(
                     "harness.fallback.total", tags={"reason": "parser_none"}
                 )
-                fallback_action = random.choice(legal_actions)
+                increment_counter(
+                    "harness.failure.total",
+                    tags={"category": FailureCategory.PARSER.value, "code": "parser_none"},
+                )
+                fallback_action = rng.choice(legal_actions)
                 fallback_action_str = pyspiel_state.action_to_string(
                     pyspiel_state.current_player(), fallback_action
                 )
                 pyspiel_state.apply_action(fallback_action)
                 action_list.append(fallback_action_str)
                 summary_list.append(
-                    "Parser produced no legal action; random legal action fallback."
+                    "[category=parser code=parser_none stage=harness.parse "
+                    "retryable=false] Parser produced no legal action; random legal action fallback."
                 )
                 LOGGER.warning(
                     "parser_none_fallback_action_applied",
@@ -230,17 +258,49 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
                         "parser_output": parser_output,
                     },
                 )
+            if parser_output not in legal_action_strings:
+                increment_counter(
+                    "harness.fallback.total", tags={"reason": "illegal_parser_output"}
+                )
+                increment_counter(
+                    "harness.failure.total",
+                    tags={
+                        "category": FailureCategory.INVALID_ACTION.value,
+                        "code": "illegal_parser_output",
+                    },
+                )
+                fallback_action = rng.choice(legal_actions)
+                fallback_action_str = pyspiel_state.action_to_string(
+                    pyspiel_state.current_player(), fallback_action
+                )
+                pyspiel_state.apply_action(fallback_action)
+                action_list.append(fallback_action_str)
+                summary_list.append(
+                    "[category=invalid_action code=illegal_parser_output "
+                    "stage=harness.parse retryable=false] Parsed move not legal; random legal action fallback."
+                )
+                continue
             action_list.append(parser_output)
             summary_list.append(parser.summary)
             try:
                 parsed_action = pyspiel_state.string_to_action(parser_output)
                 pyspiel_state.apply_action(parsed_action)
             except Exception as e:
+                failure = classify_exception(
+                    e,
+                    stage="harness.apply_action",
+                    default_category=FailureCategory.INVALID_ACTION,
+                    default_code="invalid_parsed_action",
+                )
                 increment_counter(
                     "harness.fallback.total", tags={"reason": "invalid_parsed_action"}
                 )
+                increment_counter(
+                    "harness.failure.total",
+                    tags={"category": failure.category.value, "code": failure.code},
+                )
                 # Keep episode alive by applying a random legal move.
-                fallback_action = random.choice(legal_actions)
+                fallback_action = rng.choice(legal_actions)
                 fallback_action_str = pyspiel_state.action_to_string(
                     pyspiel_state.current_player(), fallback_action
                 )
@@ -248,7 +308,7 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
                 # Replace bad parsed action in record with the applied fallback.
                 action_list[-1] = fallback_action_str
                 summary_list[-1] = (
-                    f"{parser.summary or 'Parser output invalid'} "
+                    f"{failure.compact()} "
                     "(invalid action applied; random legal action fallback)."
                 )
                 LOGGER.warning(

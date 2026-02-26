@@ -102,6 +102,12 @@ def time_now_ms() -> float:
     return time.perf_counter() * 1000.0
 
 
+def reset_metrics() -> None:
+    with _METRICS_LOCK:
+        _COUNTERS.clear()
+        _TIMINGS_MS.clear()
+
+
 def _percentile(sorted_values: list[float], percentile: float) -> float:
     if not sorted_values:
         return 0.0

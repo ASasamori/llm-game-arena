@@ -41,6 +41,7 @@ from orchestrator.observability import (
     observe_timing_ms,
     time_now_ms,
 )
+from orchestrator.failures import classify_exception
 
 try:
     import tiktoken
@@ -222,6 +223,7 @@ class HealthResponse(BaseModel):
 class ErrorResponse(BaseModel):
     error: str | dict[str, Any] | list[Any]
     status_code: int
+    code: str | None = None
 
 
 class ObservabilitySnapshotResponse(BaseModel):
@@ -456,6 +458,32 @@ async def http_exception_handler(_: Request, exc: HTTPException):
     return JSONResponse(
         status_code=exc.status_code,
         content={"error": exc.detail, "status_code": exc.status_code},
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    failure = classify_exception(exc, stage="api.unhandled", default_code="internal_error")
+    increment_counter(
+        "api.requests.error.total",
+        tags={"category": failure.category.value, "code": failure.code},
+    )
+    LOGGER.exception(
+        "unhandled_exception",
+        extra={
+            "path": request.url.path,
+            "method": request.method,
+            "failure_code": failure.code,
+            "failure_category": failure.category.value,
+        },
+    )
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": failure.compact(),
+            "status_code": 500,
+            "code": failure.code,
+        },
     )
 
 

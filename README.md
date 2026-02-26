@@ -6,6 +6,49 @@ Client Request -> Run Orchestrator -> Workers -> Evals -> Client Polling
 
 ## REST API Gateway (Pipelined Run Submission)
 
+### Docker Compose local stack
+
+Run the full local stack (Postgres + Redis + API + worker):
+
+```bash
+docker compose up --build
+```
+
+Services:
+- API: `http://localhost:8000`
+- Postgres: `localhost:5432`
+- Redis: `localhost:6379`
+
+The compose stack defaults to mock model responses (`MODEL_API_MOCK_MODE=true`),
+so you can test end-to-end without external model API keys.
+
+Submit a local test run:
+
+```bash
+curl -X POST http://localhost:8000/v1/runs \
+  -H "Authorization: Bearer local-dev-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "run_type": "PVP",
+    "env": "connect_four_v1",
+    "num_episodes": 2,
+    "num_steps": 42,
+    "model_names": ["GEMINI", "GPT"]
+  }'
+```
+
+Stop and remove containers:
+
+```bash
+docker compose down
+```
+
+Stop and remove containers plus DB volume:
+
+```bash
+docker compose down -v
+```
+
 Start the API gateway:
 
 ```bash
@@ -200,6 +243,49 @@ Notes:
   - `analytics/mock_e2e/report.json`
   - `analytics/mock_e2e/observability_metrics.json`
   - `analytics/mock_e2e/observability_dashboard.json`
+
+### Guardrails + Failure Taxonomy (New)
+Shared failure taxonomy is implemented in `orchestrator/failures.py` and propagated to:
+- API unhandled exception responses
+- Worker episode execution errors
+- Harness fallback/error metrics
+
+Taxonomy categories include:
+- `validation`, `auth`, `rate_limit`, `model_api`, `parser`, `invalid_action`, `queue`, `db`, `timeout`, `internal`
+
+Model response guardrails:
+- `MODEL_API_MAX_RESPONSE_CHARS` (default `8000`)
+- empty response rejection
+- deterministic injected mock failure case: `MODEL_API_MOCK_CASE=raise_error`
+
+Harness guardrails:
+- deterministic fallback RNG via `HARNESS_RANDOM_SEED`
+- legal-action precheck before apply
+- categorized fallback metrics under `harness.failure.total`
+
+### Parallelization Tuning (New)
+Job scheduling and worker concurrency are now configurable:
+
+```bash
+export RUNNER_NUM_WORKERS=4
+export ORCH_JOB_TIMEOUT_SECONDS=1800
+export ORCH_SERIALIZE_PVP_EPISODES=true
+export ORCH_SERIALIZE_PVP_RR_EPISODES=false
+```
+
+Notes:
+- `ORCH_SERIALIZE_PVP_EPISODES=true` preserves strict determinism inside one PVP matchup.
+- Setting either serialize flag to `false` allows higher throughput by removing intra-matchup dependency chaining.
+
+### Failure Evidence Demo
+Run a local harness-only demo that proves:
+- successful episodes
+- recoverable fallbacks
+- hard failures that propagate with taxonomy
+
+```bash
+python -m orchestrator.failure_demo
+```
 
 ### Elo ratings CLI
 Create/update Elo ratings from completed PVP episodes. Ratings are persisted in:

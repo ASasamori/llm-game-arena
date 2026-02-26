@@ -12,6 +12,7 @@ from orchestrator.observability import (
     configure_json_logging,
     increment_counter,
 )
+from orchestrator.failures import classify_exception
 
 
 configure_json_logging(service="worker_tasks")
@@ -106,12 +107,19 @@ def run_episode_pvp(
     try:
         result: utils.EpisodeResult = harness.harness(harness_options)
     except Exception as e:
+        failure = classify_exception(
+            e, stage="worker.episode_execution", default_code="episode_execution_failed"
+        )
         increment_counter(
             "worker.episode.error", tags={"reason": "execution_exception"}
         )
+        increment_counter(
+            "worker.failure.total",
+            tags={"category": failure.category.value, "code": failure.code},
+        )
         error = (
             f"Episode execution failed for matchup {matchup_id[:8]} "
-            f"episode {episode_num}: {e}"
+            f"episode {episode_num}: {failure.compact()}"
         )
         LOGGER.exception(
             "episode_execution_failed",
@@ -261,11 +269,19 @@ def run_episode_single(
     try:
         result: utils.EpisodeResult = harness.harness(harness_options)
     except Exception as e:
+        failure = classify_exception(
+            e, stage="worker.episode_execution", default_code="episode_execution_failed"
+        )
         increment_counter(
             "worker.episode.error", tags={"reason": "execution_exception"}
         )
+        increment_counter(
+            "worker.failure.total",
+            tags={"category": failure.category.value, "code": failure.code},
+        )
         error = (
-            f"Episode execution failed for run {run_id[:8]} episode {episode_num}: {e}"
+            f"Episode execution failed for run {run_id[:8]} episode {episode_num}: "
+            f"{failure.compact()}"
         )
         LOGGER.exception(
             "episode_execution_failed",

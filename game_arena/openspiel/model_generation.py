@@ -23,6 +23,11 @@ def _is_truthy(value: str | None) -> bool:
 
 MODEL_API_MOCK_MODE = _is_truthy(os.environ.get("MODEL_API_MOCK_MODE", "false"))
 MODEL_API_MOCK_CASE = os.environ.get("MODEL_API_MOCK_CASE", "default").strip().lower()
+MODEL_API_MAX_RESPONSE_CHARS = int(
+    os.environ.get("MODEL_API_MAX_RESPONSE_CHARS", "8000")
+)
+if MODEL_API_MAX_RESPONSE_CHARS < 100:
+    MODEL_API_MAX_RESPONSE_CHARS = 100
 
 MOCK_TEST_CASES: dict[str, str] = {
     # Valid shape expected by parser.
@@ -33,11 +38,15 @@ MOCK_TEST_CASES: dict[str, str] = {
     "invalid_action": "Final Answer: 99\nSummary: Deliberately invalid move for testing.",
     # Deterministic alternate legal response.
     "edge_col": "Final Answer: 0\nSummary: Mock response choosing edge column.",
+    # Explicit error path for guardrail/fallback testing.
+    "raise_error": "",
 }
 
 
 def _mock_response_text(provider: str, prompt: str) -> str:
     case = MODEL_API_MOCK_CASE
+    if case == "raise_error":
+        raise RuntimeError(f"Injected mock failure for provider={provider}")
     base = MOCK_TEST_CASES.get(case, MOCK_TEST_CASES["default"])
     if case not in MOCK_TEST_CASES:
         logging.warning(
@@ -71,6 +80,22 @@ class GenerateResponse:
     """Simple response container with the model's output."""
 
     main_response: str
+
+
+class ModelResponseGuardrailError(ValueError):
+    """Raised when model output violates guardrails."""
+
+
+def _validate_model_response(text: str) -> str:
+    normalized = (text or "").strip()
+    if not normalized:
+        raise ModelResponseGuardrailError("Model returned an empty response")
+    if len(normalized) > MODEL_API_MAX_RESPONSE_CHARS:
+        raise ModelResponseGuardrailError(
+            "Model response exceeded max length "
+            f"({len(normalized)} > {MODEL_API_MAX_RESPONSE_CHARS})"
+        )
+    return normalized
 
 
 class LLMModel(Protocol):
@@ -116,7 +141,11 @@ class GeminiModel:
     ) -> GenerateResponse:
         """Generate a response from a text prompt."""
         if mock or self._mock_mode:
-            return GenerateResponse(main_response=_mock_response_text("GEMINI", prompt))
+            return GenerateResponse(
+                main_response=_validate_model_response(
+                    _mock_response_text("GEMINI", prompt)
+                )
+            )
         client = self._client
         if client is None:
             raise RuntimeError("Gemini client is not initialized")
@@ -140,7 +169,7 @@ class GeminiModel:
                 if part.text:
                     main_response += part.text
 
-        return GenerateResponse(main_response=main_response)
+        return GenerateResponse(main_response=_validate_model_response(main_response))
 
     def __str__(self) -> str:
         return f"GeminiModel({self._model_name})"
@@ -175,7 +204,9 @@ class GPTModel:
     ) -> GenerateResponse:
         """Generate a response from a text prompt."""
         if mock or self._mock_mode:
-            return GenerateResponse(main_response=_mock_response_text("GPT", prompt))
+            return GenerateResponse(
+                main_response=_validate_model_response(_mock_response_text("GPT", prompt))
+            )
         client = self._client
         if client is None:
             raise RuntimeError("OpenAI client is not initialized")
@@ -190,7 +221,7 @@ class GPTModel:
         )
 
         main_response = response.choices[0].message.content or ""
-        return GenerateResponse(main_response=main_response)
+        return GenerateResponse(main_response=_validate_model_response(main_response))
 
     def __str__(self) -> str:
         return f"GPTModel({self._model_name})"
@@ -223,7 +254,11 @@ class ClaudeModel:
     ) -> GenerateResponse:
         """Generate a response from a text prompt."""
         if mock or self._mock_mode:
-            return GenerateResponse(main_response=_mock_response_text("CLAUDE", prompt))
+            return GenerateResponse(
+                main_response=_validate_model_response(
+                    _mock_response_text("CLAUDE", prompt)
+                )
+            )
         client = self._client
         if client is None:
             raise RuntimeError("Anthropic client is not initialized")
@@ -243,7 +278,7 @@ class ClaudeModel:
             if block.type == "text":
                 main_response += block.text
 
-        return GenerateResponse(main_response=main_response)
+        return GenerateResponse(main_response=_validate_model_response(main_response))
 
     def __str__(self) -> str:
         return f"ClaudeModel({self._model_name})"
