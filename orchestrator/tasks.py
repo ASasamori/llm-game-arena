@@ -35,6 +35,16 @@ MODEL_CACHE: dict[str, model_generation.LLMModel] = {}
 TERMINAL_MATCHUP_STATUSES = {"COMPLETED", "FAILED"}
 
 
+def _infer_step_player(game: str, step_index: int, action_str: str) -> str:
+    if game == "connect_four":
+        if action_str and action_str[0].lower() in {"x", "o"}:
+            return action_str[0].lower()
+        return "x" if step_index % 2 == 0 else "o"
+    if game == "chess":
+        return "w" if step_index % 2 == 0 else "b"
+    return action_str[0].lower() if action_str else "?"
+
+
 def _get_model(model_name: str) -> model_generation.LLMModel:
     upper_name = model_name.upper()
     if upper_name not in MODEL_FACTORIES:
@@ -73,7 +83,11 @@ def _failed_episode_result(
 
 
 def run_episode_pvp(
-    matchup_id: str, run_id: str, episode_num: int, num_steps: int | None
+    matchup_id: str,
+    run_id: str,
+    episode_num: int,
+    num_steps: int | None,
+    game: str = "connect_four",
 ):
     """
     PVP episode: two models compete.
@@ -102,7 +116,11 @@ def run_episode_pvp(
 
     model_list = [_get_model(model) for model in model_names]
     harness_options = utils.HarnessOptions(
-        type="PVP", num_steps=num_steps, models=model_list, input=None
+        type="PVP",
+        num_steps=num_steps,
+        models=model_list,
+        input=None,
+        game=game,
     )
     try:
         result: utils.EpisodeResult = harness.harness(harness_options)
@@ -132,7 +150,7 @@ def run_episode_pvp(
         )
         result = _failed_episode_result(
             run_type="PVP",
-            game="connect_four",
+            game=game,
             models=[str(model) for model in model_list],
             num_steps=num_steps,
             error=error,
@@ -188,7 +206,7 @@ def run_episode_pvp(
                     step_id=str(uuid.uuid4()),
                     episode_id=result["episode_id"],
                     step_index=step_index,
-                    player=action_str[0].lower(),
+                    player=_infer_step_player(result["game"], step_index, action_str),
                     action=action_str,
                 )
                 session.add(step)
@@ -238,6 +256,7 @@ def run_episode_single(
     model_name: str,
     run_type: str,
     input_actions: list[int] | None = None,
+    game: str = "connect_four",
 ):
     """
     Single-model episode: RAND or INPUT mode.
@@ -265,6 +284,7 @@ def run_episode_single(
         num_steps=num_steps,
         models=[model],
         input=input_queue,
+        game=game,
     )
     try:
         result: utils.EpisodeResult = harness.harness(harness_options)
@@ -293,7 +313,7 @@ def run_episode_single(
         )
         result = _failed_episode_result(
             run_type=run_type,
-            game="connect_four",
+            game=game,
             models=[str(model)],
             num_steps=num_steps,
             error=error,
@@ -348,7 +368,7 @@ def run_episode_single(
                     step_id=str(uuid.uuid4()),
                     episode_id=result["episode_id"],
                     step_index=step_index,
-                    player=action_str[0].lower(),
+                    player=_infer_step_player(result["game"], step_index, action_str),
                     action=action_str,
                 )
                 session.add(step)

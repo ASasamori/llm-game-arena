@@ -7,6 +7,7 @@ from rq import Queue
 
 from orchestrator.tasks import run_episode_pvp, run_episode_single
 from orchestrator.models import get_session, Run, Matchup
+from game_arena.openspiel import utils as openspiel_utils
 
 REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
@@ -28,7 +29,9 @@ if JOB_TIMEOUT_SECONDS < 30:
     JOB_TIMEOUT_SECONDS = 30
 
 
-def enqueue_pvp_run(num_episodes: int, num_steps: int | None, model_names: list[str]):
+def enqueue_pvp_run(
+    num_episodes: int, num_steps: int | None, model_names: list[str], game: str
+):
     """
     Creates a PVP run for exactly one model pair.
     Jobs are chained with dependencies so episode order stays deterministic.
@@ -86,6 +89,7 @@ def enqueue_pvp_run(num_episodes: int, num_steps: int | None, model_names: list[
             run_id=run_id,
             episode_num=ep_num,
             num_steps=num_steps,
+            game=game,
             depends_on=dependency,
             job_timeout=JOB_TIMEOUT_SECONDS,
         )
@@ -103,7 +107,7 @@ def enqueue_pvp_run(num_episodes: int, num_steps: int | None, model_names: list[
 
 
 def enqueue_pvp_round_robin_run(
-    num_episodes: int, num_steps: int | None, model_names: list[str]
+    num_episodes: int, num_steps: int | None, model_names: list[str], game: str
 ):
     """
     Creates a round-robin PVP run across all unique model pairs.
@@ -167,6 +171,7 @@ def enqueue_pvp_round_robin_run(
                 run_id=run_id,
                 episode_num=ep_num,
                 num_steps=num_steps,
+                game=game,
                 depends_on=dependency,
                 job_timeout=JOB_TIMEOUT_SECONDS,
             )
@@ -185,7 +190,9 @@ def enqueue_pvp_round_robin_run(
     return run_id, job_ids
 
 
-def enqueue_rand_run(num_episodes: int, num_steps: int | None, model_name: str):
+def enqueue_rand_run(
+    num_episodes: int, num_steps: int | None, model_name: str, game: str
+):
     """
     Creates a RAND run: single model vs random opponent.
     No matchups - episodes link directly to run.
@@ -220,6 +227,7 @@ def enqueue_rand_run(num_episodes: int, num_steps: int | None, model_name: str):
             num_steps=num_steps,
             model_name=model_name,
             run_type="RAND",
+            game=game,
             job_timeout=JOB_TIMEOUT_SECONDS,
         )
         job_ids.append(job.id)
@@ -233,7 +241,9 @@ def enqueue_rand_run(num_episodes: int, num_steps: int | None, model_name: str):
     return run_id, job_ids
 
 
-def enqueue_input_run(num_steps: int | None, model_name: str, input_actions: list[int]):
+def enqueue_input_run(
+    num_steps: int | None, model_name: str, input_actions: list[int], game: str
+):
     """
     Creates an INPUT run: single model vs predefined input actions.
     No matchups - single episode per run (input is specific to one game).
@@ -267,6 +277,7 @@ def enqueue_input_run(num_steps: int | None, model_name: str, input_actions: lis
         model_name=model_name,
         run_type="INPUT",
         input_actions=input_actions,
+        game=game,
         job_timeout=JOB_TIMEOUT_SECONDS,
     )
     print(f"[JOBS.PY: ENQUEUE] Queued INPUT {model_name} episode (job {job.id})")
@@ -280,6 +291,7 @@ def enqueue_run(
     num_steps: int | None,
     model_names: list[str],
     input_actions: list[int] | None = None,
+    env: str = "connect_four_v1",
 ) -> tuple[str, list[str]]:
     """
     Unified entry point for creating runs of any type.
@@ -298,17 +310,18 @@ def enqueue_run(
     """
     if run_type not in SUPPORTED_TYPES:
         raise ValueError(f"run_type must be one of {SUPPORTED_TYPES}, got {run_type}")
+    game = openspiel_utils.resolve_game_from_env(env)
 
     if run_type == "PVP":
-        return enqueue_pvp_run(num_episodes, num_steps, model_names)
+        return enqueue_pvp_run(num_episodes, num_steps, model_names, game)
     elif run_type == "PVP_RR":
-        return enqueue_pvp_round_robin_run(num_episodes, num_steps, model_names)
+        return enqueue_pvp_round_robin_run(num_episodes, num_steps, model_names, game)
     elif run_type == "RAND":
-        return enqueue_rand_run(num_episodes, num_steps, model_names[0])
+        return enqueue_rand_run(num_episodes, num_steps, model_names[0], game)
     else:  # INPUT
         if input_actions is None:
             raise ValueError("INPUT run requires input_actions")
-        return enqueue_input_run(num_steps, model_names[0], input_actions)
+        return enqueue_input_run(num_steps, model_names[0], input_actions, game)
 
 
 if __name__ == "__main__":

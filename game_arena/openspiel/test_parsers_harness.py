@@ -19,6 +19,19 @@ class _FakeModel:
         return GenerateResponse(main_response="Summary: test\nFinal Answer: 5")
 
 
+class _ChessFakeModel:
+    def __str__(self) -> str:
+        return "ChessFakeModel"
+
+    def generate_with_text_input(
+        self,
+        prompt: str,
+        system_instruction: str | None = None,
+        mock: bool = False,
+    ) -> GenerateResponse:
+        return GenerateResponse(main_response="Summary: develop center\nFinal Answer: e4")
+
+
 class _AlwaysNoneParser:
     summary = "Parser failed"
 
@@ -66,6 +79,7 @@ class ParserHarnessRegressionTests(unittest.TestCase):
             models=fake_models,
             num_steps=1,
             input=None,
+            game="connect_four",
         )
         with patch(
             "game_arena.openspiel.harness.parsers.ChainedMoveParser",
@@ -73,8 +87,30 @@ class ParserHarnessRegressionTests(unittest.TestCase):
         ):
             result = harness.harness(options)
 
-        self.assertEqual(result["status"], "FAILED")
-        self.assertIn("Parser produced no legal action string", result["error"])
+        self.assertEqual(result["status"], "TRUNCATED")
+        self.assertIn("num_steps=1", result["error"])
+
+    def test_soft_parser_normalizes_chess_castling(self) -> None:
+        parser = parsers.SoftMoveParser(game_short_name="chess")
+        parser_input = parsers.TextParserInput(
+            text="0-0",
+            state_str="",
+            legal_moves=["e4", "Nf3", "O-O"],
+            player_number=0,
+        )
+        self.assertEqual(parser.parse(parser_input), "O-O")
+
+    def test_harness_supports_chess_game(self) -> None:
+        options = utils.HarnessOptions(
+            type="RAND",
+            models=[_ChessFakeModel()],
+            num_steps=1,
+            input=None,
+            game="chess",
+        )
+        result = harness.harness(options)
+        self.assertEqual(result["game"], "chess")
+        self.assertEqual(len(result["action"]), 1)
 
 
 if __name__ == "__main__":

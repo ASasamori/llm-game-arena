@@ -115,6 +115,7 @@ def main() -> int:
         num_steps=args.num_steps,
         models=models,
         input=None,
+        game="connect_four",
     )
 
     result = run_with_backoff(

@@ -92,19 +92,43 @@ def main() -> None:
     cases = [
         _run_case(
             "success_rand",
-            utils.HarnessOptions(type="RAND", models=[good_model], num_steps=None, input=None),
+            utils.HarnessOptions(
+                type="RAND",
+                models=[good_model],
+                num_steps=None,
+                input=None,
+                game="connect_four",
+            ),
         ),
         _run_case(
             "recoverable_model_api_failure",
-            utils.HarnessOptions(type="RAND", models=[failing_model], num_steps=6, input=None),
+            utils.HarnessOptions(
+                type="RAND",
+                models=[failing_model],
+                num_steps=6,
+                input=None,
+                game="connect_four",
+            ),
         ),
         _run_case(
             "recoverable_parser_none",
-            utils.HarnessOptions(type="RAND", models=[parser_none_model], num_steps=6, input=None),
+            utils.HarnessOptions(
+                type="RAND",
+                models=[parser_none_model],
+                num_steps=6,
+                input=None,
+                game="connect_four",
+            ),
         ),
         _run_case(
             "recoverable_invalid_action",
-            utils.HarnessOptions(type="RAND", models=[invalid_action_model], num_steps=6, input=None),
+            utils.HarnessOptions(
+                type="RAND",
+                models=[invalid_action_model],
+                num_steps=6,
+                input=None,
+                game="connect_four",
+            ),
         ),
         _run_case(
             "hard_failure_invalid_input_action",
@@ -113,6 +137,7 @@ def main() -> None:
                 models=[good_model],
                 num_steps=4,
                 input=deque([99]),
+                game="connect_four",
             ),
         ),
     ]

@@ -7,7 +7,9 @@ from game_arena.openspiel import utils
 
 class RunHarnessBackoffTests(unittest.TestCase):
     def test_run_with_backoff_retries_and_succeeds(self) -> None:
-        options = utils.HarnessOptions(type="RAND", models=[], num_steps=2, input=None)
+        options = utils.HarnessOptions(
+            type="RAND", models=[], num_steps=2, input=None, game="connect_four"
+        )
         calls = {"count": 0}
 
         def flaky_run(_options: utils.HarnessOptions) -> utils.EpisodeResult:
@@ -45,7 +47,9 @@ class RunHarnessBackoffTests(unittest.TestCase):
         self.assertEqual(len(sleep_calls), 2)
 
     def test_run_with_backoff_does_not_retry_non_retryable_value_error(self) -> None:
-        options = utils.HarnessOptions(type="RAND", models=[], num_steps=2, input=None)
+        options = utils.HarnessOptions(
+            type="RAND", models=[], num_steps=2, input=None, game="connect_four"
+        )
         with patch(
             "game_arena.openspiel.run_harness.harness.harness",
             side_effect=ValueError("bad config"),

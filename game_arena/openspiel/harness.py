@@ -20,7 +20,6 @@ LOGGER = logging.getLogger("game_arena.openspiel.harness")
 
 SUPPORTED_TYPES = ["INPUT", "RAND", "PVP"]
 ENV = "OPENSPIEL"
-GAME = "connect_four"
 HARNESS_RANDOM_SEED = os.environ.get("HARNESS_RANDOM_SEED")
 
 
@@ -39,8 +38,9 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
     episode_id = str(uuid.uuid4())
     start_time = utils.datetime.now()
     requested_num_steps = options["num_steps"]
+    game = options["game"]
 
-    pyspiel_game = pyspiel.load_game(GAME)
+    pyspiel_game = pyspiel.load_game(game)
     pyspiel_state = pyspiel_game.new_initial_state()
 
     game_max_steps = pyspiel_game.max_game_length()
@@ -68,7 +68,7 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
     parser = parsers.ChainedMoveParser(
         [
             parsers.RuleBasedMoveParser(),
-            parsers.SoftMoveParser(game_short_name="connect_four"),
+            parsers.SoftMoveParser(game_short_name=game),
         ]
     )
 
@@ -95,22 +95,18 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
         # )
 
         prompt_subs = {
-            "game_short_name": "Connect Four",
+            "game_short_name": game.replace("_", " ").title(),
             "readable_state_str": utils.convert_to_readable_state(
-                game_short_name="connect_four",
+                game_short_name=game,
                 state_str=pyspiel_state.to_string(),
                 current_player=pyspiel_state.current_player(),
             ),
             "move_history": utils.get_action_string_history(pyspiel_state) or "None",
-            "player_name": notations.GAME_SPECIFIC_NOTATIONS["connect_four"][
-                "player_map"
-            ][pyspiel_state.current_player()],
-            "move_notation": notations.GAME_SPECIFIC_NOTATIONS["connect_four"][
-                "move_notation"
+            "player_name": notations.GAME_SPECIFIC_NOTATIONS[game]["player_map"][
+                pyspiel_state.current_player()
             ],
-            "notation": notations.GAME_SPECIFIC_NOTATIONS["connect_four"][
-                "state_notation"
-            ],
+            "move_notation": notations.GAME_SPECIFIC_NOTATIONS[game]["move_notation"],
+            "notation": notations.GAME_SPECIFIC_NOTATIONS[game]["state_notation"],
         }
 
         prompt = prompts.PROMPT_TEMPLATE_NO_LEGAL_ACTIONS.format(**prompt_subs)
@@ -371,7 +367,7 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
     return utils.EpisodeResult(
         episode_id=episode_id,
         env=ENV,
-        game=GAME,
+        game=game,
         arena_type=type,
         # Change to multiple soon, and index based on players
         # Ex: [GEM, GPT]; action_list: [x1,o2,...]

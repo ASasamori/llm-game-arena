@@ -44,6 +44,7 @@ from orchestrator.observability import (
     time_now_ms,
 )
 from orchestrator.failures import classify_exception
+from orchestrator.settings import get_database_target
 
 try:
     import tiktoken
@@ -144,7 +145,7 @@ class RunCreateRequest(BaseModel):
     )
     env: str = Field(
         default="connect_four_v1",
-        description="Environment version.",
+        description="Environment version: connect_four_v1 or chess_v1.",
     )
 
     model_config = {
@@ -156,6 +157,13 @@ class RunCreateRequest(BaseModel):
                     "num_steps": 42,
                     "model_names": ["GEMINI", "GPT"],
                     "env": "connect_four_v1",
+                },
+                {
+                    "run_type": "RAND",
+                    "num_episodes": 3,
+                    "num_steps": 120,
+                    "model_names": ["GPT"],
+                    "env": "chess_v1",
                 }
             ]
         }
@@ -174,8 +182,8 @@ class RunCreateRequest(BaseModel):
                 raise ValueError("INPUT supports only num_episodes=1")
         if self.run_type in {"RAND", "INPUT"} and len(self.model_names) < 1:
             raise ValueError(f"{self.run_type} requires at least one model name")
-        if self.env != "connect_four_v1":
-            raise ValueError("Only env='connect_four_v1' is supported right now")
+        if self.env not in {"connect_four_v1", "chess_v1"}:
+            raise ValueError("env must be one of: connect_four_v1, chess_v1")
         return self
 
 
@@ -219,6 +227,7 @@ class UsageResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: Literal["ok"]
     gateway: str
+    database_target: str
     ts: datetime
 
 
@@ -309,6 +318,21 @@ class LeaderboardResponse(BaseModel):
     game: str | None
     limit: int
     rows: list[LeaderboardRow]
+
+
+class ClientStylizeRequest(BaseModel):
+    title: str = Field(default="Arena Client Request")
+    summary: str = Field(min_length=1, max_length=5000)
+    highlights: list[str] = Field(default_factory=list, max_length=12)
+    tone: Literal["technical", "executive", "compact"] = Field(default="technical")
+
+
+class ClientStylizeResponse(BaseModel):
+    title: str
+    tone: str
+    styled_markdown: str
+    styled_text: str
+    generated_at: datetime
 
 
 bearer_scheme = HTTPBearer(auto_error=False, scheme_name="BearerAuth")
@@ -567,6 +591,46 @@ def _build_run_analytics(run_id: str, action_space: int) -> RunAnalyticsResponse
         session.close()
 
 
+def _render_stylized_client_payload(
+    request: ClientStylizeRequest,
+) -> tuple[str, str]:
+    summary_line = request.summary.strip()
+    highlights = [item.strip() for item in request.highlights if item.strip()]
+    if request.tone == "executive":
+        header = f"## {request.title}\n\n{summary_line}\n"
+        bullets = "".join(f"- {item}\n" for item in highlights)
+        markdown = f"{header}\n### Highlights\n{bullets or '- None provided\\n'}"
+        text_lines = [
+            f"{request.title.upper()}",
+            "=" * max(10, len(request.title)),
+            summary_line,
+            "",
+            "Highlights:",
+            *(f" * {item}" for item in highlights),
+        ]
+    elif request.tone == "compact":
+        pills = " | ".join(highlights) if highlights else "none"
+        markdown = f"**{request.title}**: {summary_line}\n\n`{pills}`"
+        text_lines = [f"[{request.title}] {summary_line}", f"Highlights: {pills}"]
+    else:
+        bullets = "".join(f"- `{idx + 1:02d}` {item}\n" for idx, item in enumerate(highlights))
+        markdown = (
+            f"### {request.title}\n\n"
+            f"> {summary_line}\n\n"
+            f"#### Structured Highlights\n{bullets or '- `00` none\\n'}"
+        )
+        text_lines = [
+            f"{request.title}",
+            "-" * max(8, len(request.title)),
+            f"Summary: {summary_line}",
+            "Highlights:",
+            *(f" - [{idx + 1:02d}] {item}" for idx, item in enumerate(highlights)),
+        ]
+
+    text = "\n".join(text_lines).strip()
+    return markdown.strip(), text
+
+
 @tenacity.retry(
     wait=tenacity.wait_random_exponential(min=0.5, max=8),
     stop=tenacity.stop_after_attempt(5),
@@ -585,6 +649,7 @@ def _enqueue_with_backoff(request: RunCreateRequest) -> tuple[str, list[str]]:
         num_steps=request.num_steps,
         model_names=request.model_names,
         input_actions=request.input_actions,
+        env=request.env,
     )
 
 
@@ -592,7 +657,7 @@ app = FastAPI(
     title="LLM Game Arena API Gateway",
     version="0.1.0",
     description=(
-        "API gateway for creating and polling OpenSpiel Connect Four arena runs. "
+        "API gateway for creating and polling OpenSpiel arena runs. "
         "Includes API-key auth, Redis-backed rate limiting, token-budget accounting, "
         "and enqueue retry/backoff."
     ),
@@ -600,6 +665,7 @@ app = FastAPI(
         {"name": "health", "description": "Gateway health and readiness checks."},
         {"name": "runs", "description": "Run submission and run status polling."},
         {"name": "usage", "description": "Per-API-key rate limit usage snapshots."},
+        {"name": "client", "description": "Client-facing response formatting helpers."},
         {
             "name": "observability",
             "description": "Process-local counters/timing snapshots and dashboard views.",
@@ -713,7 +779,39 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 )
 def healthz():
     now = datetime.now(timezone.utc)
-    return HealthResponse(status="ok", gateway=API_GATEWAY_NAME, ts=now)
+    return HealthResponse(
+        status="ok",
+        gateway=API_GATEWAY_NAME,
+        database_target=get_database_target(),
+        ts=now,
+    )
+
+
+@app.post(
+    "/v1/client/stylize",
+    response_model=ClientStylizeResponse,
+    tags=["client"],
+    operation_id="stylizeClientPayload",
+    summary="Render stylized client response text",
+    description=(
+        "Takes a simple client payload and returns stylized markdown/text output "
+        "for direct UI or terminal display."
+    ),
+    responses={401: {"model": ErrorResponse, "description": "Authentication failed"}},
+    openapi_extra={"security": [{"BearerAuth": []}, {"APIKeyHeader": []}]},
+)
+def stylize_client_payload(
+    request: ClientStylizeRequest,
+    _: str = Depends(_authenticate),
+):
+    markdown, text = _render_stylized_client_payload(request)
+    return ClientStylizeResponse(
+        title=request.title,
+        tone=request.tone,
+        styled_markdown=markdown,
+        styled_text=text,
+        generated_at=datetime.now(timezone.utc),
+    )
 
 
 @app.post(

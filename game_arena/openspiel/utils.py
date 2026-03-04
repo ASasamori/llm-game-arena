@@ -27,6 +27,22 @@ class HarnessOptions(TypedDict):
     models: list[model_generation.LLMModel]
     num_steps: int | None
     input: deque | None
+    game: str
+
+
+ENV_TO_GAME = {
+    "connect_four_v1": "connect_four",
+    "chess_v1": "chess",
+}
+
+
+def resolve_game_from_env(env: str) -> str:
+    normalized_env = (env or "").strip().lower()
+    if normalized_env not in ENV_TO_GAME:
+        raise ValueError(
+            f"Unsupported env '{env}'. Supported envs: {sorted(ENV_TO_GAME.keys())}"
+        )
+    return ENV_TO_GAME[normalized_env]
 
 
 def get_action_string_history(state: pyspiel.State) -> str:

@@ -169,6 +169,41 @@ class SoftMoveParser(TextParser):
     def __init__(self, game_short_name: str):
         self._game_short_name = game_short_name
 
+    @staticmethod
+    def _normalize_chess_move(text: str) -> str:
+        selected_action = (text or "").strip()
+        if not selected_action:
+            return ""
+
+        selected_action = selected_action.splitlines()[0].strip().strip("`")
+        selected_action = re.sub(
+            r"^(?:move|play|answer|final\s*answer)\s*[:=-]\s*",
+            "",
+            selected_action,
+            flags=re.IGNORECASE,
+        )
+        selected_action = selected_action.rstrip(".;,")
+        selected_action = selected_action.replace("0-0-0", "O-O-O").replace(
+            "0-0", "O-O"
+        )
+        selected_action = selected_action.replace("o-o-o", "O-O-O").replace(
+            "o-o", "O-O"
+        )
+        selected_action = re.sub(r"[!?+#]+$", "", selected_action)
+
+        # Normalize piece-letter case for SAN-like text, e.g. "nf3" -> "Nf3".
+        if selected_action and selected_action[0] in "kqrbn":
+            selected_action = selected_action[0].upper() + selected_action[1:]
+
+        # Normalize promotion suffix, e.g. "e8=q" -> "e8=Q".
+        selected_action = re.sub(
+            r"=([qrbn])$",
+            lambda m: "=" + m.group(1).upper(),
+            selected_action,
+            flags=re.IGNORECASE,
+        )
+        return selected_action
+
     def parse(self, parser_input: TextParserInput) -> str | None:
         if (
             parser_input.state_str is None
@@ -218,6 +253,22 @@ class SoftMoveParser(TextParser):
             selected_action = "player={} move={}".format(
                 parser_input.player_number, selected_action
             )
+        elif self._game_short_name.startswith("chess"):
+            normalized_action = self._normalize_chess_move(selected_action)
+            if normalized_action in parser_input.legal_moves:
+                selected_action = normalized_action
+            else:
+                # Last-pass fallback: pick legal SAN token explicitly present in text.
+                text = parser_input.text or ""
+                for legal_move in sorted(
+                    parser_input.legal_moves, key=len, reverse=True
+                ):
+                    if re.search(
+                        rf"(?<![A-Za-z0-9]){re.escape(legal_move)}(?![A-Za-z0-9])",
+                        text,
+                    ):
+                        selected_action = legal_move
+                        break
         if selected_action not in parser_input.legal_moves:
             return None
         return selected_action
