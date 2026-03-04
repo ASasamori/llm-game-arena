@@ -58,11 +58,12 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e .
+          pip install uv
+          uv sync --frozen --no-install-project
 
       - name: Run Chess End-to-End Smoke
         run: |
-          bash scripts/chess_e2e_ci.sh
+          uv run bash scripts/chess_e2e_ci.sh
 
       - name: Upload E2E Logs
         if: always()
