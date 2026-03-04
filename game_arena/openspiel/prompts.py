@@ -42,9 +42,9 @@ The moves played so far are:
 You are playing as player {player_name}.
 It is now your turn. Play your strongest move. The move MUST be legal. 
 Reason step by step to come up with your move, 
-then output your final answer in the format "Final Answer: X" 
+then give a 1-3 sentence summary explaining your thought process and next possible actions in the format "Summary: Z".
+After that, output your final answer in the format "Final Answer: X" 
 where X is your chosen move in {move_notation}.
-Finally, give a 1-3 sentence summary explaining your thought process and next possible actions in the format "Summary: Z".
 Remember, Summary and then Final Answer.
 
 IMPORTANT: You MUST include both "Summary:" and "Final Answer:" in your response in that order, respectively."""

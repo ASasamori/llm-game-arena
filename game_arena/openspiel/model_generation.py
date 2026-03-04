@@ -1,6 +1,7 @@
 import dataclasses
 import datetime
 import os
+import re
 from typing import Any, Protocol
 
 from absl import logging
@@ -28,16 +29,19 @@ MODEL_API_MAX_RESPONSE_CHARS = int(
 )
 if MODEL_API_MAX_RESPONSE_CHARS < 100:
     MODEL_API_MAX_RESPONSE_CHARS = 100
+MODEL_API_REQUIRE_STRUCTURED_OUTPUT = _is_truthy(
+    os.environ.get("MODEL_API_REQUIRE_STRUCTURED_OUTPUT", "true")
+)
 
 MOCK_TEST_CASES: dict[str, str] = {
     # Valid shape expected by parser.
-    "default": "Final Answer: 3\nSummary: Mock default response choosing center column.",
+    "default": "Summary: Mock default response choosing center column.\nFinal Answer: 3",
     # Useful for parser fallback testing.
     "parser_none": "I think maybe column three but not sure.",
     # Useful for invalid parsed action fallback testing.
-    "invalid_action": "Final Answer: 99\nSummary: Deliberately invalid move for testing.",
+    "invalid_action": "Summary: Deliberately invalid move for testing.\nFinal Answer: 99",
     # Deterministic alternate legal response.
-    "edge_col": "Final Answer: 0\nSummary: Mock response choosing edge column.",
+    "edge_col": "Summary: Mock response choosing edge column.\nFinal Answer: 0",
     # Explicit error path for guardrail/fallback testing.
     "raise_error": "",
 }
@@ -86,6 +90,12 @@ class ModelResponseGuardrailError(ValueError):
     """Raised when model output violates guardrails."""
 
 
+ANSI_ESCAPE_RE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+MARKDOWN_EMPHASIS_RE = re.compile(r"[*_`]+")
+SUMMARY_LABEL_RE = re.compile(r"summary\s*:\s*", re.IGNORECASE)
+FINAL_ANSWER_LABEL_RE = re.compile(r"final\s*answer\s*:\s*", re.IGNORECASE)
+
+
 def _validate_model_response(text: str) -> str:
     normalized = (text or "").strip()
     if not normalized:
@@ -95,6 +105,35 @@ def _validate_model_response(text: str) -> str:
             "Model response exceeded max length "
             f"({len(normalized)} > {MODEL_API_MAX_RESPONSE_CHARS})"
         )
+    if MODEL_API_REQUIRE_STRUCTURED_OUTPUT:
+        cleaned = ANSI_ESCAPE_RE.sub("", normalized)
+        cleaned = MARKDOWN_EMPHASIS_RE.sub("", cleaned)
+        summary_matches = list(SUMMARY_LABEL_RE.finditer(cleaned))
+        final_answer_matches = list(FINAL_ANSWER_LABEL_RE.finditer(cleaned))
+        if not summary_matches:
+            raise ModelResponseGuardrailError(
+                'Model response missing required "Summary:" section'
+            )
+        if not final_answer_matches:
+            raise ModelResponseGuardrailError(
+                'Model response missing required "Final Answer:" section'
+            )
+        last_summary = summary_matches[-1]
+        last_final = final_answer_matches[-1]
+        if last_summary.start() > last_final.start():
+            raise ModelResponseGuardrailError(
+                'Model response must place "Summary:" before "Final Answer:"'
+            )
+        after_final = cleaned[last_final.end() :]
+        next_summary = SUMMARY_LABEL_RE.search(after_final)
+        answer_end = len(after_final) if next_summary is None else next_summary.start()
+        final_answer_raw = after_final[:answer_end].strip()
+        final_answer_lines = final_answer_raw.splitlines()
+        final_answer_text = final_answer_lines[0].strip() if final_answer_lines else ""
+        if not final_answer_text:
+            raise ModelResponseGuardrailError(
+                'Model response has an empty "Final Answer:" value'
+            )
     return normalized
 
 
