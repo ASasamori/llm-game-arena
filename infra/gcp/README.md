@@ -55,13 +55,16 @@ Optional:
 ```bash
 export IMAGE_TAG="v0.1.0"
 export WORKER_TASK_TIMEOUT_SECONDS="1800"
+export WORKER_EXECUTION_MODE="job_burst" # or "service_long_lived"
+export RUNNER_NUM_WORKERS="2"            # used when WORKER_EXECUTION_MODE=service_long_lived
+export CLOUDRUN_WORKER_SERVICE="llm-arena-worker-svc" # optional override
 ```
 
 ## 3) Worker execution model
 
-Worker is deployed as a Cloud Run Job with:
+Default (`WORKER_EXECUTION_MODE=job_burst`): worker is a Cloud Run Job with:
 
-- `WORKER_BURST=true`
+- `WORKER_MODE=burst`
 - Runs one queue drain pass and exits
 
 Run manually:
@@ -81,6 +84,12 @@ gcloud scheduler jobs create http llm-arena-worker-minute \
   --oauth-service-account-email "<scheduler-sa>@$GCP_PROJECT_ID.iam.gserviceaccount.com" \
   --oauth-token-scope "https://www.googleapis.com/auth/cloud-platform"
 ```
+
+Long-lived option (`WORKER_EXECUTION_MODE=service_long_lived`):
+
+- Deploys a dedicated Cloud Run Service running `python -m orchestrator.runner`
+- Uses `RUNNER_NUM_WORKERS` threads in-process
+- Keeps workers online continuously via `min-instances`
 
 ## 4) Smoke test from Cloud Shell
 

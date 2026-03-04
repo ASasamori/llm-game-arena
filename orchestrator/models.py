@@ -26,6 +26,7 @@ from sqlalchemy.orm import (
     sessionmaker,
 )
 from datetime import datetime
+from orchestrator.settings import get_database_target, resolve_database_url
 
 try:
     from dotenv import load_dotenv as _load_dotenv
@@ -40,11 +41,8 @@ load_dotenv: Callable[..., bool] = _load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
-if not DATABASE_URL:
-    raise ValueError(
-        "DATABASE_URL environment variable is not set. Add it to your .env file."
-    )
+DATABASE_URL = resolve_database_url()
+DATABASE_TARGET = get_database_target()
 
 
 # Base class

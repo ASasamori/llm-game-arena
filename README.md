@@ -61,6 +61,16 @@ Required/important env vars:
 # Comma-separated API keys accepted by the gateway
 export ARENA_API_KEYS="dev-key-1,dev-key-2"
 
+# Database target switch (supports raspberry_pi or gcp)
+export DATABASE_TARGET=raspberry_pi
+
+# Option 1 (recommended): full URLs per target
+export DATABASE_URL_RASPBERRY_PI="postgresql+psycopg2://<user>:<pass>@100.116.74.50:5432/llm_game_arena"
+export DATABASE_URL_GCP="postgresql+psycopg2://<user>:<pass>@<gcp-host>:5432/llm_game_arena"
+
+# Option 2: one direct override URL (takes precedence over target vars)
+# export DATABASE_URL="postgresql+psycopg2://<user>:<pass>@<host>:5432/llm_game_arena"
+
 # Redis connection used for queue + API rate limiting
 export REDIS_HOST=localhost
 export REDIS_PORT=6379
@@ -71,6 +81,14 @@ export API_RATE_LIMIT_TOKENS_PER_MINUTE=30000
 
 # Retry/backoff upper bound for model API calls
 export MODEL_API_RETRY_MAX_SECONDS=90
+```
+
+Quick target switch helper:
+
+```bash
+eval "$(scripts/db_target_env.sh raspberry_pi)"
+# or:
+eval "$(scripts/db_target_env.sh gcp)"
 ```
 
 Submit a run:
@@ -164,6 +182,14 @@ Use `infra/gcp/README.md` and `infra/gcp/deploy_cloud_run.sh` to deploy:
 - Worker as Cloud Run Job (`WORKER_BURST=true`)
 - Memorystore Redis + Cloud SQL Postgres over VPC connector
 
+To run long-lived workers instead of burst jobs:
+
+```bash
+export WORKER_EXECUTION_MODE=service_long_lived
+export RUNNER_NUM_WORKERS=2
+bash infra/gcp/deploy_cloud_run.sh
+```
+
 Run a smoke test from Cloud Shell with `scripts/gcp_test_client.sh`:
 
 ```bash
@@ -203,6 +229,28 @@ API Gateway and client request logic
 {
     "POST": SUCCESS
 }
+```
+
+Simple stylized client response endpoint:
+
+```bash
+curl -X POST http://localhost:8000/v1/client/stylize \
+  -H "Authorization: Bearer dev-key-1" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Arena Run Snapshot",
+    "summary": "Run accepted and processing",
+    "highlights": ["target=raspberry_pi", "workers=long_lived", "queue=episodes"],
+    "tone": "technical"
+  }'
+```
+
+Or use the helper script:
+
+```bash
+export API_URL=http://localhost:8000
+export API_KEY=dev-key-1
+bash scripts/stylized_client_request.sh
 ```
 
 ### Run Creation/Orchestrator
@@ -279,6 +327,22 @@ Notes:
   - `analytics/mock_e2e/report.json`
   - `analytics/mock_e2e/observability_metrics.json`
   - `analytics/mock_e2e/observability_dashboard.json`
+
+### Testcases (New)
+Run unit tests for DB switching + stylized client endpoint:
+
+```bash
+uv run python -m unittest discover -s tests -p "test_*.py"
+```
+
+Run a local build test run using mock model behavior and local API auth key:
+
+```bash
+export MODEL_API_MOCK_MODE=true
+export MODEL_API_MOCK_CASE=default
+export ARENA_API_KEYS=local-dev-key
+uv run python -m orchestrator.mock_e2e --api-key local-dev-key --output-dir analytics/mock_e2e
+```
 
 ### Guardrails + Failure Taxonomy (New)
 Shared failure taxonomy is implemented in `orchestrator/failures.py` and propagated to:
