@@ -42,6 +42,8 @@ MOCK_TEST_CASES: dict[str, str] = {
     "invalid_action": "Summary: Deliberately invalid move for testing.\nFinal Answer: 99",
     # Deterministic alternate legal response.
     "edge_col": "Summary: Mock response choosing edge column.\nFinal Answer: 0",
+    # Deterministic legal opening move for chess.
+    "chess_e4": "Summary: Mock response develops central control.\nFinal Answer: e4",
     # Explicit error path for guardrail/fallback testing.
     "raise_error": "",
 }

@@ -1,0 +1,73 @@
+name: Chess E2E Pipeline
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  chess-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: llm_game_arena
+          POSTGRES_USER: arena_user
+          POSTGRES_PASSWORD: arena_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U arena_user -d llm_game_arena"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql+psycopg2://arena_user:arena_pass@127.0.0.1:5432/llm_game_arena
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: "6379"
+      ARENA_API_KEYS: local-dev-key
+      API_HOST: 127.0.0.1
+      API_PORT: "8000"
+      MODEL_API_MOCK_MODE: "true"
+      MODEL_API_MOCK_CASE: chess_e4
+      WORKER_MODE: service_long_lived
+      WORKER_LOG_LEVEL: INFO
+      LOG_DIR: logs/ci_e2e
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Run Chess End-to-End Smoke
+        run: |
+          bash scripts/chess_e2e_ci.sh
+
+      - name: Upload E2E Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chess-e2e-logs
+          path: logs/ci_e2e
+          if-no-files-found: warn
