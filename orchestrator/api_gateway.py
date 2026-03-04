@@ -16,7 +16,9 @@ import logging
 import os
 import re
 import time
+import math
 from collections.abc import Awaitable
+from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from typing import Annotated, Any, Literal, TypeVar, cast
 from uuid import UUID, uuid4
@@ -32,7 +34,7 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import TimeoutError as RedisTimeoutError
 from sqlalchemy import func
 
-from orchestrator.models import Episode, Matchup, Run, get_session
+from orchestrator.models import Episode, EpisodeStep, Matchup, ModelRating, Run, get_session
 from orchestrator.observability import (
     build_dashboard_view,
     configure_json_logging,
@@ -241,6 +243,74 @@ class ObservabilityDashboardResponse(BaseModel):
     hottest_timings: list[dict[str, Any]]
 
 
+class RunEpisodeItem(BaseModel):
+    episode_id: str
+    matchup_id: str | None
+    worker_name: str | None
+    status: str
+    winner: str
+    num_steps: int
+    error: str
+    agent: list[str]
+    start_time: datetime
+    end_time: datetime
+
+
+class RunEpisodesResponse(BaseModel):
+    run_id: str
+    total: int
+    limit: int
+    offset: int
+    episodes: list[RunEpisodeItem]
+
+
+class StepEntropyPoint(BaseModel):
+    step_index: int
+    entropy: float
+
+
+class OpponentDistribution(BaseModel):
+    opponent_model: str
+    distribution: list[float]
+
+
+class ModelAnalyticsSummary(BaseModel):
+    model: str
+    total_actions: int
+    action_distribution: list[float]
+    step_entropy: list[StepEntropyPoint]
+    opponents: list[OpponentDistribution]
+
+
+class RunAnalyticsResponse(BaseModel):
+    run_id: str
+    run_type: str
+    status: str
+    action_space: int
+    episode_status_counts: dict[str, int]
+    model_summaries: list[ModelAnalyticsSummary]
+
+
+class LeaderboardRow(BaseModel):
+    game: str
+    model: str
+    rating: float
+    games_played: int
+    wins: int
+    draws: int
+    losses: int
+    win_rate: float | None
+    x_win_rate: float | None
+    o_win_rate: float | None
+    updated_at: datetime
+
+
+class LeaderboardResponse(BaseModel):
+    game: str | None
+    limit: int
+    rows: list[LeaderboardRow]
+
+
 bearer_scheme = HTTPBearer(auto_error=False, scheme_name="BearerAuth")
 api_key_scheme = APIKeyHeader(name="x-api-key", auto_error=False)
 
@@ -346,6 +416,152 @@ def _build_run_status(run_id: str) -> RunStatusResponse:
             episodes_saved=int(episodes_saved or 0),
             created_at=run.created_at,
             matchups=matchup_payload,
+        )
+    finally:
+        session.close()
+
+
+def _parse_action_column(action: str) -> int | None:
+    parsed = re.match(r"^[a-zA-Z](\d+)$", (action or "").strip())
+    if parsed is None:
+        return None
+    return int(parsed.group(1))
+
+
+def _safe_entropy(counts: Counter[int]) -> float:
+    total = sum(counts.values())
+    if total <= 0:
+        return 0.0
+    entropy = 0.0
+    for count in counts.values():
+        p = count / total
+        if p > 0:
+            entropy -= p * math.log2(p)
+    return entropy
+
+
+def _build_run_analytics(run_id: str, action_space: int) -> RunAnalyticsResponse:
+    session = get_session()
+    try:
+        run = session.query(Run).filter(Run.run_id == run_id).first()
+        if run is None:
+            raise HTTPException(status_code=404, detail=f"Run not found: {run_id}")
+
+        episode_rows = (
+            session.query(Episode.status, Episode.agent, Episode.episode_id)
+            .filter(Episode.run_id == run_id)
+            .all()
+        )
+        if not episode_rows:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No episodes found for run {run_id}",
+            )
+
+        step_rows = (
+            session.query(
+                Episode.agent,
+                EpisodeStep.step_index,
+                EpisodeStep.player,
+                EpisodeStep.action,
+            )
+            .join(EpisodeStep, Episode.episode_id == EpisodeStep.episode_id)
+            .filter(Episode.run_id == run_id)
+            .all()
+        )
+
+        status_counts: dict[str, int] = {}
+        for status_value, _, _ in episode_rows:
+            status_counts[status_value] = status_counts.get(status_value, 0) + 1
+
+        model_action_counts: dict[str, Counter[int]] = defaultdict(Counter)
+        model_step_action_counts: dict[str, dict[int, Counter[int]]] = defaultdict(
+            lambda: defaultdict(Counter)
+        )
+        model_opponent_counts: dict[str, dict[str, Counter[int]]] = defaultdict(
+            lambda: defaultdict(Counter)
+        )
+
+        for agent_list, step_index, player, action in step_rows:
+            if not isinstance(agent_list, list) or len(agent_list) < 2:
+                continue
+            action_col = _parse_action_column(action)
+            if action_col is None or action_col < 0 or action_col >= action_space:
+                continue
+            if player == "x":
+                acting_model = str(agent_list[0]).strip()
+                opponent_model = str(agent_list[1]).strip()
+            elif player == "o":
+                acting_model = str(agent_list[1]).strip()
+                opponent_model = str(agent_list[0]).strip()
+            else:
+                continue
+
+            model_action_counts[acting_model][action_col] += 1
+            model_step_action_counts[acting_model][step_index][action_col] += 1
+            model_opponent_counts[acting_model][opponent_model][action_col] += 1
+
+        summaries: list[ModelAnalyticsSummary] = []
+        all_models = set(model_action_counts.keys()) | {
+            str(model).strip()
+            for _, agents, _ in episode_rows
+            for model in (agents if isinstance(agents, list) else [])
+        }
+        for model in sorted(all_models):
+            overall = model_action_counts.get(model, Counter())
+            total = sum(overall.values())
+            if total > 0:
+                distribution = [
+                    overall.get(action, 0) / total for action in range(action_space)
+                ]
+            else:
+                distribution = [0.0 for _ in range(action_space)]
+
+            step_entropy: list[StepEntropyPoint] = []
+            for step_index in sorted(model_step_action_counts.get(model, {}).keys()):
+                step_counts = model_step_action_counts[model][step_index]
+                step_entropy.append(
+                    StepEntropyPoint(
+                        step_index=step_index,
+                        entropy=round(_safe_entropy(step_counts), 6),
+                    )
+                )
+
+            opponents: list[OpponentDistribution] = []
+            for opponent in sorted(model_opponent_counts.get(model, {}).keys()):
+                opp_counter = model_opponent_counts[model][opponent]
+                opp_total = sum(opp_counter.values())
+                if opp_total <= 0:
+                    opp_distribution = [0.0 for _ in range(action_space)]
+                else:
+                    opp_distribution = [
+                        opp_counter.get(action, 0) / opp_total
+                        for action in range(action_space)
+                    ]
+                opponents.append(
+                    OpponentDistribution(
+                        opponent_model=opponent,
+                        distribution=opp_distribution,
+                    )
+                )
+
+            summaries.append(
+                ModelAnalyticsSummary(
+                    model=model,
+                    total_actions=total,
+                    action_distribution=distribution,
+                    step_entropy=step_entropy,
+                    opponents=opponents,
+                )
+            )
+
+        return RunAnalyticsResponse(
+            run_id=run.run_id,
+            run_type=run.run_type,
+            status=run.status,
+            action_space=action_space,
+            episode_status_counts=status_counts,
+            model_summaries=summaries,
         )
     finally:
         session.close()
@@ -576,6 +792,182 @@ def get_run_status(run_id: str, api_key: str = Depends(_authenticate)):
     except ValueError as e:
         raise HTTPException(status_code=400, detail="run_id must be a UUID") from e
     return _build_run_status(run_id)
+
+
+@app.get(
+    "/v1/runs/{run_id}/episodes",
+    response_model=RunEpisodesResponse,
+    tags=["runs"],
+    operation_id="getRunEpisodes",
+    summary="List persisted episodes for a run",
+    description="Returns paginated episodes persisted for a run.",
+    responses={
+        400: {"model": ErrorResponse, "description": "Invalid request"},
+        401: {"model": ErrorResponse, "description": "Authentication failed"},
+        404: {"model": ErrorResponse, "description": "Run not found"},
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
+    },
+    openapi_extra={"security": [{"BearerAuth": []}, {"APIKeyHeader": []}]},
+)
+def get_run_episodes(
+    run_id: str,
+    limit: int = 50,
+    offset: int = 0,
+    api_key: str = Depends(_authenticate),
+):
+    _enforce_rate_limit(api_key, token_cost=1)
+    if limit < 1 or limit > 500:
+        raise HTTPException(status_code=400, detail="limit must be between 1 and 500")
+    if offset < 0:
+        raise HTTPException(status_code=400, detail="offset must be >= 0")
+    try:
+        UUID(run_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail="run_id must be a UUID") from e
+
+    session = get_session()
+    try:
+        run = session.query(Run).filter(Run.run_id == run_id).first()
+        if run is None:
+            raise HTTPException(status_code=404, detail=f"Run not found: {run_id}")
+
+        total = (
+            session.query(func.count(Episode.episode_id))
+            .filter(Episode.run_id == run_id)
+            .scalar()
+        )
+        rows = (
+            session.query(Episode)
+            .filter(Episode.run_id == run_id)
+            .order_by(Episode.start_time.asc(), Episode.episode_id.asc())
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
+        episodes = [
+            RunEpisodeItem(
+                episode_id=row.episode_id,
+                matchup_id=row.matchup_id,
+                worker_name=row.worker_name,
+                status=row.status,
+                winner=row.winner,
+                num_steps=row.num_steps,
+                error=row.error,
+                agent=list(row.agent) if isinstance(row.agent, list) else [],
+                start_time=row.start_time,
+                end_time=row.end_time,
+            )
+            for row in rows
+        ]
+        return RunEpisodesResponse(
+            run_id=run_id,
+            total=int(total or 0),
+            limit=limit,
+            offset=offset,
+            episodes=episodes,
+        )
+    finally:
+        session.close()
+
+
+@app.get(
+    "/v1/runs/{run_id}/analytics",
+    response_model=RunAnalyticsResponse,
+    tags=["runs"],
+    operation_id="getRunAnalytics",
+    summary="Get run analytics as JSON",
+    description=(
+        "Returns model-level action distributions, step entropy, and episode status counts "
+        "for frontend chart rendering."
+    ),
+    responses={
+        400: {"model": ErrorResponse, "description": "Invalid request"},
+        401: {"model": ErrorResponse, "description": "Authentication failed"},
+        404: {"model": ErrorResponse, "description": "Run not found"},
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
+    },
+    openapi_extra={"security": [{"BearerAuth": []}, {"APIKeyHeader": []}]},
+)
+def get_run_analytics(
+    run_id: str,
+    action_space: int = 7,
+    api_key: str = Depends(_authenticate),
+):
+    _enforce_rate_limit(api_key, token_cost=1)
+    if action_space < 2 or action_space > 64:
+        raise HTTPException(status_code=400, detail="action_space must be between 2 and 64")
+    try:
+        UUID(run_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail="run_id must be a UUID") from e
+    return _build_run_analytics(run_id=run_id, action_space=action_space)
+
+
+@app.get(
+    "/v1/leaderboard",
+    response_model=LeaderboardResponse,
+    tags=["runs"],
+    operation_id="getLeaderboard",
+    summary="Get model leaderboard",
+    description="Returns Elo-style ratings from model_ratings table.",
+    responses={
+        400: {"model": ErrorResponse, "description": "Invalid request"},
+        401: {"model": ErrorResponse, "description": "Authentication failed"},
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
+    },
+    openapi_extra={"security": [{"BearerAuth": []}, {"APIKeyHeader": []}]},
+)
+def get_leaderboard(
+    game: str | None = None,
+    limit: int = 100,
+    api_key: str = Depends(_authenticate),
+):
+    _enforce_rate_limit(api_key, token_cost=1)
+    if limit < 1 or limit > 1000:
+        raise HTTPException(status_code=400, detail="limit must be between 1 and 1000")
+    session = get_session()
+    try:
+        query = session.query(ModelRating)
+        if game:
+            query = query.filter(ModelRating.game == game.strip())
+        rows = (
+            query.order_by(
+                ModelRating.game.asc(),
+                ModelRating.rating.desc(),
+                ModelRating.games_played.desc(),
+            )
+            .limit(limit)
+            .all()
+        )
+        payload_rows: list[LeaderboardRow] = []
+        for row in rows:
+            win_rate = (
+                float(row.wins) / float(row.games_played) if row.games_played else None
+            )
+            x_win_rate = (
+                float(row.wins_as_x) / float(row.games_as_x) if row.games_as_x else None
+            )
+            o_win_rate = (
+                float(row.wins_as_o) / float(row.games_as_o) if row.games_as_o else None
+            )
+            payload_rows.append(
+                LeaderboardRow(
+                    game=row.game,
+                    model=row.model_name,
+                    rating=float(row.rating),
+                    games_played=int(row.games_played),
+                    wins=int(row.wins),
+                    draws=int(row.draws),
+                    losses=int(row.losses),
+                    win_rate=win_rate,
+                    x_win_rate=x_win_rate,
+                    o_win_rate=o_win_rate,
+                    updated_at=row.updated_at,
+                )
+            )
+        return LeaderboardResponse(game=game, limit=limit, rows=payload_rows)
+    finally:
+        session.close()
 
 
 @app.get(
