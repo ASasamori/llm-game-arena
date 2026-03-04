@@ -44,7 +44,7 @@ services:
       - "8000:8000"
     restart: unless-stopped
 
-  worker:
+  runner:
     build:
       context: .
     depends_on:
@@ -58,7 +58,7 @@ services:
       REDIS_PORT: "6379"
       MODEL_API_MOCK_MODE: "true"
       MODEL_API_MOCK_CASE: "default"
-    command: .venv/bin/python -m orchestrator.worker
+    command: .venv/bin/python -m orchestrator.runner
     restart: unless-stopped
 
 volumes:

@@ -318,6 +318,7 @@ One-command local flow for:
 ```bash
 uv run python -m orchestrator.mock_e2e \
   --output-dir analytics/mock_e2e
+
 ```
 
 Notes:
