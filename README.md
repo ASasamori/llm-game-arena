@@ -8,7 +8,7 @@ Client Request -> Run Orchestrator -> Workers -> Evals -> Client Polling
 
 ### Docker Compose local stack
 
-Run the full local stack (Postgres + Redis + API + worker):
+Run the full local stack (Postgres + Redis + API + runner):
 
 ```bash
 docker compose up --build
@@ -102,6 +102,27 @@ curl http://localhost:8000/v1/usage/me \
   -H "Authorization: Bearer dev-key-1"
 ```
 
+List run episodes (paginated):
+
+```bash
+curl "http://localhost:8000/v1/runs/<RUN_ID>/episodes?limit=50&offset=0" \
+  -H "Authorization: Bearer dev-key-1"
+```
+
+Fetch run analytics as JSON for frontend charting:
+
+```bash
+curl "http://localhost:8000/v1/runs/<RUN_ID>/analytics?action_space=7" \
+  -H "Authorization: Bearer dev-key-1"
+```
+
+Fetch leaderboard data:
+
+```bash
+curl "http://localhost:8000/v1/leaderboard?game=connect_four&limit=25" \
+  -H "Authorization: Bearer dev-key-1"
+```
+
 ### API Gateway Behavior (Current)
 - Framework: FastAPI (`orchestrator/api_gateway.py`)
 - Auth: `Authorization: Bearer <key>` or `x-api-key: <key>` where key is in `ARENA_API_KEYS`
@@ -135,6 +156,21 @@ Important limitation:
 - Metrics in `orchestrator/observability.py` are currently in-memory per process.
 - They are not persisted to Postgres and not exported to Prometheus/Grafana yet.
 - Process restart resets those counters/timings.
+
+### GCP Deployment Path (Cloud Run)
+Use `infra/gcp/README.md` and `infra/gcp/deploy_cloud_run.sh` to deploy:
+
+- API gateway as Cloud Run service
+- Worker as Cloud Run Job (`WORKER_BURST=true`)
+- Memorystore Redis + Cloud SQL Postgres over VPC connector
+
+Run a smoke test from Cloud Shell with `scripts/gcp_test_client.sh`:
+
+```bash
+export API_URL="https://<your-api>.a.run.app"
+export API_KEY="<api-key>"
+bash scripts/gcp_test_client.sh
+```
 
 ### Observability Export + Dashboard (New)
 Export process-local metrics and a dashboard-oriented JSON summary:
