@@ -17,6 +17,7 @@ import os
 import re
 import time
 import math
+from itertools import zip_longest
 from collections.abc import Awaitable
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
@@ -271,6 +272,31 @@ class RunEpisodesResponse(BaseModel):
     limit: int
     offset: int
     episodes: list[RunEpisodeItem]
+
+
+class StepSummaryItem(BaseModel):
+    step_index: int
+    player: str | None
+    action: str | None
+    summary: str
+
+
+class EpisodeStepSummariesItem(BaseModel):
+    episode_id: str
+    matchup_id: str | None
+    status: str
+    winner: str
+    num_steps: int
+    agent: list[str]
+    steps: list[StepSummaryItem]
+
+
+class RunStepSummariesResponse(BaseModel):
+    run_id: str
+    total: int
+    limit: int
+    offset: int
+    episodes: list[EpisodeStepSummariesItem]
 
 
 class StepEntropyPoint(BaseModel):
@@ -963,6 +989,109 @@ def get_run_episodes(
             limit=limit,
             offset=offset,
             episodes=episodes,
+        )
+    finally:
+        session.close()
+
+
+@app.get(
+    "/v1/runs/{run_id}/step-summaries",
+    response_model=RunStepSummariesResponse,
+    tags=["runs"],
+    operation_id="getRunStepSummaries",
+    summary="List per-step model summaries for a run",
+    description=(
+        "Returns step-aligned action + summary text for each persisted episode in a run, "
+        "so model reasoning can be inspected turn-by-turn."
+    ),
+    responses={
+        400: {"model": ErrorResponse, "description": "Invalid request"},
+        401: {"model": ErrorResponse, "description": "Authentication failed"},
+        404: {"model": ErrorResponse, "description": "Run not found"},
+        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
+    },
+    openapi_extra={"security": [{"BearerAuth": []}, {"APIKeyHeader": []}]},
+)
+def get_run_step_summaries(
+    run_id: str,
+    limit: int = 50,
+    offset: int = 0,
+    api_key: str = Depends(_authenticate),
+):
+    _enforce_rate_limit(api_key, token_cost=1)
+    if limit < 1 or limit > 500:
+        raise HTTPException(status_code=400, detail="limit must be between 1 and 500")
+    if offset < 0:
+        raise HTTPException(status_code=400, detail="offset must be >= 0")
+    try:
+        UUID(run_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail="run_id must be a UUID") from e
+
+    session = get_session()
+    try:
+        run = session.query(Run).filter(Run.run_id == run_id).first()
+        if run is None:
+            raise HTTPException(status_code=404, detail=f"Run not found: {run_id}")
+
+        total = (
+            session.query(func.count(Episode.episode_id))
+            .filter(Episode.run_id == run_id)
+            .scalar()
+        )
+        rows = (
+            session.query(Episode)
+            .filter(Episode.run_id == run_id)
+            .order_by(Episode.start_time.asc(), Episode.episode_id.asc())
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
+
+        episodes_payload: list[EpisodeStepSummariesItem] = []
+        for row in rows:
+            actions = row.action if isinstance(row.action, list) else []
+            summaries = row.summary if isinstance(row.summary, list) else []
+            steps: list[StepSummaryItem] = []
+            for idx, pair in enumerate(zip_longest(actions, summaries, fillvalue="")):
+                action, summary = pair
+                action_value = action if isinstance(action, str) and action else None
+                summary_value = (
+                    summary if isinstance(summary, str) and summary else "No summary."
+                )
+                if row.game == "chess":
+                    player = "w" if idx % 2 == 0 else "b"
+                elif action_value:
+                    player = action_value[0].lower()
+                else:
+                    player = None
+                steps.append(
+                    StepSummaryItem(
+                        step_index=idx,
+                        player=player,
+                        action=action_value,
+                        summary=summary_value,
+                    )
+                )
+
+            episodes_payload.append(
+                EpisodeStepSummariesItem(
+                    episode_id=row.episode_id,
+                    matchup_id=row.matchup_id,
+                    status=row.status,
+                    winner=row.winner,
+                    num_steps=row.num_steps,
+                    agent=list(row.agent) if isinstance(row.agent, list) else [],
+                    steps=steps,
+                )
+            )
+
+        return RunStepSummariesResponse(
+            run_id=run_id,
+            total=int(total or 0),
+            limit=limit,
+            offset=offset,
+            episodes=episodes_payload,
         )
     finally:
         session.close()

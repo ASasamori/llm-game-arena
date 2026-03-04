@@ -29,6 +29,7 @@ Outputs:
 """
 
 import argparse
+import json
 import math
 import os
 import re
@@ -450,6 +451,83 @@ def _fetch_run_models(run_id: str) -> set[str]:
     return {_normalize_model_name(model) for model in models}
 
 
+def _build_generic_move_analytics(run_id: str) -> dict[str, object]:
+    session = get_session()
+    try:
+        rows = (
+            session.query(
+                Episode.agent,
+                EpisodeStep.step_index,
+                EpisodeStep.player,
+                EpisodeStep.action,
+            )
+            .join(EpisodeStep, Episode.episode_id == EpisodeStep.episode_id)
+            .filter(Episode.run_id == run_id)
+            .all()
+        )
+    finally:
+        session.close()
+
+    model_action_counts: dict[str, Counter[str]] = defaultdict(Counter)
+    model_step_counts: dict[str, dict[int, Counter[str]]] = defaultdict(
+        lambda: defaultdict(Counter)
+    )
+
+    for agent_list, step_index, player, action in rows:
+        if not isinstance(agent_list, list) or len(agent_list) < 2:
+            continue
+        if not isinstance(action, str) or not action.strip():
+            continue
+
+        player_normalized = (player or "").strip().lower()
+        if player_normalized in {"x", "w"}:
+            acting_model = _normalize_model_name(str(agent_list[0]))
+        elif player_normalized in {"o", "b"}:
+            acting_model = _normalize_model_name(str(agent_list[1]))
+        else:
+            acting_model = _normalize_model_name(
+                str(agent_list[0] if (step_index % 2 == 0) else agent_list[1])
+            )
+
+        model_action_counts[acting_model][action] += 1
+        model_step_counts[acting_model][int(step_index)][action] += 1
+
+    models_payload: list[dict[str, object]] = []
+    for model in sorted(model_action_counts.keys()):
+        counts = model_action_counts[model]
+        total = sum(counts.values())
+        top_moves = [
+            {
+                "move": move,
+                "count": int(count),
+                "share": (float(count) / float(total)) if total else 0.0,
+            }
+            for move, count in counts.most_common(15)
+        ]
+        step_entropy = [
+            {
+                "step_index": int(step_idx),
+                "entropy": float(_safe_entropy(step_counts)),
+            }
+            for step_idx, step_counts in sorted(model_step_counts[model].items())
+        ]
+        models_payload.append(
+            {
+                "model": model,
+                "total_actions": int(total),
+                "unique_moves": int(len(counts)),
+                "top_moves": top_moves,
+                "step_entropy": step_entropy,
+            }
+        )
+
+    return {
+        "run_id": run_id,
+        "mode": "generic_move_analytics",
+        "models": models_payload,
+    }
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Generate run-level analytics plots from Postgres episode tables"
@@ -493,10 +571,16 @@ def main() -> None:
 
     records = _build_step_records(args.run_id)
     if not records:
-        raise ValueError(
-            f"No usable step records found for run {args.run_id}. "
-            "Confirm episodes and episode_steps are populated."
+        payload = _build_generic_move_analytics(args.run_id)
+        summary_path = os.path.join(output_dir, "move_analytics_summary.json")
+        with open(summary_path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, indent=2)
+        print(
+            f"[ANALYTICS] No numeric action records for run {args.run_id}. "
+            "Generated generic move analytics summary."
         )
+        print(f"[ANALYTICS] Summary JSON: {summary_path}")
+        return
 
     model_step_counts = _build_model_step_action_counts(records)
     model_opp_step_counts = _build_model_opponent_step_action_counts(records)
