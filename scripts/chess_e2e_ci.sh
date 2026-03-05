@@ -95,7 +95,7 @@ payload = {
     "run_type": "RAND",
     "env": "chess_v1",
     "num_episodes": 1,
-    "num_steps": 1,
+    "num_steps": None,
     "model_names": ["GPT"],
 }
 req = Request(
