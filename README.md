@@ -198,6 +198,74 @@ export API_KEY="<api-key>"
 bash scripts/gcp_test_client.sh
 ```
 
+### Google Cloud Runbook (No Pi Required)
+Once these are provisioned in GCP, the Raspberry Pi is no longer required for runtime execution:
+
+- Cloud Run service: `llm-arena-api` (API Gateway)
+- Cloud Run job: `llm-arena-worker` (RQ burst worker)
+- Cloud SQL Postgres: `llm-arena-pg`
+- Memorystore Redis: `llm-arena-redis`
+- Serverless VPC connector: `llm-arena-connector`
+- Secret Manager: database URL, API keys, provider keys
+
+#### Exact Cloud Scheduler Configuration for Worker
+Cloud Scheduler should call the Cloud Run Jobs API, not your API service URL.
+
+- HTTP method: `POST`
+- URL:
+  `https://run.googleapis.com/v2/projects/<PROJECT_ID>/locations/<REGION>/jobs/llm-arena-worker:run`
+- Headers:
+  - `Content-Type: application/json`
+- Body:
+  - `{}`
+- Auth:
+  - OAuth token (scope `https://www.googleapis.com/auth/cloud-platform`)
+  - Service account with permission to run Cloud Run jobs
+
+Example:
+
+```bash
+gcloud scheduler jobs create http llm-arena-worker-minute \
+  --location us-central1 \
+  --schedule "* * * * *" \
+  --uri "https://run.googleapis.com/v2/projects/gen-lang-client-0155805792/locations/us-central1/jobs/llm-arena-worker:run" \
+  --http-method POST \
+  --message-body '{}' \
+  --headers "Content-Type=application/json" \
+  --oauth-service-account-email "llm-arena-scheduler@gen-lang-client-0155805792.iam.gserviceaccount.com" \
+  --oauth-token-scope "https://www.googleapis.com/auth/cloud-platform"
+```
+
+#### Cloud Shell Smoke Test
+Use these exact exports:
+
+```bash
+export API_URL="$(gcloud run services describe llm-arena-api --region us-central1 --format='value(status.url)')"
+export API_KEY="$(gcloud secrets versions access latest --secret arena-api-keys | cut -d',' -f1)"
+```
+
+Then:
+
+```bash
+curl -sS "$API_URL/healthz" | jq .
+curl -sS -X POST "$API_URL/v1/runs" \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"run_type":"PVP","env":"connect_four_v1","num_episodes":1,"num_steps":10,"model_names":["GEMINI","GPT"]}' | jq .
+gcloud run jobs execute llm-arena-worker --region us-central1 --wait
+```
+
+Run status check:
+
+```bash
+curl -sS "$API_URL/v1/runs/<RUN_ID>" -H "Authorization: Bearer $API_KEY" | jq .
+```
+
+#### Multi-game in API
+`POST /v1/runs` supports:
+- `env: "connect_four_v1"`
+- `env: "chess_v1"`
+
 ### Observability Export + Dashboard (New)
 Export process-local metrics and a dashboard-oriented JSON summary:
 
