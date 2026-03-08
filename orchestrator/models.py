@@ -4,9 +4,10 @@
 #  summary (JSON), action (JSON), start_time, end_time
 #  - get_session() factory, create_tables() utility
 #  - Run python -m orchestrator.models once to create tables
-import os
 from typing import Any, Callable
 import uuid
+import os
+import threading
 from sqlalchemy import (
     Integer,
     String,
@@ -221,6 +222,8 @@ class RatingEvent(Base):
 # Engine and session factory
 engine = create_engine(DATABASE_URL, echo=True, future=True)
 SessionLocal = sessionmaker(bind=engine, future=True)
+_SCHEMA_READY = False
+_SCHEMA_LOCK = threading.Lock()
 
 
 def get_session():
@@ -230,6 +233,31 @@ def get_session():
 # Utility to create tables
 def create_tables():
     Base.metadata.create_all(engine)
+
+
+def ensure_tables_created() -> None:
+    """
+    Idempotently initialize schema for this process.
+
+    Enabled by default so fresh Cloud SQL instances can self-bootstrap.
+    Set DB_AUTO_INIT_SCHEMA=false to disable.
+    """
+    global _SCHEMA_READY
+    if _SCHEMA_READY:
+        return
+    auto_init = os.environ.get("DB_AUTO_INIT_SCHEMA", "true").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    if not auto_init:
+        return
+    with _SCHEMA_LOCK:
+        if _SCHEMA_READY:
+            return
+        create_tables()
+        _SCHEMA_READY = True
 
 
 def migrate_actions_to_episode_steps():

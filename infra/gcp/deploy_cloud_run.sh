@@ -46,8 +46,11 @@ gcloud run deploy "$CLOUDRUN_API_SERVICE" \
   --port 8000 \
   --vpc-connector "$VPC_CONNECTOR" \
   --vpc-egress all-traffic \
-  --set-env-vars "API_HOST=0.0.0.0,API_PORT=8000,REDIS_HOST=$REDIS_HOST,REDIS_PORT=$REDIS_PORT" \
-  --set-secrets "DATABASE_URL=${DATABASE_URL_SECRET}:latest,ARENA_API_KEYS=${API_KEYS_SECRET}:latest,OPENAI_API_KEY=${OPENAI_API_KEY_SECRET}:latest,GEMINI_API_KEY=${GEMINI_API_KEY_SECRET}:latest,ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY_SECRET}:latest"
+  --set-env-vars "API_HOST=0.0.0.0,API_PORT=8000,REDIS_HOST=$REDIS_HOST,REDIS_PORT=$REDIS_PORT,API_USE_TIKTOKEN=false,DB_AUTO_INIT_SCHEMA=true,WORKER_TRIGGER_MODE=cloud_run_job,CLOUD_RUN_PROJECT_ID=$GCP_PROJECT_ID,CLOUD_RUN_REGION=$GCP_REGION,CLOUD_RUN_WORKER_JOB=$CLOUDRUN_WORKER_JOB" \
+  --set-secrets "DATABASE_URL=${DATABASE_URL_SECRET}:latest,ARENA_API_KEYS=${API_KEYS_SECRET}:latest,OPENAI_API_KEY=${OPENAI_API_KEY_SECRET}:latest,GEMINI_API_KEY=${GEMINI_API_KEY_SECRET}:latest,ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY_SECRET}:latest" \
+  --command=".venv/bin/python" \
+  --args="-m" \
+  --args="orchestrator.api_gateway"
 
 if [[ "${WORKER_EXECUTION_MODE}" == "service_long_lived" ]]; then
   gcloud run deploy "$CLOUDRUN_WORKER_SERVICE" \
@@ -61,8 +64,9 @@ if [[ "${WORKER_EXECUTION_MODE}" == "service_long_lived" ]]; then
     --max-instances "$WORKER_SERVICE_MAX_INSTANCES" \
     --set-env-vars "REDIS_HOST=$REDIS_HOST,REDIS_PORT=$REDIS_PORT,RUNNER_NUM_WORKERS=$RUNNER_NUM_WORKERS,RUNNER_QUEUE_NAME=episodes" \
     --set-secrets "DATABASE_URL=${DATABASE_URL_SECRET}:latest,OPENAI_API_KEY=${OPENAI_API_KEY_SECRET}:latest,GEMINI_API_KEY=${GEMINI_API_KEY_SECRET}:latest,ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY_SECRET}:latest" \
-    --command ".venv/bin/python" \
-    --args "-m,orchestrator.runner"
+    --command=".venv/bin/python" \
+    --args="-m" \
+    --args="orchestrator.runner"
 else
   gcloud run jobs describe "$CLOUDRUN_WORKER_JOB" --region "$GCP_REGION" >/dev/null 2>&1 && {
     gcloud run jobs update "$CLOUDRUN_WORKER_JOB" \
@@ -73,8 +77,9 @@ else
       --vpc-egress all-traffic \
       --set-env-vars "REDIS_HOST=$REDIS_HOST,REDIS_PORT=$REDIS_PORT,WORKER_MODE=burst,WORKER_LOG_LEVEL=INFO" \
       --set-secrets "DATABASE_URL=${DATABASE_URL_SECRET}:latest,OPENAI_API_KEY=${OPENAI_API_KEY_SECRET}:latest,GEMINI_API_KEY=${GEMINI_API_KEY_SECRET}:latest,ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY_SECRET}:latest" \
-      --command ".venv/bin/python" \
-      --args "-m,orchestrator.worker"
+      --command=".venv/bin/python" \
+      --args="-m" \
+      --args="orchestrator.worker"
   } || {
     gcloud run jobs create "$CLOUDRUN_WORKER_JOB" \
       --image "$IMAGE_URI" \
@@ -86,8 +91,9 @@ else
       --vpc-egress all-traffic \
       --set-env-vars "REDIS_HOST=$REDIS_HOST,REDIS_PORT=$REDIS_PORT,WORKER_MODE=burst,WORKER_LOG_LEVEL=INFO" \
       --set-secrets "DATABASE_URL=${DATABASE_URL_SECRET}:latest,OPENAI_API_KEY=${OPENAI_API_KEY_SECRET}:latest,GEMINI_API_KEY=${GEMINI_API_KEY_SECRET}:latest,ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY_SECRET}:latest" \
-      --command ".venv/bin/python" \
-      --args "-m,orchestrator.worker"
+      --command=".venv/bin/python" \
+      --args="-m" \
+      --args="orchestrator.worker"
   }
 fi
 

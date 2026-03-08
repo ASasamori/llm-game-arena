@@ -2,6 +2,7 @@ import redis
 import os
 from rq import SimpleWorker, Queue
 from termcolor import colored
+from orchestrator.models import ensure_tables_created
 
 REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
@@ -22,6 +23,7 @@ WORKER_LOG_LEVEL = os.environ.get("WORKER_LOG_LEVEL", "INFO").upper()
 redis_conn = redis.Redis(host=REDIS_HOST, port=REDIS_PORT)
 
 if __name__ == "__main__":
+    ensure_tables_created()
     queue = Queue("episodes", connection=redis_conn)
     worker = SimpleWorker([queue], connection=redis_conn)
 

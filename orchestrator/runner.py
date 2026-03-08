@@ -19,6 +19,7 @@ from rq import SimpleWorker, Queue, Worker
 from rq.registry import StartedJobRegistry
 from rq.timeouts import TimerDeathPenalty
 from termcolor import colored
+from orchestrator.models import ensure_tables_created
 
 
 # Configuration
@@ -263,6 +264,7 @@ def report_stale_started_jobs(queue: Queue, stale_seconds: int) -> None:
 
 
 def main():
+    ensure_tables_created()
     os.makedirs(LOG_DIR, exist_ok=True)
 
     # Install thread-local stdout/stderr redirectors

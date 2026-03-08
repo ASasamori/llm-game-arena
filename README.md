@@ -198,6 +198,14 @@ export API_KEY="<api-key>"
 bash scripts/gcp_test_client.sh
 ```
 
+Run the same smoke test from any other machine (no `gcloud` required):
+
+```bash
+export API_URL="https://<your-api>.a.run.app"
+export API_KEY="<api-key>"
+bash scripts/gcp_test_client.sh
+```
+
 ### Google Cloud Runbook (No Pi Required)
 Once these are provisioned in GCP, the Raspberry Pi is no longer required for runtime execution:
 
@@ -208,33 +216,26 @@ Once these are provisioned in GCP, the Raspberry Pi is no longer required for ru
 - Serverless VPC connector: `llm-arena-connector`
 - Secret Manager: database URL, API keys, provider keys
 
-#### Exact Cloud Scheduler Configuration for Worker
-Cloud Scheduler should call the Cloud Run Jobs API, not your API service URL.
+#### Cheapest stable option
+Managed Cloud SQL + Memorystore + VPC connector can exceed a very small budget quickly.
+If you want a long-lived system around `< $10/month`, prefer one small VM and run Docker Compose
+(`api + worker + redis + postgres`) on that VM.
 
-- HTTP method: `POST`
-- URL:
-  `https://run.googleapis.com/v2/projects/<PROJECT_ID>/locations/<REGION>/jobs/llm-arena-worker:run`
-- Headers:
-  - `Content-Type: application/json`
-- Body:
-  - `{}`
-- Auth:
-  - OAuth token (scope `https://www.googleapis.com/auth/cloud-platform`)
-  - Service account with permission to run Cloud Run jobs
+Use GCP managed stack when you need managed failover/ops. Use single-VM stack when cost is priority.
 
-Example:
+#### On-demand worker trigger (no scheduler)
+Current flow:
 
-```bash
-gcloud scheduler jobs create http llm-arena-worker-minute \
-  --location us-central1 \
-  --schedule "* * * * *" \
-  --uri "https://run.googleapis.com/v2/projects/gen-lang-client-0155805792/locations/us-central1/jobs/llm-arena-worker:run" \
-  --http-method POST \
-  --message-body '{}' \
-  --headers "Content-Type=application/json" \
-  --oauth-service-account-email "llm-arena-scheduler@gen-lang-client-0155805792.iam.gserviceaccount.com" \
-  --oauth-token-scope "https://www.googleapis.com/auth/cloud-platform"
-```
+1. `POST /v1/runs` validates and enqueues into Redis
+2. API triggers Cloud Run Job `llm-arena-worker` through Cloud Run Jobs API
+3. Worker drains queue and persists episode rows into Postgres
+4. Client polls run/episodes/analytics endpoints
+
+This keeps workers non-long-lived and avoids minute-based scheduler churn.
+
+Required IAM:
+- API service account needs permission to run the worker job (`run.jobs.run`)
+- Practical role set: `roles/run.invoker` + `roles/run.developer` on the worker job
 
 #### Cloud Shell Smoke Test
 Use these exact exports:
@@ -247,12 +248,11 @@ export API_KEY="$(gcloud secrets versions access latest --secret arena-api-keys 
 Then:
 
 ```bash
-curl -sS "$API_URL/healthz" | jq .
+curl -sS "$API_URL/v1/usage/me" -H "Authorization: Bearer $API_KEY" | jq .
 curl -sS -X POST "$API_URL/v1/runs" \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"run_type":"PVP","env":"connect_four_v1","num_episodes":1,"num_steps":10,"model_names":["GEMINI","GPT"]}' | jq .
-gcloud run jobs execute llm-arena-worker --region us-central1 --wait
 ```
 
 Run status check:
@@ -260,6 +260,29 @@ Run status check:
 ```bash
 curl -sS "$API_URL/v1/runs/<RUN_ID>" -H "Authorization: Bearer $API_KEY" | jq .
 ```
+
+#### Common failure modes
+
+- `404` HTML page from Google for `/healthz`
+  - You are hitting the wrong URL/region/service.
+  - Re-resolve URL:
+    ```bash
+    gcloud run services list --region us-central1 --format='table(metadata.name,status.url)'
+    gcloud run services describe llm-arena-api --region us-central1 --format='value(status.url)'
+    ```
+- `curl` hangs on `POST /v1/runs` or returns `503`
+  - First enforce timeout so it fails fast:
+    ```bash
+    curl -i --connect-timeout 5 --max-time 20 "$API_URL/v1/usage/me" \
+      -H "Authorization: Bearer $API_KEY"
+    ```
+  - If `/healthz` is OK but `/v1/runs` hangs, inspect API logs:
+    ```bash
+    gcloud run services logs read llm-arena-api --region us-central1 --limit=200
+    ```
+  - Typical cause: `REDIS_HOST` points to a non-reachable address (for GCP it must be Memorystore private IP via VPC connector).
+  - Another common cause is an API service revision started without the explicit API entrypoint command. Re-run deployment with the updated `infra/gcp/deploy_cloud_run.sh` (it now sets `--command .venv/bin/python --args -m,orchestrator.api_gateway` for the API service).
+  - Another common cause is uninitialized database schema in a fresh Cloud SQL instance. Startup now auto-initializes tables (`DB_AUTO_INIT_SCHEMA=true`).
 
 #### Multi-game in API
 `POST /v1/runs` supports:

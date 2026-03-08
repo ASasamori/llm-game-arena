@@ -16,7 +16,6 @@ This setup keeps your current architecture:
   - `sqladmin.googleapis.com`
   - `redis.googleapis.com`
   - `vpcaccess.googleapis.com`
-  - `cloudscheduler.googleapis.com`
   - `secretmanager.googleapis.com`
   - `artifactregistry.googleapis.com`
   - `cloudbuild.googleapis.com`
@@ -67,22 +66,15 @@ Default (`WORKER_EXECUTION_MODE=job_burst`): worker is a Cloud Run Job with:
 - `WORKER_MODE=burst`
 - Runs one queue drain pass and exits
 
-Run manually:
+In this mode, API run creation triggers worker execution on-demand (no scheduler required).
+`POST /v1/runs` returns immediately, enqueues jobs to Redis, then requests:
+
+`https://run.googleapis.com/v2/projects/$GCP_PROJECT_ID/locations/$GCP_REGION/jobs/$CLOUDRUN_WORKER_JOB:run`
+
+Run manually (optional):
 
 ```bash
 gcloud run jobs execute "$CLOUDRUN_WORKER_JOB" --region "$GCP_REGION" --wait
-```
-
-For continuous processing, schedule periodic execution:
-
-```bash
-gcloud scheduler jobs create http llm-arena-worker-minute \
-  --location "$GCP_REGION" \
-  --schedule "* * * * *" \
-  --uri "https://run.googleapis.com/v2/projects/$GCP_PROJECT_ID/locations/$GCP_REGION/jobs/$CLOUDRUN_WORKER_JOB:run" \
-  --http-method POST \
-  --oauth-service-account-email "<scheduler-sa>@$GCP_PROJECT_ID.iam.gserviceaccount.com" \
-  --oauth-token-scope "https://www.googleapis.com/auth/cloud-platform"
 ```
 
 Long-lived option (`WORKER_EXECUTION_MODE=service_long_lived`):
@@ -90,6 +82,11 @@ Long-lived option (`WORKER_EXECUTION_MODE=service_long_lived`):
 - Deploys a dedicated Cloud Run Service running `python -m orchestrator.runner`
 - Uses `RUNNER_NUM_WORKERS` threads in-process
 - Keeps workers online continuously via `min-instances`
+
+Required IAM for API service account:
+
+- `roles/run.invoker` on job `$CLOUDRUN_WORKER_JOB`
+- `roles/run.developer` (or equivalent permission to `run.jobs.run`)
 
 ## 4) Smoke test from Cloud Shell
 
@@ -99,6 +96,17 @@ export API_KEY="$(gcloud secrets versions access latest --secret "$API_KEYS_SECR
 
 bash scripts/gcp_test_client.sh
 ```
+
+You can also run `scripts/gcp_test_client.sh` without setting `API_URL` as long as `gcloud` is installed and authenticated; it auto-resolves:
+
+```bash
+export CLOUDRUN_API_SERVICE="llm-arena-api"
+export GCP_REGION="us-central1"
+export API_KEY="$(gcloud secrets versions access latest --secret "$API_KEYS_SECRET" | cut -d',' -f1)"
+bash scripts/gcp_test_client.sh
+```
+
+For non-GCP machines (no `gcloud`), set `API_URL` and `API_KEY` manually and run the same script.
 
 The script will:
 

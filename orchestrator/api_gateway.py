@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import inspect
 import logging
+import json
 import os
 import re
 import time
@@ -25,6 +26,7 @@ from typing import Annotated, Any, Literal, TypeVar, cast
 from uuid import UUID, uuid4
 
 import redis
+import requests
 import tenacity
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, Request, Security, status
@@ -35,7 +37,15 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import TimeoutError as RedisTimeoutError
 from sqlalchemy import func
 
-from orchestrator.models import Episode, EpisodeStep, Matchup, ModelRating, Run, get_session
+from orchestrator.models import (
+    Episode,
+    EpisodeStep,
+    Matchup,
+    ModelRating,
+    Run,
+    ensure_tables_created,
+    get_session,
+)
 from orchestrator.observability import (
     build_dashboard_view,
     configure_json_logging,
@@ -64,6 +74,11 @@ REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
 REQUESTS_PER_MINUTE = int(os.environ.get("API_RATE_LIMIT_REQUESTS_PER_MINUTE", "60"))
 TOKENS_PER_MINUTE = int(os.environ.get("API_RATE_LIMIT_TOKENS_PER_MINUTE", "30000"))
 RATE_LIMIT_TTL_SECONDS = int(os.environ.get("API_RATE_LIMIT_WINDOW_SECONDS", "90"))
+API_USE_TIKTOKEN = os.environ.get("API_USE_TIKTOKEN", "false").lower() in {
+    "1",
+    "true",
+    "yes",
+}
 
 API_GATEWAY_NAME = os.environ.get("API_GATEWAY_NAME", "llm-game-arena-gateway")
 API_KEYS = {
@@ -71,6 +86,14 @@ API_KEYS = {
     for item in os.environ.get("ARENA_API_KEYS", "local-dev-key").split(",")
     if item.strip()
 }
+WORKER_TRIGGER_MODE = os.environ.get("WORKER_TRIGGER_MODE", "none").strip().lower()
+CLOUD_RUN_PROJECT_ID = (
+    os.environ.get("CLOUD_RUN_PROJECT_ID")
+    or os.environ.get("GOOGLE_CLOUD_PROJECT")
+    or os.environ.get("GCP_PROJECT_ID")
+)
+CLOUD_RUN_REGION = os.environ.get("CLOUD_RUN_REGION", "").strip()
+CLOUD_RUN_WORKER_JOB = os.environ.get("CLOUD_RUN_WORKER_JOB", "").strip()
 
 redis_conn = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 
@@ -165,7 +188,7 @@ class RunCreateRequest(BaseModel):
                     "num_steps": 120,
                     "model_names": ["GPT"],
                     "env": "chess_v1",
-                }
+                },
             ]
         }
     }
@@ -193,6 +216,18 @@ class RunCreateResponse(BaseModel):
     status: str = Field(description="Initial run status.")
     job_count: int = Field(description="Number of jobs enqueued.")
     status_url: str = Field(description="Relative URL for polling run status.")
+    worker_triggered: bool | None = Field(
+        default=None,
+        description="Whether on-demand worker execution was triggered by the API.",
+    )
+    worker_execution: str | None = Field(
+        default=None,
+        description="Cloud Run Jobs execution resource name if available.",
+    )
+    worker_trigger_error: str | None = Field(
+        default=None,
+        description="Best-effort trigger error detail when worker trigger fails.",
+    )
     submitted_at: datetime = Field(description="Submission timestamp (UTC).")
 
 
@@ -371,9 +406,12 @@ def _hash_api_key(api_key: str) -> str:
 
 def _estimate_tokens(payload: Any) -> int:
     text = str(payload)
-    if tiktoken is not None:
-        enc = tiktoken.get_encoding("cl100k_base")
-        return max(1, len(enc.encode(text)))
+    if tiktoken is not None and API_USE_TIKTOKEN:
+        try:
+            enc = tiktoken.get_encoding("cl100k_base")
+            return max(1, len(enc.encode(text)))
+        except Exception:
+            LOGGER.warning("tiktoken_unavailable_falling_back_to_regex_estimator")
     # Fallback approximation if tiktoken is unavailable.
     return max(1, len(re.findall(r"\w+|[^\w\s]", text)))
 
@@ -639,7 +677,9 @@ def _render_stylized_client_payload(
         markdown = f"**{request.title}**: {summary_line}\n\n`{pills}`"
         text_lines = [f"[{request.title}] {summary_line}", f"Highlights: {pills}"]
     else:
-        bullets = "".join(f"- `{idx + 1:02d}` {item}\n" for idx, item in enumerate(highlights))
+        bullets = "".join(
+            f"- `{idx + 1:02d}` {item}\n" for idx, item in enumerate(highlights)
+        )
         markdown = (
             f"### {request.title}\n\n"
             f"> {summary_line}\n\n"
@@ -679,6 +719,84 @@ def _enqueue_with_backoff(request: RunCreateRequest) -> tuple[str, list[str]]:
     )
 
 
+def _cloud_run_worker_run_url() -> str | None:
+    if not (CLOUD_RUN_PROJECT_ID and CLOUD_RUN_REGION and CLOUD_RUN_WORKER_JOB):
+        return None
+    return (
+        "https://run.googleapis.com/v2/projects/"
+        f"{CLOUD_RUN_PROJECT_ID}/locations/{CLOUD_RUN_REGION}"
+        f"/jobs/{CLOUD_RUN_WORKER_JOB}:run"
+    )
+
+
+def _metadata_access_token() -> str:
+    resp = requests.get(
+        "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token",
+        headers={"Metadata-Flavor": "Google"},
+        timeout=3,
+    )
+    resp.raise_for_status()
+    payload = resp.json()
+    token = payload.get("access_token")
+    if not isinstance(token, str) or not token:
+        raise RuntimeError("Metadata token response missing access_token")
+    return token
+
+
+@tenacity.retry(
+    wait=tenacity.wait_random_exponential(min=0.2, max=2),
+    stop=tenacity.stop_after_attempt(3),
+    retry=tenacity.retry_if_exception_type((requests.RequestException, RuntimeError)),
+    reraise=True,
+)
+def _trigger_cloud_run_worker_once() -> str | None:
+    run_url = _cloud_run_worker_run_url()
+    if run_url is None:
+        raise RuntimeError(
+            "Cloud Run worker trigger is enabled but configuration is incomplete"
+        )
+    token = _metadata_access_token()
+    resp = requests.post(
+        run_url,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+        data="{}",
+        timeout=10,
+    )
+    if resp.status_code < 200 or resp.status_code >= 300:
+        body = resp.text
+        try:
+            body = json.dumps(resp.json())
+        except ValueError:
+            pass
+        raise RuntimeError(f"Cloud Run worker trigger failed: {resp.status_code} {body}")
+    try:
+        data = resp.json()
+    except ValueError:
+        return None
+    name = data.get("name")
+    if isinstance(name, str) and name:
+        return name
+    return None
+
+
+def _trigger_worker_if_configured() -> tuple[bool | None, str | None, str | None]:
+    if WORKER_TRIGGER_MODE in {"", "none", "off", "disabled"}:
+        return None, None, None
+    if WORKER_TRIGGER_MODE != "cloud_run_job":
+        return False, None, f"Unsupported WORKER_TRIGGER_MODE={WORKER_TRIGGER_MODE}"
+    try:
+        execution_name = _trigger_cloud_run_worker_once()
+        increment_counter("api.worker_trigger.success", tags={"mode": "cloud_run_job"})
+        return True, execution_name, None
+    except Exception as exc:
+        increment_counter("api.worker_trigger.error", tags={"mode": "cloud_run_job"})
+        LOGGER.exception("worker_trigger_failed")
+        return False, None, str(exc)
+
+
 app = FastAPI(
     title="LLM Game Arena API Gateway",
     version="0.1.0",
@@ -698,6 +816,11 @@ app = FastAPI(
         },
     ],
 )
+
+
+@app.on_event("startup")
+def startup_init_schema() -> None:
+    ensure_tables_created()
 
 
 @app.middleware("http")
@@ -771,7 +894,9 @@ async def http_exception_handler(_: Request, exc: HTTPException):
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
-    failure = classify_exception(exc, stage="api.unhandled", default_code="internal_error")
+    failure = classify_exception(
+        exc, stage="api.unhandled", default_code="internal_error"
+    )
     increment_counter(
         "api.requests.error.total",
         tags={"category": failure.category.value, "code": failure.code},
@@ -875,6 +1000,9 @@ def create_run(request: RunCreateRequest, api_key: str = Depends(_authenticate))
         ) from e
 
     increment_counter("api.runs.create.success")
+    worker_triggered, worker_execution, worker_trigger_error = (
+        _trigger_worker_if_configured()
+    )
     LOGGER.info(
         "run_created",
         extra={
@@ -882,6 +1010,9 @@ def create_run(request: RunCreateRequest, api_key: str = Depends(_authenticate))
             "run_type": request.run_type,
             "job_count": len(job_ids),
             "num_episodes": request.num_episodes,
+            "worker_triggered": worker_triggered,
+            "worker_execution": worker_execution,
+            "worker_trigger_error": worker_trigger_error,
         },
     )
     now = datetime.now(timezone.utc)
@@ -890,6 +1021,9 @@ def create_run(request: RunCreateRequest, api_key: str = Depends(_authenticate))
         status="PENDING",
         job_count=len(job_ids),
         status_url=f"/v1/runs/{run_id}",
+        worker_triggered=worker_triggered,
+        worker_execution=worker_execution,
+        worker_trigger_error=worker_trigger_error,
         submitted_at=now,
     )
 
@@ -1122,7 +1256,9 @@ def get_run_analytics(
 ):
     _enforce_rate_limit(api_key, token_cost=1)
     if action_space < 2 or action_space > 64:
-        raise HTTPException(status_code=400, detail="action_space must be between 2 and 64")
+        raise HTTPException(
+            status_code=400, detail="action_space must be between 2 and 64"
+        )
     try:
         UUID(run_id)
     except ValueError as e:
