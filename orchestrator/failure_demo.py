@@ -14,24 +14,21 @@ from __future__ import annotations
 import json
 import os
 from collections import deque
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
 from game_arena.openspiel import harness, utils
+from game_arena.openspiel.model_generation import GenerateResponse
 from orchestrator.failures import classify_exception
 from orchestrator.observability import get_metrics_snapshot, reset_metrics
 
 os.environ.setdefault("HARNESS_RANDOM_SEED", "7")
 
 
-@dataclass
-class _Response:
-    main_response: str
-
-
 class _StaticModel:
-    def __init__(self, name: str, response: str | None = None, error: Exception | None = None):
+    def __init__(
+        self, name: str, response: str | None = None, error: Exception | None = None
+    ):
         self._name = name
         self._response = response
         self._error = error
@@ -41,11 +38,11 @@ class _StaticModel:
         prompt: str,
         system_instruction: str | None = None,
         mock: bool = False,
-    ) -> _Response:
+    ) -> GenerateResponse:
         _ = (prompt, system_instruction, mock)
         if self._error is not None:
             raise self._error
-        return _Response(main_response=self._response or "Final Answer: 3")
+        return GenerateResponse(main_response=self._response or "Final Answer: 3")
 
     def __str__(self) -> str:
         return self._name
@@ -61,7 +58,9 @@ def _run_case(name: str, options: utils.HarnessOptions) -> dict[str, Any]:
             "winner": result["winner"],
             "num_steps": result["num_steps"],
             "fallback_summaries": [
-                s for s in result["summary"] if isinstance(s, str) and "fallback" in s.lower()
+                s
+                for s in result["summary"]
+                if isinstance(s, str) and "fallback" in s.lower()
             ],
             "error": result["error"],
         }
@@ -87,7 +86,9 @@ def main() -> None:
     invalid_action_model = _StaticModel(
         "InvalidActionModel", response="x99\nSummary: invalid"
     )
-    failing_model = _StaticModel("FailingModel", error=RuntimeError("openai timeout test"))
+    failing_model = _StaticModel(
+        "FailingModel", error=RuntimeError("openai timeout test")
+    )
 
     cases = [
         _run_case(

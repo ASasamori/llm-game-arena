@@ -35,12 +35,15 @@ import os
 import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass
+from collections.abc import Mapping
+from typing import TypeVar
 
 from orchestrator.models import Episode, EpisodeStep, Run, get_session
 
 
 ACTION_RE = re.compile(r"^[a-zA-Z](\d+)$")
 _PLOT_MODULE = None
+_K = TypeVar("_K")
 
 
 def _get_plt():
@@ -101,7 +104,7 @@ def _parse_action_column(action: str) -> int | None:
     return int(parsed.group(1))
 
 
-def _safe_entropy(counts: Counter[int]) -> float:
+def _safe_entropy(counts: Mapping[_K, int]) -> float:
     total = sum(counts.values())
     if total <= 0:
         return 0.0
