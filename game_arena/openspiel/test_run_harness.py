@@ -33,7 +33,9 @@ class RunHarnessBackoffTests(unittest.TestCase):
             )
 
         sleep_calls: list[float] = []
-        with patch("game_arena.openspiel.run_harness.harness.harness", side_effect=flaky_run):
+        with patch(
+            "game_arena.openspiel.run_harness.harness.harness", side_effect=flaky_run
+        ):
             result = run_harness.run_with_backoff(
                 options,
                 max_attempts=4,

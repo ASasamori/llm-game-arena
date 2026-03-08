@@ -191,7 +191,7 @@ class GeminiModel:
         if client is None:
             raise RuntimeError("Gemini client is not initialized")
         config = google_genai_types.GenerateContentConfig(
-            system_instruction=system_instruction, # type: ignore
+            system_instruction=system_instruction,  # type: ignore
         )
 
         response = client.models.generate_content(
@@ -246,7 +246,9 @@ class GPTModel:
         """Generate a response from a text prompt."""
         if mock or self._mock_mode:
             return GenerateResponse(
-                main_response=_validate_model_response(_mock_response_text("GPT", prompt))
+                main_response=_validate_model_response(
+                    _mock_response_text("GPT", prompt)
+                )
             )
         client = self._client
         if client is None:

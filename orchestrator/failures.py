@@ -47,7 +47,9 @@ def classify_exception(
     if "invalid api key" in lowered:
         return FailureInfo(FailureCategory.AUTH, "invalid_api_key", stage, False, msg)
     if "rate limit" in lowered or "too many requests" in lowered:
-        return FailureInfo(FailureCategory.RATE_LIMIT, "rate_limit_exceeded", stage, True, msg)
+        return FailureInfo(
+            FailureCategory.RATE_LIMIT, "rate_limit_exceeded", stage, True, msg
+        )
     if "timeout" in lowered:
         return FailureInfo(FailureCategory.TIMEOUT, "timeout", stage, True, msg)
     if "redis" in lowered or "queue" in lowered:
@@ -57,11 +59,16 @@ def classify_exception(
     if "parser" in lowered:
         return FailureInfo(FailureCategory.PARSER, "parser_error", stage, False, msg)
     if "legal action" in lowered or "invalid action" in lowered:
-        return FailureInfo(FailureCategory.INVALID_ACTION, "illegal_action", stage, False, msg)
+        return FailureInfo(
+            FailureCategory.INVALID_ACTION, "illegal_action", stage, False, msg
+        )
     if "validation" in lowered or cls_name == "valueerror":
-        return FailureInfo(FailureCategory.VALIDATION, "validation_error", stage, False, msg)
+        return FailureInfo(
+            FailureCategory.VALIDATION, "validation_error", stage, False, msg
+        )
     if "openai" in lowered or "anthropic" in lowered or "gemini" in lowered:
-        return FailureInfo(FailureCategory.MODEL_API, "model_api_error", stage, True, msg)
+        return FailureInfo(
+            FailureCategory.MODEL_API, "model_api_error", stage, True, msg
+        )
 
     return FailureInfo(default_category, default_code, stage, False, msg)
-

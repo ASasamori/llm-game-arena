@@ -29,7 +29,9 @@ class _ChessFakeModel:
         system_instruction: str | None = None,
         mock: bool = False,
     ) -> GenerateResponse:
-        return GenerateResponse(main_response="Summary: develop center\nFinal Answer: e4")
+        return GenerateResponse(
+            main_response="Summary: develop center\nFinal Answer: e4"
+        )
 
 
 class _AlwaysNoneParser:

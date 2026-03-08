@@ -224,7 +224,10 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
                 )
                 increment_counter(
                     "harness.failure.total",
-                    tags={"category": FailureCategory.PARSER.value, "code": "parser_none"},
+                    tags={
+                        "category": FailureCategory.PARSER.value,
+                        "code": "parser_none",
+                    },
                 )
                 fallback_action = rng.choice(legal_actions)
                 fallback_action_str = pyspiel_state.action_to_string(

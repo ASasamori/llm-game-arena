@@ -17,14 +17,12 @@ queue = Queue("episodes", connection=redis_conn)
 
 SUPPORTED_TYPES = ["INPUT", "RAND", "PVP", "PVP_RR"]
 JOB_TIMEOUT_SECONDS = int(os.environ.get("ORCH_JOB_TIMEOUT_SECONDS", "1800"))
-SERIALIZE_PVP_EPISODES = (
-    os.environ.get("ORCH_SERIALIZE_PVP_EPISODES", "true").strip().lower()
-    in {"1", "true", "yes", "on"}
-)
-SERIALIZE_PVP_RR_EPISODES = (
-    os.environ.get("ORCH_SERIALIZE_PVP_RR_EPISODES", "true").strip().lower()
-    in {"1", "true", "yes", "on"}
-)
+SERIALIZE_PVP_EPISODES = os.environ.get(
+    "ORCH_SERIALIZE_PVP_EPISODES", "true"
+).strip().lower() in {"1", "true", "yes", "on"}
+SERIALIZE_PVP_RR_EPISODES = os.environ.get(
+    "ORCH_SERIALIZE_PVP_RR_EPISODES", "true"
+).strip().lower() in {"1", "true", "yes", "on"}
 if JOB_TIMEOUT_SECONDS < 30:
     JOB_TIMEOUT_SECONDS = 30
 
