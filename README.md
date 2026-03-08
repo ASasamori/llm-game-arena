@@ -198,6 +198,24 @@ export API_KEY="<api-key>"
 bash scripts/gcp_test_client.sh
 ```
 
+### One-command GCP On/Off
+Use `scripts/gcp_stack_toggle.sh` to bring the full managed stack up or down.
+
+Bring stack up:
+
+```bash
+bash scripts/gcp_stack_toggle.sh up
+```
+
+Turn stack down:
+
+```bash
+bash scripts/gcp_stack_toggle.sh down
+```
+
+`up` creates/restores Cloud SQL, Redis, VPC connector, and deploys API + worker job.
+`down` deletes Cloud Run/Redis/VPC resources and stops Cloud SQL compute.
+
 Run the same smoke test from any other machine (no `gcloud` required):
 
 ```bash
