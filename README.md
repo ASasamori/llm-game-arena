@@ -1,5 +1,9 @@
 # llm-game-arena
 
+## Quick Links
+
+- Client-facing setup and request guide: `CLIENT_GUIDE.md`
+
 ## Execution workflow
 
 Client Request -> Run Orchestrator -> Workers -> Evals -> Client Polling
