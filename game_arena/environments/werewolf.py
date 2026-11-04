@@ -11,6 +11,7 @@ Rules: https://cdn.shopify.com/s/files/1/0740/4855/files/ONUW_rules-updated_for_
 from __future__ import annotations
 
 from collections import Counter
+from copy import deepcopy
 from itertools import combinations
 import json
 from typing import Any
@@ -442,6 +443,30 @@ class WerewolfState(NativeState):
 
     def __str__(self) -> str:
         return json.dumps(self._public_view(), sort_keys=True, separators=(",", ":"))
+
+    def public_state(self) -> dict[str, Any]:
+        # Night actor order can identify original roles. The public table only
+        # knows that the village is asleep, not which seat is taking an action.
+        view = self._public_view()
+        players: list[dict[str, Any]] = [
+            {"seat": seat} for seat in range(self.game.players)
+        ]
+        if self.is_terminal():
+            for player in players:
+                seat = player["seat"]
+                player.update(
+                    role=self.cards[seat],
+                    dead=seat in self.dead,
+                    winner=seat in self.winners,
+                )
+        view.update(
+            schema_version=1,
+            current_player=None if self.phase == "night" else self.current_player(),
+            players=players,
+            public_history=view.pop("transcript")[-32:],
+            public_history_total=len(self.public_transcript),
+        )
+        return deepcopy(view)
 
     def returns(self) -> list[float]:
         if not self.is_terminal():

@@ -87,6 +87,22 @@ class ResumptionTests(unittest.TestCase):
         self.assertEqual(result["start_time"].isoformat(), saved["start_time"])
         self.assertEqual(result.get("steps", [])[: len(saved["steps"])], saved["steps"])
 
+    def test_older_prefix_without_public_boards_resumes_without_repeating_calls(self):
+        prefix = _prefix()
+        for event in prefix["steps"]:
+            event.pop("public_state_before", None)
+            event.pop("public_state_after", None)
+        live = _models()
+        result = resume_episode(prefix, list(live))
+        self.assertEqual(
+            result.get("steps", [])[: len(prefix["steps"])], prefix["steps"]
+        )
+        self.assertEqual(
+            sum(model.calls for model in live), result.get("decision_count", 0) - 15
+        )
+        self.assertIn("public_state_after", result.get("steps", [])[-1])
+        self.assertTrue(replay_episode(dict(result))["verified"])
+
     def test_tampered_prefix_or_models_rejected_before_provider_calls(self):
         for kind in ("prompt", "hash", "identity", "version", "mock", "count"):
             with self.subTest(kind=kind):

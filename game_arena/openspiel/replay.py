@@ -20,7 +20,12 @@ from game_arena.openspiel.harness import (
     _validate_quest_limit,
 )
 from game_arena.openspiel.provenance import derive_seed, runtime_manifest
-from game_arena.openspiel.views import build_prompt, evaluator_state, state_hash
+from game_arena.openspiel.views import (
+    build_prompt,
+    evaluator_state,
+    public_state,
+    state_hash,
+)
 
 
 class ReplayError(ValueError):
@@ -148,6 +153,12 @@ def replay_episode(record: dict[str, Any]) -> dict[str, Any]:
             _require(
                 snapshot is not None and event["state_before"] == snapshot,
                 f"{prefix} input state snapshot mismatch",
+            )
+        if "public_state_before" in event:
+            board = public_state(state)
+            _require(
+                board is not None and event["public_state_before"] == board,
+                f"{prefix} input public board mismatch",
             )
         players, actions = event["players"], event["actions"]
         kind = event["kind"]
@@ -356,6 +367,12 @@ def replay_episode(record: dict[str, Any]) -> dict[str, Any]:
             _require(
                 snapshot is not None and event["state_after"] == snapshot,
                 f"{prefix} output state snapshot mismatch",
+            )
+        if "public_state_after" in event:
+            board = public_state(state)
+            _require(
+                board is not None and event["public_state_after"] == board,
+                f"{prefix} output public board mismatch",
             )
         _require(
             _same_values(event["rewards"], state.rewards()), f"{prefix} reward mismatch"

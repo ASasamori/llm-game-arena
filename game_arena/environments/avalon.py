@@ -13,6 +13,7 @@ until their respective resolutions, even though submissions are serialized.
 from __future__ import annotations
 
 from collections import Counter
+from copy import deepcopy
 from itertools import combinations
 import json
 from typing import Any
@@ -384,6 +385,50 @@ class AvalonState(NativeState):
         if self.is_terminal():
             view["revealed_roles"] = list(self.roles)
         return json.dumps(view, sort_keys=True, separators=(",", ":"))
+
+    def public_state(self) -> dict[str, Any]:
+        players: list[dict[str, Any]] = [
+            {
+                "seat": seat,
+                "is_leader": seat == self.leader,
+                "on_proposed_team": seat in self.proposal,
+            }
+            for seat in range(self.game.players)
+        ]
+        if self.is_terminal():
+            for player, role in zip(players, self.roles, strict=True):
+                player.update(
+                    role=role, alignment="evil" if role in EVIL_ROLES else "good"
+                )
+        last_team_vote = next(
+            (
+                item
+                for item in reversed(self.public_history)
+                if item["kind"] == "team_vote"
+            ),
+            None,
+        )
+        return deepcopy(
+            {
+                "schema_version": 1,
+                "game": self.game.name,
+                "ruleset": "original_2012",
+                "phase": self.phase,
+                "current_player": self.current_player(),
+                "players": players,
+                "leader": self.leader,
+                "quest_number": self.quest_index + 1,
+                "team_size": self.team_size,
+                "proposed_team": self.proposal,
+                "consecutive_rejections": self.rejections,
+                "quest_results": self.quest_results,
+                "public_history": self.public_history[-32:],
+                "public_history_total": len(self.public_history),
+                "last_team_vote": last_team_vote,
+                "winner": self.winner,
+                "end_reason": self.end_reason,
+            }
+        )
 
     def returns(self) -> list[float]:
         if not self.is_terminal():

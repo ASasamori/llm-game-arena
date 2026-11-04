@@ -8,6 +8,7 @@ Clockwise reaction priority resolves the physical game's simultaneous calls.
 
 from __future__ import annotations
 
+from copy import deepcopy
 import json
 from typing import Any
 
@@ -527,6 +528,35 @@ class CoupState(NativeState):
             view["exchange_pool"] = list(self.exchange_pool)
             view["returns_remaining"] = 2 - self.exchange_returns
         return json.dumps(view, sort_keys=True, separators=(",", ":"))
+
+    def public_state(self) -> dict[str, Any]:
+        return deepcopy(
+            {
+                "schema_version": 1,
+                "game": self.game.name,
+                "phase": self.phase,
+                "current_player": self.current_player(),
+                "players": [
+                    {
+                        "seat": seat,
+                        "coins": self.coins[seat],
+                        "influence_count": 2 - len(self.revealed[seat]),
+                        "revealed_influence": self.revealed[seat],
+                        "eliminated": len(self.revealed[seat]) == 2,
+                    }
+                    for seat in range(self.game.players)
+                ],
+                "turn_player": self.turn_player,
+                "pending_action": self.pending,
+                "challenge": self.challenge,
+                "completed_turns": self.completed_turns,
+                "max_turns": self.game.parameters["max_turns"],
+                "winner": self.winner,
+                "finish_reason": self.finish_reason,
+                "public_history": self.history[-32:],
+                "public_history_total": len(self.history),
+            }
+        )
 
     def returns(self) -> list[float]:
         if not self.is_terminal() or self.winner is None:

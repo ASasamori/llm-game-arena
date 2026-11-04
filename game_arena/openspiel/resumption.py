@@ -167,7 +167,14 @@ def resume_episode(previous: dict[str, Any], models: list[LLMModel]) -> EpisodeR
     if order.players or len(steps) < len(prefix):
         raise ResumeError("Resume ended before the saved prefix was reconstructed")
     for old, regenerated in zip(prefix, steps, strict=False):
-        if _without_latency(old) != _without_latency(regenerated):
+        comparable = dict(regenerated)
+        # Public boards are additive audit evidence. Earlier saved prefixes
+        # lack them; retain those records verbatim while validating every field
+        # that was originally recorded before continuing with new decisions.
+        for key in ("public_state_before", "public_state_after"):
+            if key not in old:
+                comparable.pop(key, None)
+        if _without_latency(old) != _without_latency(comparable):
             raise ResumeError("Saved transition changed during prefix reconstruction")
     steps[: len(prefix)] = deepcopy(prefix)
     original_start = previous["start_time"]

@@ -36,6 +36,27 @@ def evaluator_state(state: pyspiel.State) -> str | None:
     return str(state)
 
 
+def public_state(state: pyspiel.State) -> dict[str, Any] | None:
+    """Freeze an environment's explicit spectator view for transition review.
+
+    This deliberately does not derive a board from the private audit state or
+    any player's observation. Only native environments with an explicit public
+    contract currently opt in. The JSON round trip freezes references and keeps
+    the representation identical before and after storage in a JSON database.
+    """
+    if getattr(state.get_game(), "environment_backend", "openspiel") != "native":
+        return None
+    method = getattr(state, "public_state", None)
+    if method is None:
+        return None
+    snapshot = method()
+    if snapshot is None:
+        return None
+    if not isinstance(snapshot, dict) or snapshot.get("schema_version") != 1:
+        raise ValueError("Environment returned an unsupported public board")
+    return json.loads(json.dumps(snapshot, allow_nan=False))
+
+
 def player_view(state: pyspiel.State, player: int) -> tuple[str, str]:
     game_type = state.get_game().get_type()
     for capability, method in (

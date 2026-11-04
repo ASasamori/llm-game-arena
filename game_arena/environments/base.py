@@ -113,6 +113,16 @@ class NativeState:
     def observation_string(self, player: int) -> str:
         raise NotImplementedError
 
+    def public_state(self) -> dict[str, Any] | None:
+        """Return a spectator-safe board, or None when no renderer is defined.
+
+        A public board must be assembled from known public facts, never from a
+        serialized audit state or by dropping a few private keys. Callers may
+        retain the result after the next action, so implementations return an
+        independent snapshot rather than references to mutable game objects.
+        """
+        return None
+
     def returns(self) -> list[float]:
         return [0.0] * self.game.num_players()
 
