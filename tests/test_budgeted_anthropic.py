@@ -8,6 +8,7 @@ from pathlib import Path
 import sqlite3
 import tempfile
 from types import SimpleNamespace
+from typing import Any
 import unittest
 from unittest.mock import patch
 
@@ -16,12 +17,15 @@ from game_arena.openspiel.budgeted_anthropic import (
     BudgetLedger,
     BudgetedClaudeModel,
     DEFAULT_GAME_SYSTEM,
+    DEFAULT_JSON_SYSTEM,
+    DEFAULT_TOOL_SYSTEM,
     JEV_MODELS,
     JEV_PRICING_SOURCE,
     PRICING_SOURCE,
     PRICES,
 )
 from game_arena.openspiel.harness import EpisodeStopped
+from game_arena.openspiel.parsers import parse_legal_action
 
 PROMPT = (
     "Arena instruction\n"
@@ -54,6 +58,22 @@ class FakeClient:
         if self.error:
             raise self.error
         return self.response
+
+
+def tool_client(
+    action: Any = 1, summary: Any = "Reject this unsuitable team."
+) -> FakeClient:
+    client = FakeClient()
+    client.response.content = [
+        SimpleNamespace(
+            type="tool_use",
+            id="toolu-test",
+            name="choose_action",
+            input={"action": action, "summary": summary},
+        )
+    ]
+    client.response.stop_reason = "tool_use"
+    return client
 
 
 class BudgetedAnthropicTests(unittest.TestCase):
@@ -128,6 +148,127 @@ class BudgetedAnthropicTests(unittest.TestCase):
         with sqlite3.connect(self.path) as connection:
             bound = connection.execute("SELECT input_bound FROM requests").fetchone()[0]
         self.assertEqual(bound, len((PROMPT + custom).encode()) + 1024)
+
+    def test_supported_models_force_one_strict_action_tool(self):
+        for model_name in ANTHROPIC_MODELS - {"claude-sonnet-5-5"}:
+            client = tool_client()
+            response = self.model(
+                client=client, model_name=model_name, action_protocol="tool"
+            ).generate_with_text_input(PROMPT)
+            arguments = client.calls[0]
+            self.assertEqual(
+                arguments["tool_choice"], {"type": "tool", "name": "choose_action"}
+            )
+            self.assertEqual(arguments["system"], DEFAULT_TOOL_SYSTEM)
+            tool = arguments["tools"][0]
+            self.assertTrue(tool["strict"])
+            self.assertEqual(tool["name"], "choose_action")
+            schema = tool["input_schema"]
+            self.assertEqual(list(schema["properties"]), ["action", "summary"])
+            self.assertEqual(schema["properties"]["action"]["enum"], [0, 1])
+            self.assertEqual(schema["required"], ["action", "summary"])
+            self.assertFalse(schema["additionalProperties"])
+            self.assertEqual(
+                parse_legal_action(
+                    response.main_response, {0: "approve", 1: "reject"}
+                ).action,
+                1,
+            )
+            self.assertEqual(response.metadata["action_protocol"], "tool")
+            self.assertEqual(response.metadata["response_protocol"], "tool_use")
+            self.assertEqual(
+                response.metadata["system_instruction"], DEFAULT_TOOL_SYSTEM
+            )
+            self.assertEqual(response.metadata["action_schema"], schema)
+            self.assertEqual(
+                response.metadata["provider_response"]["content"][0]["input"],
+                {"action": 1, "summary": "Reject this unsuitable team."},
+            )
+
+    def test_sonnet55_uses_json_schema_without_unsupported_forced_tools(self):
+        client = FakeClient()
+        raw = json.dumps({"action": 0, "summary": "Approve the proposed team."})
+        client.response.content[0].text = raw
+        response = self.model(
+            client=client, model_name="claude-sonnet-5-5", action_protocol="tool"
+        ).generate_with_text_input(PROMPT)
+        arguments = client.calls[0]
+        self.assertNotIn("tools", arguments)
+        self.assertNotIn("tool_choice", arguments)
+        self.assertEqual(arguments["thinking"], {"type": "between_tools"})
+        self.assertEqual(arguments["output_config"]["effort"], "low")
+        self.assertEqual(arguments["output_config"]["format"]["type"], "json_schema")
+        self.assertEqual(arguments["system"], DEFAULT_JSON_SYSTEM)
+        self.assertEqual(response.metadata["response_protocol"], "json_schema")
+        self.assertEqual(
+            response.metadata["action_schema"],
+            arguments["output_config"]["format"]["schema"],
+        )
+        self.assertEqual(
+            response.metadata["provider_response"]["content"],
+            [{"type": "text", "text": raw}],
+        )
+        self.assertEqual(
+            parse_legal_action(
+                response.main_response, {0: "approve", 1: "reject"}
+            ).action,
+            0,
+        )
+
+    def test_structured_reservation_includes_tools_schema_and_actual_system(self):
+        client = tool_client()
+        response = self.model(
+            client=client, action_protocol="tool"
+        ).generate_with_text_input(PROMPT)
+        body = json.dumps(
+            client.calls[0], ensure_ascii=False, separators=(",", ":"), allow_nan=False
+        )
+        bound = len(body.encode()) + 1024
+        with sqlite3.connect(self.path) as connection:
+            saved_bound, reserved = connection.execute(
+                "SELECT input_bound,reserved FROM requests"
+            ).fetchone()
+        self.assertEqual(saved_bound, bound)
+        expected = (
+            bound * PRICES["claude-haiku-5-5"][0] + 192 * PRICES["claude-haiku-5-5"][1]
+        )
+        self.assertEqual(reserved, expected)
+        self.assertEqual(
+            float(response.metadata["reserved_cost_usd"]), expected / 1_000_000_000
+        )
+        self.assertEqual(
+            self.ledger().summary()["reserved_uncertain_usd"], "0.000000000"
+        )
+
+    def test_invalid_or_truncated_tool_results_are_billed_once_without_retry(self):
+        clients = [tool_client(action=999), tool_client(summary=None), tool_client()]
+        clients[2].response.stop_reason = "max_tokens"
+        missing = tool_client()
+        missing.response.content = []
+        clients.append(missing)
+        multiple = tool_client()
+        multiple.response.content *= 2
+        clients.append(multiple)
+        extra = tool_client()
+        extra.response.content[0].input["extra"] = "unlisted"
+        clients.append(extra)
+        for client in clients:
+            with self.assertRaises(EpisodeStopped) as caught:
+                self.model(
+                    client=client, action_protocol="tool"
+                ).generate_with_text_input(PROMPT)
+            self.assertEqual(caught.exception.code, "provider_error")
+            self.assertEqual(len(client.calls), 1)
+        summary = self.ledger().summary()
+        self.assertEqual(summary["requests"], len(clients))
+        self.assertEqual(summary["statuses"], {"completed": len(clients)})
+        self.assertEqual(summary["reserved_uncertain_usd"], "0.000000000")
+
+    def test_unsupported_action_protocol_is_rejected_without_requests(self):
+        client = tool_client()
+        with self.assertRaises(ValueError):
+            self.model(client=client, action_protocol="other")
+        self.assertEqual(client.calls, [])
 
     def test_transport_failure_retains_reservation_and_never_retries(self):
         ledger = self.ledger()

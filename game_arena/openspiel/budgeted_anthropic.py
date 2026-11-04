@@ -31,6 +31,19 @@ DEFAULT_GAME_SYSTEM = (
     "Final Answer: <one integer id from the provided legal_actions>\n"
     "Do not add analysis, lists, markdown, extra headings, or explanations of the rules."
 )
+DEFAULT_TOOL_SYSTEM = (
+    "Choose one legal action for the acting player from the supplied game state. "
+    "Submit exactly one choose_action tool call and no surrounding prose. "
+    "Use one legal integer action id and a brief summary of at most 12 words. "
+    "This output protocol overrides response-format instructions in the game context."
+)
+DEFAULT_JSON_SYSTEM = (
+    "Choose one legal action for the acting player from the supplied game state. "
+    "Return only the required JSON object, with action first and summary second. "
+    "Use one legal integer action id and a brief summary of at most 12 words. "
+    "Do not add prose, markdown, lists, or explanations of the rules. "
+    "This output protocol overrides response-format instructions in the game context."
+)
 # Integer nano-USD per token; published rates are USD per million tokens.
 PRICES: dict[str, tuple[int, int]] = {
     "claude-haiku-5-5": (100, 500),
@@ -316,12 +329,16 @@ class BudgetedClaudeModel:
         api_key: str | None = None,
         max_tokens: int = 192,
         client: Any | None = None,
+        action_protocol: str = "text",
     ):
         if model_name not in ANTHROPIC_MODELS:
             raise ValueError("Model has no verified Anthropic trial price")
         if type(max_tokens) is not int or not 64 <= max_tokens <= 256:
             raise ValueError("max_tokens must be an integer from 64-256")
+        if action_protocol not in {"text", "tool"}:
+            raise ValueError("action_protocol must be text or tool")
         self._model_name, self.ledger, self.max_tokens = model_name, ledger, max_tokens
+        self.action_protocol = action_protocol
         if client is None:
             from anthropic import Anthropic
 
@@ -353,9 +370,36 @@ class BudgetedClaudeModel:
             raise EpisodeStopped(
                 "provider_error", "Invalid structured arena prompt; no request was made"
             ) from None
-        effective_system = system_instruction or DEFAULT_GAME_SYSTEM
-        combined = prompt + effective_system
-        reservation = self.ledger.reserve(self._model_name, combined, self.max_tokens)
+        schema: dict[str, Any] | None = None
+        response_protocol = "text"
+        if self.action_protocol == "tool":
+            response_protocol = (
+                "json_schema" if self._model_name == "claude-sonnet-5-5" else "tool_use"
+            )
+            schema = {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "integer",
+                        "enum": list(legal),
+                        "description": "The chosen legal action id.",
+                    },
+                    "summary": {
+                        "type": "string",
+                        "description": "One brief sentence of at most 12 words explaining the choice.",
+                    },
+                },
+                "required": ["action", "summary"],
+                "additionalProperties": False,
+            }
+        default_system = (
+            DEFAULT_JSON_SYSTEM
+            if response_protocol == "json_schema"
+            else DEFAULT_TOOL_SYSTEM
+            if response_protocol == "tool_use"
+            else DEFAULT_GAME_SYSTEM
+        )
+        effective_system = system_instruction or default_system
         kwargs: dict[str, Any] = {
             "model": self._model_name,
             "max_tokens": self.max_tokens,
@@ -371,6 +415,31 @@ class BudgetedClaudeModel:
             kwargs["output_config"] = {"effort": "low"}
         if self._model_name == "claude-sonnet-5-5":
             kwargs["thinking"] = {"type": "between_tools"}
+        if response_protocol == "tool_use":
+            kwargs["tools"] = [
+                {
+                    "name": "choose_action",
+                    "description": "Record one legal action for this game turn.",
+                    "strict": True,
+                    "input_schema": schema,
+                }
+            ]
+            kwargs["tool_choice"] = {"type": "tool", "name": "choose_action"}
+        elif response_protocol == "json_schema":
+            kwargs.setdefault("output_config", {})["format"] = {
+                "type": "json_schema",
+                "schema": schema,
+            }
+        # Structured requests add tool/schema instructions to the billed input.
+        # Count their complete serialized request, not just its user message.
+        combined = (
+            json.dumps(
+                kwargs, ensure_ascii=False, separators=(",", ":"), allow_nan=False
+            )
+            if self.action_protocol == "tool"
+            else prompt + effective_system
+        )
+        reservation = self.ledger.reserve(self._model_name, combined, self.max_tokens)
         try:
             response = self._client.messages.create(**kwargs)
         except Exception as exc:
@@ -382,8 +451,24 @@ class BudgetedClaudeModel:
                 f"Anthropic request failed: {type(exc).__name__}{detail}; no retry was made",
             ) from None
         try:
-            raw = "".join(
+            raw_tools = [
+                {
+                    "type": "tool_use",
+                    "id": getattr(block, "id", None),
+                    "name": block.name,
+                    "input": block.input,
+                }
+                for block in response.content
+                if block.type == "tool_use"
+            ]
+            raw_text = "".join(
                 block.text for block in response.content if block.type == "text"
+            )
+            # Never collect or expose thinking blocks; only public text/tool output.
+            raw = (
+                json.dumps(raw_tools, ensure_ascii=False, allow_nan=False)
+                if response_protocol == "tool_use"
+                else raw_text
             )
             usage = {
                 "input_tokens": response.usage.input_tokens,
@@ -398,7 +483,24 @@ class BudgetedClaudeModel:
                 request_id=request_id,
                 response_text=raw,
             )
-            text = _validate_model_response(raw)
+            if response_protocol == "tool_use":
+                if len(raw_tools) != 1 or raw_tools[0]["name"] != "choose_action":
+                    raise ValueError("Expected exactly one choose_action tool call")
+                structured = raw_tools[0]["input"]
+            elif response_protocol == "json_schema":
+                structured = json.loads(raw_text)
+            else:
+                structured = None
+            if self.action_protocol == "tool":
+                if (
+                    not isinstance(structured, dict)
+                    or set(structured) != {"action", "summary"}
+                    or not isinstance(structured["summary"], str)
+                ):
+                    raise ValueError("Invalid structured game action")
+                text = json.dumps(structured, ensure_ascii=False, allow_nan=False)
+            else:
+                text = _validate_model_response(raw)
             parse_legal_action(text, legal)
             if getattr(response, "stop_reason", None) == "max_tokens":
                 raise ValueError("Model exhausted the output limit")
@@ -416,6 +518,18 @@ class BudgetedClaudeModel:
             metadata={
                 "provider": "anthropic",
                 "system_instruction": effective_system,
+                "action_protocol": self.action_protocol,
+                "response_protocol": response_protocol,
+                "action_schema": schema,
+                "provider_response": {
+                    "model": response.model,
+                    "content": raw_tools
+                    if response_protocol == "tool_use"
+                    else [{"type": "text", "text": raw_text}],
+                    "stop_reason": getattr(response, "stop_reason", None),
+                }
+                if self.action_protocol == "tool"
+                else None,
                 "mock": False,
                 "model": response.model,
                 "request_id": request_id,
