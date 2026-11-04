@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
 from game_arena.openspiel import harness, model_generation, utils
+from game_arena.openspiel.jev import JevModel
 from orchestrator.failures import classify_exception
 from game_arena.openspiel.provenance import runtime_manifest
 from orchestrator.models import (
@@ -35,6 +36,7 @@ MODEL_FACTORIES = {
     "GEMINI": model_generation.GeminiModel,
     "GPT": model_generation.GPTModel,
     "CLAUDE": model_generation.ClaudeModel,
+    "JEV": JevModel,
 }
 
 
@@ -51,7 +53,7 @@ def validate_model_name(model_name: str) -> tuple[str, str | None]:
     provider = provider.upper()
     if provider not in {*MODEL_FACTORIES, "MOCK"}:
         raise ValueError(
-            f"Unsupported model provider '{provider}'. Use GEMINI, GPT, CLAUDE, or MOCK"
+            f"Unsupported model provider '{provider}'. Use GEMINI, GPT, CLAUDE, JEV, or MOCK"
         )
     if separator and not version.strip():
         raise ValueError("Model version must be nonempty after ':'")

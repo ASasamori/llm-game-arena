@@ -654,6 +654,8 @@ def render_text_report(
                 "Recorded exogenous population update; this does not establish an equilibrium."
             )
         for decision in transition.get("decisions", []):
+            metadata = decision.get("response_metadata") or {}
+            classifier = metadata.get("summary_source") == "adapter"
             text.line()
             text.field("Recorded player ID", decision.get("player"))
             text.field("Recorded actor", decision.get("agent"))
@@ -673,18 +675,35 @@ def render_text_report(
             label = (
                 "Recorded fallback summary"
                 if decision.get("fallback_reason")
+                else "Adapter decision summary"
+                if classifier
                 else "Reported model summary"
                 if decision.get("response") is not None
                 else "Recorded policy summary"
             )
             text.field(label, decision.get("summary"))
-            text.line("Raw recorded response:")
+            raw_response = (
+                metadata.get("provider_response")
+                if classifier
+                else decision.get("response")
+            )
+            text.line(
+                "Raw classifier response:" if classifier else "Raw recorded response:"
+            )
             text.line(
                 "Not recorded"
-                if decision.get("response") is None
-                else decision["response"],
+                if raw_response is None
+                else json.dumps(raw_response, ensure_ascii=False, indent=2)
+                if isinstance(raw_response, dict)
+                else raw_response,
                 "  ",
             )
+            if classifier:
+                text.field(
+                    "Decision source", metadata.get("decision_source", "classifier")
+                )
+                text.field("Classifier confidence", metadata.get("confidence"))
+                text.field("Classifier probabilities", metadata.get("probabilities"))
             if decision.get("fallback_reason"):
                 text.field("Fallback / error", decision["fallback_reason"])
             for key in ("usage", "latency_ms"):

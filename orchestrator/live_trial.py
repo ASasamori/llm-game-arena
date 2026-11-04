@@ -21,6 +21,7 @@ DEFAULT_SEATS = [
     "claude-sonnet-5",
     "claude-sonnet-4-6",
 ]
+DEFAULT_JEV_SEATS = ["jev-1.14.0"] * 6
 
 
 def _save(path: Path, value: Any) -> None:
@@ -33,7 +34,9 @@ def _save(path: Path, value: Any) -> None:
     temporary.replace(path)
 
 
-def submit_trial(directory: Path, *, seed: int = 123) -> dict[str, Any]:
+def submit_trial(
+    directory: Path, *, seed: int = 123, provider: str = "anthropic"
+) -> dict[str, Any]:
     import redis
     from rq import Queue
     from game_arena.openspiel.catalog import canonical_game_spec, inspect_game
@@ -48,6 +51,10 @@ def submit_trial(directory: Path, *, seed: int = 123) -> dict[str, Any]:
 
     if type(seed) is not int or seed < 0:
         raise ValueError("seed must be a nonnegative integer")
+    if provider not in {"anthropic", "jev"}:
+        raise ValueError("provider must be anthropic or jev")
+    seats = DEFAULT_JEV_SEATS if provider == "jev" else DEFAULT_SEATS
+    prefix = "JEV:" if provider == "jev" else "CLAUDE:"
     directory = directory.resolve()
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     if (directory / "trial.json").exists():
@@ -64,14 +71,15 @@ def submit_trial(directory: Path, *, seed: int = 123) -> dict[str, Any]:
         "num_steps": 1000,
         "game": game,
         "game_info": inspect_game(game),
-        "model_names": ["CLAUDE:" + name for name in DEFAULT_SEATS],
+        "model_names": [prefix + name for name in seats],
+        "provider": provider,
         "seed": seed,
         "rotate_seats": False,
         "failure_policy": "raise",
         "runtime": runtime_manifest(),
         "stop_after_quests": 3,
-        "budget_usd": "0.90",
-        "max_output_tokens": 192,
+        "budget_usd": "0.10" if provider == "jev" else "0.90",
+        "max_output_tokens": 0 if provider == "jev" else 192,
         "max_calls": 100,
         "trial_kind": "explicitly_authorized_paid_avalon",
         "episode_id": episode_id,
@@ -111,7 +119,10 @@ def run_trial(run_id: str, directory: str) -> dict[str, Any]:
     from game_arena.openspiel.budgeted_anthropic import (
         BudgetLedger,
         BudgetedClaudeModel,
+        JEV_PRICING_SOURCE,
+        PRICING_SOURCE,
     )
+    from game_arena.openspiel.jev import JevModel
     from game_arena.openspiel.harness import harness
     from game_arena.openspiel.model_generation import LLMModel
     from game_arena.openspiel.provenance import runtime_manifest
@@ -146,7 +157,27 @@ def run_trial(run_id: str, directory: str) -> dict[str, Any]:
         root / "budget.sqlite",
         budget_usd=configuration["budget_usd"],
         max_calls=configuration["max_calls"],
+        pricing_source=JEV_PRICING_SOURCE
+        if configuration.get("provider") == "jev"
+        else PRICING_SOURCE,
     )
+    # Constructors validate worker credentials without making inference calls.
+    # A missing key must not consume the durable once-only paid execution claim.
+    models: list[LLMModel]
+    if configuration.get("provider") == "jev":
+        models = [
+            JevModel(name.removeprefix("JEV:"), ledger=ledger, mock_mode=False)
+            for name in configuration["model_names"]
+        ]
+    else:
+        models = [
+            BudgetedClaudeModel(
+                name.removeprefix("CLAUDE:"),
+                ledger,
+                max_tokens=configuration["max_output_tokens"],
+            )
+            for name in configuration["model_names"]
+        ]
     if not ledger.claim_episode_once(configuration["episode_id"]):
         return {"reused": True, "paid_execution_already_claimed": True}
     with get_session() as session:
@@ -154,14 +185,6 @@ def run_trial(run_id: str, directory: str) -> dict[str, Any]:
         if run is not None:
             run.status = "RUNNING"
             session.commit()
-    models: list[LLMModel] = [
-        BudgetedClaudeModel(
-            name.removeprefix("CLAUDE:"),
-            ledger,
-            max_tokens=configuration["max_output_tokens"],
-        )
-        for name in configuration["model_names"]
-    ]
     result = harness(
         HarnessOptions(
             type="PVP",
@@ -206,12 +229,19 @@ def main() -> int:
     parser.add_argument("--directory", type=Path, required=True)
     parser.add_argument("--seed", type=int, default=123)
     parser.add_argument("--allow-paid", action="store_true")
+    parser.add_argument("--provider", choices=["anthropic", "jev"], default="anthropic")
     args = parser.parse_args()
     if not args.allow_paid:
         parser.error("Pass --allow-paid only for an explicitly authorized paid trial")
     if not os.environ.get("DATABASE_URL") or not os.environ.get("REDIS_PORT"):
         parser.error("Configure DATABASE_URL and local REDIS_PORT explicitly")
-    trial = submit_trial(args.directory, seed=args.seed)
+    if args.provider == "jev" and not (
+        os.environ.get("TYPESAFE_API_KEY") or os.environ.get("JEV_API_KEY")
+    ):
+        parser.error(
+            "Set TYPESAFE_API_KEY from a funded TypeSafe account; the arena key cannot authenticate to TypeSafe"
+        )
+    trial = submit_trial(args.directory, seed=args.seed, provider=args.provider)
     print(
         json.dumps(
             {

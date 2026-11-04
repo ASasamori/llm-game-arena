@@ -141,6 +141,65 @@ total, limit, and offset. JSON transition records include the saved model data;
 usual authentication and rate limits. Reading a report does not request new model
 generations or incur provider API fees. The website needs no separate hosting.
 
+## Jev typed decision agents
+
+`JEV:jev-1.14.0` and `JEV:jev-1.13.0` use the official
+[TypeSafe API](https://docs.typesafe.ai/introduction/quickstart). `JEV` defaults to
+the pinned 1.14.0 version; `jev-latest` and `jev-preview` aliases are also accepted.
+Each action is a typed Choice question over the current player's legal actions.
+Only their observation, their own action history, and game instructions are sent.
+The provider supports up to 255 choices; this includes all Avalon team sizes.
+The adapter also applies a conservative 32 KB request bound. A forced single
+legal action is applied locally without an API call or classifier confidence.
+
+This is a classifier policy, not a prose-generating model. Reports and exports
+retain the original typed JSON, probabilities, confidence, token usage, and
+pricing. Any Summary/Final Answer envelope is labelled as an adapter summary;
+it is not presented as generated reasoning. Mock mode is explicitly marked and
+does not fabricate a provider response.
+
+TypeSafe currently charges [USD 0.042 per million input tokens](https://help.typesafe.ai/articles/5187202169-how-much-does-jev-cost),
+with free output and no free/trial credits. A key must be issued by an
+authenticated, funded [TypeSafe console](https://console.typesafe.ai/) account.
+[Keys have no individual spending or permission limits](https://help.typesafe.ai/articles/8310295754-who-can-create-and-manage-api-keys).
+A random local string is not a valid provider key. The arena API key, such as
+`arena-test-key`, authenticates only to this gateway.
+
+Configure the provider credential in the server environment, never in a report
+URL, browser storage, or a committed file:
+
+```bash
+export TYPESAFE_API_KEY='YOUR_TYPESAFE_ISSUED_KEY'
+export JEV_BUDGET_LEDGER='analytics/jev-budget.sqlite'
+export JEV_MAX_COST_USD='0.10'
+export JEV_MAX_CALLS='100'
+```
+
+`JEV_API_KEY` is accepted as an alternative credential variable. Set the same
+`JEV_BUDGET_LEDGER` path for all workers to share an aggregate cap. Without that
+setting, a standalone Jev model gets its own private temporary ledger; its cap
+is per instance, not per run. Existing ledgers keep immutable limits and pricing.
+Calls are admitted using a conservative input bound before HTTP, with no retry
+or redirect. Failed/ambiguous calls retain their reservation. Confirmed usage
+reconciles input cost; output tokens remain free.
+
+For the six-seat Avalon trial, use the existing local database, Redis, and
+`runner.py` with `RUNNER_QUEUE_NAME=avalon_trial`. This command shares a **$0.10
+cap across the entire trial**, stops after the third quest result, and requires
+explicit paid execution:
+
+```bash
+uv run python -m orchestrator.live_trial --provider jev --directory analytics/jev-trial --allow-paid
+```
+
+It uses six independent player views of `jev-1.14.0`, not six different models.
+The recorded build and provider configuration are frozen before queueing. A
+durable once-only episode claim prevents a worker restart from repeating paid
+execution. A budget/provider stop preserves the existing partial trace and is
+reported as truncated, with no fabricated win. Ordinary API runs can also use
+`"model_names":["JEV:jev-1.14.0", ...]`, one entry per seat. `MODEL_API_MOCK_MODE=true`
+keeps Jev calls offline like the other providers.
+
 ## Export a collection
 
 Download all recorded data for a run, without report pagination:

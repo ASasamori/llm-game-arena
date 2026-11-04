@@ -117,6 +117,11 @@ code; it does not archive external game assets.
 
 ## Standalone social deduction environments
 
+Jev can act as a typed legal-action policy through `JEV:jev-1.14.0`. It records
+classifier probabilities and confidence instead of generated explanations.
+The [Jev client setup](CLIENT_GUIDE.md#jev-typed-decision-agents) includes the
+funded-key requirement, mock mode, and a shared $0.10 capped Avalon trial.
+
 One Night Werewolf, original Avalon, and base Coup now have model-independent
 Python rules engines. Validate and replay them without AI or OpenSpiel before
 using the existing runner, reports, or dataset pipeline. See the

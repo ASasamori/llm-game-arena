@@ -1,8 +1,8 @@
-"""One-attempt Anthropic calls backed by a durable, shared spending reservation.
+"""Durable provider spending reservations and one-attempt Anthropic calls.
 
 This deliberately does not use the normal provider retry decorator. Unknown
 charges remain reserved after failures. A key and prompts never enter the ledger.
-Prices were checked against Anthropic's published list on 2026-11-04.
+Provider prices were checked against their published lists on 2026-11-04.
 """
 
 from __future__ import annotations
@@ -32,6 +32,12 @@ PRICES: dict[str, tuple[int, int]] = {
     "claude-sonnet-5": (2000, 10000),
     "claude-sonnet-4-6": (3000, 15000),
 }
+ANTHROPIC_MODELS = frozenset(PRICES)
+JEV_PRICING_SOURCE = (
+    "https://help.typesafe.ai/articles/5187202169-how-much-does-jev-cost"
+)
+JEV_MODELS = frozenset({"jev-1.14.0", "jev-1.13.0", "jev-latest", "jev-preview"})
+PRICES.update({model: (42, 0) for model in JEV_MODELS})
 NANO_USD = 1_000_000_000
 
 
@@ -42,7 +48,13 @@ def _usd(value: int) -> str:
 class BudgetLedger:
     """Serialize paid-request admission across seats and process restarts."""
 
-    def __init__(self, path: Path, budget_usd: str = "0.90", max_calls: int = 100):
+    def __init__(
+        self,
+        path: Path,
+        budget_usd: str = "0.90",
+        max_calls: int = 100,
+        pricing_source: str = PRICING_SOURCE,
+    ):
         try:
             amount = Decimal(budget_usd)
             if not amount.is_finite() or not Decimal("0") < amount <= Decimal("1"):
@@ -56,6 +68,15 @@ class BudgetLedger:
             raise ValueError(
                 "Budget must be at least one nano-USD; max_calls must be 1-1000"
             )
+        if not isinstance(pricing_source, str) or pricing_source not in {
+            PRICING_SOURCE,
+            JEV_PRICING_SOURCE,
+        }:
+            raise ValueError("A verified provider pricing source is required")
+        models = ANTHROPIC_MODELS if pricing_source == PRICING_SOURCE else JEV_MODELS
+        self.prices = {model: PRICES[model] for model in models}
+        prices_json = json.dumps(self.prices, sort_keys=True, separators=(",", ":"))
+        self.pricing_source = pricing_source
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         descriptor = os.open(self.path, os.O_CREAT | os.O_WRONLY, 0o600)
@@ -76,16 +97,38 @@ class BudgetLedger:
             connection.execute(
                 "CREATE TABLE IF NOT EXISTS episode_claims (episode_id TEXT PRIMARY KEY)"
             )
-            connection.execute(
-                "INSERT OR IGNORE INTO budget(id,cap,max_calls) VALUES(1,?,?)",
-                (cap, max_calls),
-            )
+            columns = {
+                row[1] for row in connection.execute("PRAGMA table_info(budget)")
+            }
+            for column in ("pricing_source", "prices_json"):
+                if column not in columns:
+                    connection.execute(f"ALTER TABLE budget ADD COLUMN {column} TEXT")
             stored = connection.execute(
-                "SELECT cap,max_calls FROM budget WHERE id=1"
+                "SELECT cap,max_calls,pricing_source,prices_json FROM budget WHERE id=1"
             ).fetchone()
-            if stored != (cap, max_calls):
+            if stored is None:
+                connection.execute(
+                    "INSERT INTO budget(id,cap,max_calls,pricing_source,prices_json) VALUES(1,?,?,?,?)",
+                    (cap, max_calls, pricing_source, prices_json),
+                )
+                stored = (cap, max_calls, pricing_source, prices_json)
+            elif stored[2] is None or stored[3] is None:
+                # Every ledger predating pricing metadata used Anthropic rates.
+                # It cannot be silently repurposed with another provider/source.
+                previous_source = stored[2] or PRICING_SOURCE
+                previous_prices = stored[3] or json.dumps(
+                    {model: PRICES[model] for model in ANTHROPIC_MODELS},
+                    sort_keys=True,
+                    separators=(",", ":"),
+                )
+                connection.execute(
+                    "UPDATE budget SET pricing_source=?,prices_json=? WHERE id=1",
+                    (previous_source, previous_prices),
+                )
+                stored = (stored[0], stored[1], previous_source, previous_prices)
+            if stored != (cap, max_calls, pricing_source, prices_json):
                 raise ValueError(
-                    "Existing ledger has a different immutable spending limit"
+                    "Existing ledger has a different immutable spending limit or pricing configuration"
                 )
 
     @contextmanager
@@ -113,8 +156,8 @@ class BudgetLedger:
             return result.rowcount == 1
 
     def reserve(self, model: str, prompt: str, max_tokens: int) -> int:
-        if model not in PRICES:
-            raise ValueError("Model has no verified trial price")
+        if model not in self.prices:
+            raise ValueError("Model has no verified price in this ledger")
         if type(max_tokens) is not int or not 64 <= max_tokens <= 256:
             raise ValueError("max_tokens must be an integer from 64-256")
         # Byte-level conservative bound avoids treating count_tokens estimates as
@@ -126,7 +169,7 @@ class BudgetLedger:
                 "budget_exhausted",
                 "Prompt exceeds the trial's short-context price bound",
             )
-        input_rate, output_rate = PRICES[model]
+        input_rate, output_rate = self.prices[model]
         reservation = input_bound * input_rate + max_tokens * output_rate
         with self._transaction() as connection:
             cap, max_calls, blocked = connection.execute(
@@ -193,9 +236,11 @@ class BudgetLedger:
             if row is None or row[4] != "reserved":
                 raise ValueError("Request reservation is not outstanding")
             model, input_bound, output_bound, reserved, _ = row
-            input_rate, output_rate = PRICES[model]
+            input_rate, output_rate = self.prices[model]
             unexpected = (
-                invalid or input_tokens > input_bound or output_tokens > output_bound
+                invalid
+                or input_tokens > input_bound
+                or (output_rate > 0 and output_tokens > output_bound)
             )
             if unexpected:
                 connection.execute("UPDATE budget SET blocked=1 WHERE id=1")
@@ -227,8 +272,8 @@ class BudgetLedger:
 
     def summary(self) -> dict[str, Any]:
         with self._transaction() as connection:
-            cap, maximum, blocked = connection.execute(
-                "SELECT cap,max_calls,blocked FROM budget WHERE id=1"
+            cap, maximum, blocked, pricing_source = connection.execute(
+                "SELECT cap,max_calls,blocked,pricing_source FROM budget WHERE id=1"
             ).fetchone()
             count, confirmed, outstanding = connection.execute(
                 "SELECT COUNT(*),COALESCE(SUM(actual),0),"
@@ -248,7 +293,7 @@ class BudgetLedger:
             "max_calls": maximum,
             "statuses": statuses,
             "blocked": bool(blocked),
-            "pricing_source": PRICING_SOURCE,
+            "pricing_source": pricing_source,
         }
 
 
@@ -265,8 +310,8 @@ class BudgetedClaudeModel:
         max_tokens: int = 192,
         client: Any | None = None,
     ):
-        if model_name not in PRICES:
-            raise ValueError("Model has no verified trial price")
+        if model_name not in ANTHROPIC_MODELS:
+            raise ValueError("Model has no verified Anthropic trial price")
         if type(max_tokens) is not int or not 64 <= max_tokens <= 256:
             raise ValueError("max_tokens must be an integer from 64-256")
         self._model_name, self.ledger, self.max_tokens = model_name, ledger, max_tokens

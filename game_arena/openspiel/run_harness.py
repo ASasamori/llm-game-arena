@@ -23,6 +23,10 @@ def _build_model(provider: str, model_name: str | None) -> model_generation.LLMM
         )
     if provider_normalized == "gpt":
         return model_generation.GPTModel(model_name=model_name or "gpt-4o-mini")
+    if provider_normalized == "jev":
+        from game_arena.openspiel.jev import JevModel
+
+        return JevModel(model_name=model_name or "jev-1.14.0")
     raise ValueError(f"Unsupported model provider: {provider}")
 
 
@@ -98,13 +102,13 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--player-one-provider",
         default="mock",
-        choices=["mock", "claude", "gemini", "gpt"],
+        choices=["mock", "claude", "gemini", "gpt", "jev"],
     )
     parser.add_argument("--player-one-model", default=None)
     parser.add_argument(
         "--player-two-provider",
         default="mock",
-        choices=["mock", "claude", "gemini", "gpt"],
+        choices=["mock", "claude", "gemini", "gpt", "jev"],
     )
     parser.add_argument("--player-two-model", default=None)
     parser.add_argument("--max-attempts", type=int, default=4)

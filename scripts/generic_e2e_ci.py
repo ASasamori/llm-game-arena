@@ -36,6 +36,17 @@ CASES: tuple[tuple[dict[str, Any], int], ...] = (
     (
         {
             "run_type": "PVP",
+            "env": "avalon(players=6)",
+            "num_episodes": 6,
+            "num_steps": 1000,
+            "model_names": ["JEV:jev-1.14.0"] * 6,
+            "seed": 777,
+        },
+        6,
+    ),
+    (
+        {
+            "run_type": "PVP",
             "env": "one_night_werewolf(players=3)",
             "num_episodes": 6,
             "num_steps": 1000,

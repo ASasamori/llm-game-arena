@@ -12,8 +12,12 @@ import unittest
 from unittest.mock import patch
 
 from game_arena.openspiel.budgeted_anthropic import (
+    ANTHROPIC_MODELS,
     BudgetLedger,
     BudgetedClaudeModel,
+    JEV_MODELS,
+    JEV_PRICING_SOURCE,
+    PRICING_SOURCE,
     PRICES,
 )
 from game_arena.openspiel.harness import EpisodeStopped
@@ -161,7 +165,7 @@ class BudgetedAnthropicTests(unittest.TestCase):
         self.assertGreater(float(ledger.summary()["reserved_uncertain_usd"]), 0)
 
     def test_thinking_controls_and_output_cap_for_each_model(self):
-        for model_name in PRICES:
+        for model_name in ANTHROPIC_MODELS:
             client = FakeClient()
             self.model(client=client, model_name=model_name).generate_with_text_input(
                 PROMPT
@@ -225,6 +229,63 @@ class BudgetedAnthropicTests(unittest.TestCase):
         factory.assert_called_once_with(api_key=key, timeout=30, max_retries=0)
         self.assertNotIn(key.encode(), self.path.read_bytes())
         self.assertEqual(self.path.stat().st_mode & 0o777, 0o600)
+
+    def test_jev_pricing_charges_input_and_allows_large_free_outputs(self):
+        ledger = self.ledger(pricing_source=JEV_PRICING_SOURCE)
+        for model in JEV_MODELS:
+            request = ledger.reserve(model, PROMPT, 64)
+            cost = ledger.complete(
+                request,
+                input_tokens=100,
+                output_tokens=4000,
+                response_model=model,
+                request_id="jev-request",
+                response_text="probabilities",
+            )
+            self.assertEqual(cost, 4200)
+        summary = ledger.summary()
+        self.assertEqual(summary["confirmed_cost_usd"], "0.000016800")
+        self.assertEqual(summary["reserved_uncertain_usd"], "0.000000000")
+        self.assertEqual(summary["pricing_source"], JEV_PRICING_SOURCE)
+        self.assertFalse(summary["blocked"])
+
+    def test_provider_price_source_and_schedule_cannot_be_changed_on_reopen(self):
+        ledger = self.ledger(pricing_source=JEV_PRICING_SOURCE)
+        self.assertTrue(ledger.claim_episode_once("jev-trial"))
+        with self.assertRaises(ValueError):
+            self.ledger()
+        with patch.dict(PRICES, {"jev-1.14.0": (43, 0)}), self.assertRaises(ValueError):
+            self.ledger(pricing_source=JEV_PRICING_SOURCE)
+        reopened = self.ledger(pricing_source=JEV_PRICING_SOURCE)
+        self.assertFalse(reopened.claim_episode_once("jev-trial"))
+        self.assertEqual(reopened.summary()["pricing_source"], JEV_PRICING_SOURCE)
+        with self.assertRaises(ValueError):
+            reopened.reserve("claude-haiku-5-5", PROMPT, 192)
+        with self.assertRaises(ValueError):
+            self.ledger(pricing_source="https://unverified.example/prices")
+
+    def test_jev_models_cannot_be_sent_to_anthropic_client(self):
+        ledger = self.ledger(pricing_source=JEV_PRICING_SOURCE)
+        client = FakeClient()
+        for model in JEV_MODELS:
+            with self.assertRaises(ValueError):
+                BudgetedClaudeModel(model, ledger, client=client)
+        self.assertEqual(client.calls, [])
+
+    def test_existing_pre_pricing_ledgers_migrate_as_anthropic_without_losing_reservations(
+        self,
+    ):
+        ledger = self.ledger()
+        ledger.reserve("claude-haiku-5-5", PROMPT, 192)
+        original = ledger.summary()
+        with sqlite3.connect(self.path) as connection:
+            connection.execute("ALTER TABLE budget DROP COLUMN pricing_source")
+            connection.execute("ALTER TABLE budget DROP COLUMN prices_json")
+        with self.assertRaises(ValueError):
+            self.ledger(pricing_source=JEV_PRICING_SOURCE)
+        migrated = self.ledger()
+        self.assertEqual(migrated.summary(), original)
+        self.assertEqual(migrated.summary()["pricing_source"], PRICING_SOURCE)
 
 
 if __name__ == "__main__":
