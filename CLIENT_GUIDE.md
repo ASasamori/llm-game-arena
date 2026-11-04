@@ -41,8 +41,8 @@ curl -X POST http://localhost:8000/v1/runs \
   -d '{"run_type":"PVP","env":"kuhn_poker(players=3)","num_episodes":3,"num_steps":100,"model_names":["MOCK","MOCK","MOCK"],"seed":123,"rotate_seats":true}'
 ```
 
-The response contains `run_id`, job count, and status URL. Each game’s number of
-players determines the seat count. Accepted modes are:
+The response contains `run_id`, job count, status URL, and report links. Each
+game's number of players determines the seat count. Accepted modes are:
 
 - `PVP`: exactly one model per game seat.
 - `PVP_RR`: n-player combinations from the supplied model pool.
@@ -89,6 +89,57 @@ transition counts, and fallback counts. A `TRUNCATED` episode is incomplete and 
 not counted as a win. Solo, cooperative, and general-sum utilities are preserved;
 they are not converted into two-player Elo. Existing `/analytics` is specialized
 for Connect Four and `/leaderboard` is for eligible two-player rated games.
+
+## Inspect a run in the browser or terminal
+
+Open `http://localhost:8000/runs/RUN_ID` for a specific run, or
+`http://localhost:8000/reports` to enter its ID. The API serves this website
+directly. The public HTML shell contains no run results or API key. Enter the key
+in the page to load authenticated report data; the page keeps it in memory and
+does not put it in the URL or browser storage. Reloading the page requires the
+key again.
+
+Run creation and status responses include these absolute URLs:
+
+- `report_url`: the browser page.
+- `text_report_url`: the authenticated ASCII report endpoint.
+- `report_data_url`: the authenticated JSON report endpoint.
+
+The browser lets you choose an episode and page through its transitions. Reports
+show outcomes and return vectors, moves, recorded player observations, summaries,
+and raw model responses. New traces include before/after evaluator board snapshots
+for games with public state. Older traces and imperfect-information games retain
+their saved observations; the report does not reconstruct missing snapshots.
+A summary is text the model supplied during play; it does not expose hidden
+internal reasoning. Mock responses are placeholders and should not be interpreted
+as strategic reasoning. State views and private observations are evaluator
+evidence, so share report access with trusted evaluators. Failed and legacy
+episodes retain their recorded status and show a notice when evidence is unavailable.
+
+These examples are single-line commands. Replace `RUN_ID` and `EPISODE_ID` with
+IDs from your run, and use your configured API key:
+
+```bash
+curl -sS 'http://localhost:8000/v1/runs/RUN_ID/report?format=text' -H 'Authorization: Bearer local-dev-key'
+curl -sS 'http://localhost:8000/v1/runs/RUN_ID/report?episode_id=EPISODE_ID&step_limit=20&step_offset=20' -H 'Authorization: Bearer local-dev-key'
+curl -sS 'http://localhost:8000/v1/runs/RUN_ID/report?format=text&episode_id=EPISODE_ID&include_prompt=true&width=120' -H 'Authorization: Bearer local-dev-key'
+```
+
+`GET /v1/runs/{run_id}/report` accepts:
+
+- `format`: `json` (default) or `text` (`text/plain`, ASCII).
+- `episode_limit`: 1–100, default 20; `episode_offset`: nonnegative, default 0.
+- `episode_id`: optional episode selection, which must belong to this run.
+- `step_limit`: 1–200, default 20; `step_offset`: nonnegative, default 0.
+- `width`: text report width from 60–160, default 100.
+- `include_prompt`: include recorded prompts in text output; default `false`.
+
+The JSON payload has `schema_version`, `run`, `episodes`, `selected_episode`,
+`transitions`, and `notices` fields. Both page collections include their items,
+total, limit, and offset. JSON transition records include the saved model data;
+`include_prompt` controls only the plain-text rendering. Report requests use the
+usual authentication and rate limits. Reading a report does not request new model
+generations or incur provider API fees. The website needs no separate hosting.
 
 ## Service configuration
 

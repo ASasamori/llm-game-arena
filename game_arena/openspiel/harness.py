@@ -21,7 +21,7 @@ import pyspiel
 
 from game_arena.openspiel import catalog, parsers, utils
 from game_arena.openspiel.provenance import derive_seed, runtime_manifest
-from game_arena.openspiel.views import build_prompt, state_hash
+from game_arena.openspiel.views import build_prompt, evaluator_state, state_hash
 from orchestrator.failures import FailureCategory, classify_exception
 from orchestrator.observability import increment_counter
 
@@ -309,6 +309,8 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
             "state_hash_before": before,
             "decisions": [],
         }
+        if (snapshot := evaluator_state(state)) is not None:
+            event["state_before"] = snapshot
         if state.is_chance_node():
             outcomes = list(state.chance_outcomes())
             if (
@@ -377,6 +379,8 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
             state_hash=state_hash(state),
             terminal=state.is_terminal(),
         )
+        if (snapshot := evaluator_state(state)) is not None:
+            event["state_after"] = snapshot
         steps.append(event)
 
     terminal = state.is_terminal()

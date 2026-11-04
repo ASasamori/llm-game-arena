@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="referrer" content="no-referrer">
+  <title>Run review · Game Arena</title>
+  <style nonce="__CSP_NONCE__">
+    :root { --ink:#18272b; --muted:#637277; --faint:#8a969a; --paper:#fff; --ground:#f4f6f5; --line:#dce3df; --accent:#17634f; --accent-soft:#eaf4ee; --blue:#315f9a; --blue-soft:#edf3fa; --amber:#8b6323; --amber-soft:#faf2e4; --red:#9a3e3e; --red-soft:#fbefed; --mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace; --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--ground); color:var(--ink); font:14px/1.55 var(--sans); -webkit-font-smoothing:antialiased; }
+    button,input { font:inherit; }
+    button,a,input,summary { -webkit-tap-highlight-color:transparent; }
+    button { cursor:pointer; }
+    button:disabled { cursor:default; opacity:.4; }
+    button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible { outline:3px solid #88b4a5; outline-offset:3px; }
+    button { border:1px solid var(--line); border-radius:6px; background:var(--paper); color:var(--ink); padding:8px 12px; font-weight:600; line-height:1.4; }
+    button:hover:not(:disabled) { border-color:#9cafa5; background:#f7faf8; }
+    button.primary { background:var(--accent); color:white; border-color:var(--accent); }
+    button.primary:hover:not(:disabled) { background:#104d3d; border-color:#104d3d; }
+    button.quiet { border-color:transparent; background:transparent; color:var(--muted); }
+    button.small { padding:6px 10px; font-size:12px; }
+    [hidden] { display:none !important; }
+    a { color:var(--accent); }
+    .topbar { background:var(--paper); border-bottom:1px solid var(--line); }
+    .topbar-inner { max-width:1504px; margin:auto; padding:19px 32px; display:flex; align-items:center; justify-content:space-between; gap:20px; }
+    .brand { display:flex; gap:11px; align-items:center; color:var(--ink); text-decoration:none; font-size:16px; font-weight:750; letter-spacing:-.5px; }
+    .brand-mark { display:grid; grid-template-columns:repeat(2,7px); grid-template-rows:repeat(2,7px); gap:3px; padding:8px; border:1px solid var(--accent); border-radius:5px; }
+    .brand-mark i { background:var(--accent); border-radius:1px; }
+    .brand-mark i:nth-child(2) { opacity:.35; }
+    .brand-mark i:nth-child(3) { opacity:.65; }
+    .topbar-note { color:var(--muted); font:11px var(--mono); text-transform:uppercase; letter-spacing:1px; }
+    .connection { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:12px; }
+    .connection-dot { width:7px; height:7px; border-radius:50%; background:var(--accent); }
+    main { max-width:1504px; margin:auto; padding:32px; }
+    .auth-wrap { max-width:980px; margin:64px auto 80px; display:grid; grid-template-columns:1fr 1fr; gap:70px; align-items:center; }
+    .eyebrow { color:var(--accent); font:11px/1.4 var(--mono); letter-spacing:1.6px; text-transform:uppercase; margin:0 0 14px; }
+    .auth-intro h1 { font-size:46px; line-height:1.12; letter-spacing:-2px; margin:0 0 20px; font-weight:650; }
+    .auth-intro p { color:var(--muted); font-size:16px; max-width:360px; margin:0; }
+    .evidence-flow { margin-top:36px; border-top:1px solid var(--line); padding-top:18px; display:flex; gap:12px; color:var(--muted); font:11px var(--mono); align-items:center; }
+    .evidence-flow span { color:var(--ink); }
+    .auth-card { background:var(--paper); border:1px solid var(--line); border-radius:10px; padding:28px; }
+    .auth-card h2 { font-size:19px; line-height:1.2; letter-spacing:-.4px; margin:0 0 7px; }
+    .auth-card > p { color:var(--muted); font-size:13px; margin:0 0 24px; }
+    .field { margin:0 0 17px; }
+    .field label { display:block; font-weight:600; font-size:12px; margin-bottom:7px; }
+    .field input { width:100%; background:#fbfcfb; color:var(--ink); border:1px solid #cfd9d3; border-radius:5px; padding:11px 12px; min-width:0; }
+    #runIdInput { font:12px/1.5 var(--mono); }
+    .field input::placeholder { color:#9aa5a0; }
+    .auth-card .primary { width:100%; margin-top:2px; padding:11px; }
+    .key-note { display:block; color:var(--muted); font-size:11px; margin-top:14px; line-height:1.6; }
+    .message { border:1px solid #e7c9c6; background:var(--red-soft); color:var(--red); padding:12px 15px; border-radius:6px; margin-bottom:22px; word-break:break-word; }
+    .message.info { background:var(--blue-soft); border-color:#d7e2ef; color:var(--blue); }
+    .run-header { display:flex; justify-content:space-between; align-items:flex-start; gap:28px; margin:1px 0 24px; }
+    .run-header h1 { font-size:32px; line-height:1.2; letter-spacing:-1.1px; margin:0 0 10px; font-weight:650; overflow-wrap:anywhere; }
+    .run-meta { display:flex; gap:10px; align-items:center; flex-wrap:wrap; color:var(--muted); font-size:12px; }
+    .run-meta code { font:11px var(--mono); }
+    .run-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding-top:7px; }
+    .badge { display:inline-flex; align-items:center; gap:6px; padding:3px 8px; border-radius:4px; background:#edf0ee; color:#58665f; font:10px/1.4 var(--mono); text-transform:uppercase; letter-spacing:.4px; vertical-align:middle; white-space:nowrap; }
+    .badge.good { background:var(--accent-soft); color:var(--accent); }
+    .badge.bad { background:var(--red-soft); color:var(--red); }
+    .badge.warn { background:var(--amber-soft); color:var(--amber); }
+    .badge.blue { background:var(--blue-soft); color:var(--blue); }
+    .stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); background:var(--paper); border:1px solid var(--line); border-radius:8px; margin-bottom:24px; }
+    .stat { min-width:0; padding:17px 20px; border-right:1px solid var(--line); }
+    .stat:last-child { border:0; }
+    .stat-label { color:var(--muted); font-size:11px; margin-bottom:6px; }
+    .stat-value { font-size:20px; font-weight:650; letter-spacing:-.5px; overflow-wrap:anywhere; }
+    .stat-value.compact { font-size:13px; letter-spacing:0; font-weight:550; }
+    .stat-detail { color:var(--faint); font:10px var(--mono); margin-top:4px; }
+    .workspace-grid { display:grid; grid-template-columns:246px minmax(0,1fr); gap:24px; align-items:start; }
+    .panel { background:var(--paper); border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+    .panel-heading { padding:17px 18px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .panel-heading h2,.panel-heading h3 { margin:0; font-size:13px; font-weight:650; letter-spacing:-.1px; }
+    .section-kicker { color:var(--muted); font:10px var(--mono); text-transform:uppercase; letter-spacing:1px; }
+    .episode-list { padding:7px; max-height:650px; overflow:auto; }
+    .episode-button { width:100%; border:1px solid transparent; background:transparent; display:block; text-align:left; padding:12px 10px; margin:2px 0; border-radius:5px; font-weight:400; }
+    .episode-button.selected { border-color:#bfd4c7; background:var(--accent-soft); }
+    .episode-button:hover:not(:disabled) { background:#f1f5f2; }
+    .episode-top { display:flex; justify-content:space-between; gap:8px; align-items:center; margin-bottom:7px; }
+    .episode-number { font-size:12px; font-weight:650; }
+    .episode-title { color:var(--muted); font-size:11px; overflow-wrap:anywhere; }
+    .episode-foot { color:var(--faint); margin-top:5px; font:10px var(--mono); }
+    .pagination { display:flex; align-items:center; justify-content:space-between; gap:5px; padding:12px; border-top:1px solid var(--line); }
+    .pagination small { color:var(--muted); font:10px var(--mono); white-space:nowrap; }
+    .pagination button { padding:5px 8px; font-size:12px; }
+    .episode-detail { min-width:0; }
+    .episode-header { display:flex; justify-content:space-between; gap:18px; align-items:flex-start; margin:0 0 18px; }
+    .episode-header h2 { font-size:21px; line-height:1.3; letter-spacing:-.5px; margin:0 0 6px; }
+    .episode-subtitle { color:var(--muted); font:11px/1.7 var(--mono); overflow-wrap:anywhere; }
+    .outcome { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+    .outcome-chip { color:var(--muted); background:var(--paper); border:1px solid var(--line); border-radius:4px; padding:5px 9px; font-size:11px; }
+    .outcome-chip strong { color:var(--ink); font-weight:600; margin-left:5px; }
+    .timeline { margin-bottom:20px; }
+    .timeline-top { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:10px; }
+    .timeline-label { font-size:12px; color:var(--muted); }
+    .timeline-label strong { color:var(--ink); font-weight:650; }
+    .timeline-nav { display:flex; gap:6px; }
+    .timeline-nav button { min-width:84px; }
+    .step-strip { display:flex; gap:5px; overflow:auto; padding:2px 1px 8px; scrollbar-width:thin; }
+    .step-button { flex:0 0 auto; display:flex; flex-direction:column; gap:3px; min-width:48px; padding:8px 7px; font:11px var(--mono); text-align:center; border-color:#dce3df; }
+    .step-button span { font-size:9px; color:var(--faint); text-transform:uppercase; }
+    .step-button.selected { background:var(--accent); color:var(--paper); border-color:var(--accent); }
+    .step-button.selected span { color:#c9dfd5; }
+    .transition-layout { display:grid; grid-template-columns:minmax(0,1.03fr) minmax(0,1fr); gap:18px; align-items:start; }
+    .observation-panel { position:sticky; top:18px; }
+    .state-column { display:flex; flex-direction:column; gap:16px; min-width:0; }
+    .state-column .observation-panel { position:static; }
+    .observation-panel.compact .observation-body { min-height:0; padding:14px 18px; }
+    .observation-panel.compact .board { max-height:220px; font-size:12px; }
+    .snapshot-controls { display:flex; gap:4px; }
+    .snapshot-controls button { font-size:11px; padding:4px 8px; }
+    .snapshot-controls button.selected { color:var(--accent); border-color:#b7d3c3; background:var(--accent-soft); }
+    .snapshot-body { padding:24px 20px; background:#fafcf9; min-height:200px; }
+    .snapshot-board { font-size:17px; line-height:1.6; white-space:pre; max-height:510px; overflow:auto; color:#263a32; }
+    .observation-meta { padding:13px 18px 0; display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+    .observation-meta .badge { text-transform:none; letter-spacing:0; }
+    .observation-body { padding:20px 18px; min-height:200px; }
+    pre { font-family:var(--mono); margin:0; tab-size:2; }
+    .board { font-size:14px; line-height:1.65; max-height:510px; overflow:auto; color:#263a32; white-space:pre; }
+    .board.wrap { white-space:pre-wrap; overflow-wrap:anywhere; font-size:12px; line-height:1.7; }
+    .view-note { border-top:1px solid var(--line); padding:11px 18px; color:var(--muted); font-size:11px; line-height:1.6; }
+    .actor-tabs { display:flex; gap:5px; padding:0 18px 14px; flex-wrap:wrap; }
+    .actor-tabs button { font-size:11px; padding:5px 8px; }
+    .actor-tabs button.selected { color:var(--accent); border-color:#b7d3c3; background:var(--accent-soft); }
+    .decisions-column { display:flex; flex-direction:column; gap:13px; min-width:0; }
+    .decision-card { background:var(--paper); border:1px solid var(--line); border-radius:8px; min-width:0; overflow:hidden; }
+    .decision-card.active { border-color:#aecaba; }
+    .decision-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; padding:15px 16px 0; }
+    .actor-name { font-size:12px; font-weight:650; overflow-wrap:anywhere; }
+    .actor-subtitle { color:var(--muted); font-size:11px; margin-top:3px; }
+    .action-block { padding:15px 16px 16px; }
+    .action-caption { color:var(--muted); font:10px var(--mono); text-transform:uppercase; letter-spacing:1px; margin-bottom:7px; }
+    .chosen-action { display:flex; gap:9px; align-items:baseline; flex-wrap:wrap; margin-bottom:15px; }
+    .chosen-label { color:var(--accent); font:600 21px/1.3 var(--mono); overflow-wrap:anywhere; }
+    .action-id { color:var(--muted); font:10px var(--mono); background:#f1f4f2; padding:3px 6px; border-radius:4px; }
+    .summary-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:5px; }
+    .recorded-summary { font-size:13px; line-height:1.65; margin:0; white-space:pre-wrap; overflow-wrap:anywhere; }
+    .decision-facts { display:flex; gap:12px; flex-wrap:wrap; color:var(--faint); font:10px var(--mono); margin-top:13px; }
+    .fallback { background:var(--amber-soft); border-top:1px solid #eadfc9; padding:11px 16px; color:var(--amber); font-size:11px; overflow-wrap:anywhere; }
+    details { border-top:1px solid var(--line); }
+    summary { padding:11px 16px; color:var(--muted); font-size:11px; font-weight:600; cursor:pointer; }
+    details[open] summary { color:var(--ink); }
+    .evidence-body { padding:0 16px 15px; }
+    .evidence-pre { background:#f5f7f5; border:1px solid #e5eae6; border-radius:4px; padding:11px; color:#45554d; font:11px/1.65 var(--mono); white-space:pre-wrap; overflow-wrap:anywhere; max-height:340px; overflow:auto; }
+    .legal-list { padding:0; margin:0; list-style:none; display:grid; gap:4px; max-height:220px; overflow:auto; }
+    .legal-row { display:flex; gap:12px; align-items:baseline; padding:5px 7px; background:#f6f8f6; border-radius:3px; font:11px var(--mono); overflow-wrap:anywhere; }
+    .legal-id { min-width:27px; color:var(--muted); }
+    .transition-facts { padding:14px 17px; display:grid; gap:9px; font-size:11px; color:var(--muted); }
+    .fact-row { display:flex; align-items:baseline; justify-content:space-between; gap:18px; }
+    .fact-value { color:var(--ink); font:11px var(--mono); text-align:right; overflow-wrap:anywhere; }
+    .event-card { padding:20px; }
+    .event-card h3 { margin:7px 0 10px; font-size:20px; letter-spacing:-.4px; }
+    .event-card p { color:var(--muted); font-size:12px; line-height:1.7; }
+    .event-value { margin:17px 0; color:var(--accent); font:600 24px/1.4 var(--mono); overflow-wrap:anywhere; }
+    .probability-list { max-height:290px; overflow:auto; display:grid; gap:4px; }
+    .probability-row { display:flex; gap:14px; justify-content:space-between; padding:6px 8px; font:11px var(--mono); background:#f5f7f5; border-radius:3px; overflow-wrap:anywhere; }
+    .probability-row.selected { background:var(--accent-soft); color:var(--accent); }
+    .provenance { margin-top:18px; }
+    .provenance > summary { padding:14px 18px; }
+    .notices { margin:16px 0 21px; display:grid; gap:7px; }
+    .notice { border-left:3px solid #b4c8bc; padding:8px 12px; background:#edf2ee; color:#586960; font-size:12px; overflow-wrap:anywhere; }
+    .empty { padding:32px 20px; color:var(--muted); text-align:center; font-size:13px; line-height:1.7; }
+    .empty h3 { color:var(--ink); margin:0 0 7px; font-size:16px; }
+    .footer { margin:30px 0 8px; color:var(--faint); display:flex; flex-wrap:wrap; justify-content:space-between; gap:12px; font-size:11px; }
+    .footer code { font:10px var(--mono); }
+    .busy { color:var(--muted); font-size:11px; min-height:17px; }
+    .busy::before { content:""; display:inline-block; width:7px; height:7px; border:1px solid #b7c7bd; border-top-color:var(--accent); border-radius:50%; margin-right:7px; vertical-align:0; animation:spin .8s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .text-dialog { border:1px solid #b9c9c0; border-radius:9px; background:var(--paper); color:var(--ink); width:min(1050px,92vw); max-height:90vh; padding:0; }
+    .text-dialog::backdrop { background:#15291d66; }
+    .dialog-heading { padding:16px 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--line); }
+    .dialog-heading h2 { margin:0; font-size:16px; }
+    #asciiContent { padding:24px; overflow:auto; font:12px/1.65 var(--mono); white-space:pre; max-height:70vh; }
+    .export-options { display:flex; align-items:center; gap:7px; font-size:11px; color:var(--muted); }
+    .export-options input { accent-color:var(--accent); }
+    @media (min-width:1400px) { .workspace-grid { grid-template-columns:258px minmax(0,1fr); gap:28px; } .transition-layout { gap:20px; } }
+    @media (max-width:1050px) { .workspace-grid { grid-template-columns:210px minmax(0,1fr); gap:18px; } .transition-layout { grid-template-columns:1fr; } .observation-panel { position:static; } .board { max-height:400px; } .auth-wrap { gap:35px; } }
+    @media (max-width:700px) { main { padding:22px 16px; } .topbar-inner { padding:15px 16px; } .topbar-note { display:none; } .connection-label { display:none; } .auth-wrap { grid-template-columns:1fr; margin:28px auto 40px; gap:28px; max-width:460px; } .auth-intro h1 { font-size:37px; } .auth-intro p { font-size:14px; } .evidence-flow { margin-top:20px; } .auth-card { padding:22px; } .run-header { flex-direction:column; gap:13px; } .run-header h1 { font-size:28px; } .run-actions { padding:0; } .stats { grid-template-columns:repeat(2,minmax(0,1fr)); } .stat { padding:14px 16px; } .stat:nth-child(2) { border-right:0; } .stat:nth-child(-n+2) { border-bottom:1px solid var(--line); } .stat-value { font-size:18px; } .workspace-grid { grid-template-columns:1fr; } .episode-list { display:flex; gap:5px; max-height:none; overflow:auto; padding:7px; } .episode-button { flex:0 0 185px; margin:0; } .episode-top { gap:5px; } .episode-header { margin-top:5px; } .episode-header h2 { font-size:19px; } .timeline-top { align-items:flex-start; } .timeline-nav button { min-width:65px; } .transition-layout { gap:15px; } .footer { font-size:10px; } }
+    @media (prefers-reduced-motion:reduce) { .busy::before { animation:none; } }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/reports" aria-label="Game Arena run reviewer"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>Game Arena <span style="color:var(--faint);font-weight:400;margin-left:2px">/ review</span></a>
+      <span class="topbar-note" id="topbarNote">OpenSpiel · Recorded evidence</span>
+      <div class="connection" id="connectionBar" hidden><span class="connection-dot" aria-hidden="true"></span><span class="connection-label" id="connectionLabel">Key held in this tab</span><button type="button" class="quiet small" id="disconnectButton">Disconnect</button></div>
+    </div>
+  </header>
+  <main>
+    <div class="message" id="errorMessage" role="alert" hidden></div>
+    <section class="auth-wrap" id="authGate">
+      <div class="auth-intro">
+        <p class="eyebrow">The run reviewer</p>
+        <h1>Inspect the game.<br>Follow each decision.</h1>
+        <p>Review player observations, chosen actions, and recorded model output, one transition at a time.</p>
+        <div class="evidence-flow" aria-label="Observation, action, outcome"><span>observation</span>→<span>action</span>→<span>outcome</span></div>
+      </div>
+      <form class="auth-card" id="connectForm" autocomplete="off">
+        <h2>Open a run</h2>
+        <p>Connect using your arena API key.</p>
+        <div class="field"><label for="runIdInput">Run ID</label><input id="runIdInput" type="text" required spellcheck="false" autocomplete="off" placeholder="00000000-0000-0000-0000-000000000000"></div>
+        <div class="field"><label for="apiKeyInput">API key</label><input id="apiKeyInput" type="password" autocomplete="off" spellcheck="false" placeholder="Enter API key"></div>
+        <button type="submit" class="primary" id="connectButton">Connect & review →</button>
+        <small class="key-note">Your key stays in this tab’s memory. Disconnect or close the tab to clear it. Shared run links never include your key.</small>
+      </form>
+    </section>
+    <section id="workspace" hidden aria-label="Run review">
+      <div class="run-header">
+        <div><p class="eyebrow">Run review</p><h1 id="runTitle"></h1><div class="run-meta" id="runMeta"></div></div>
+        <div class="run-actions"><span class="busy" id="loadingIndicator" role="status" hidden>Loading recorded data</span><button type="button" id="refreshButton">↻ Refresh</button><button type="button" id="shareButton">Copy run link</button></div>
+      </div>
+      <div class="stats" id="runStats"></div>
+      <div id="notices" class="notices" hidden></div>
+      <div class="workspace-grid">
+        <aside class="panel" aria-label="Episodes">
+          <div class="panel-heading"><h2>Episodes</h2><span class="section-kicker" id="episodeTotal"></span></div>
+          <div class="episode-list" id="episodeList"></div>
+          <div class="pagination"><button type="button" id="episodesPrevious" aria-label="Previous page of episodes">←</button><small id="episodeRange"></small><button type="button" id="episodesNext" aria-label="Next page of episodes">→</button></div>
+        </aside>
+        <div class="episode-detail">
+          <div id="episodeHeader"></div>
+          <div class="timeline" id="timeline" hidden>
+            <div class="timeline-top"><div class="timeline-label" id="transitionLabel"></div><div class="timeline-nav"><button type="button" id="previousStep">← Previous</button><button type="button" id="nextStep">Next →</button></div></div>
+            <div class="step-strip" id="stepStrip" aria-label="Recorded transitions on this page"></div>
+          </div>
+          <div id="transitionContent"></div>
+          <details class="panel provenance" id="provenanceDetails" hidden><summary>Episode configuration & provenance</summary><div class="evidence-body"><pre class="evidence-pre" id="provenanceContent"></pre></div></details>
+        </div>
+      </div>
+      <div class="footer"><span>Summaries and responses are recorded output. No private reasoning is inferred.</span><span id="pageScope"></span></div>
+    </section>
+  </main>
+  <dialog class="text-dialog" id="asciiDialog" aria-labelledby="asciiTitle"><div class="dialog-heading"><h2 id="asciiTitle">ASCII report · selected page</h2><button type="button" id="closeAsciiButton">Close ✕</button></div><pre id="asciiContent"></pre></dialog>
+  <script nonce="__CSP_NONCE__">
+    (() => {
+      'use strict';
+      const EPISODE_LIMIT = 20;
+      const STEP_LIMIT = 20;
+      const state = { key:'', runId:'', episodeId:null, episodeOffset:0, stepOffset:0, stepPosition:0, player:null, payload:null, loading:false, controller:null, requestId:0, includePrompt:false, snapshotPhase:'before', viewSnapshot:null };
+      const $ = id => document.getElementById(id);
+      const create = (tag, className, text) => { const node=document.createElement(tag); if(className) node.className=className; if(text!==undefined&&text!==null) node.textContent=String(text); return node; };
+      const display = value => value===undefined||value===null ? 'Not recorded' : typeof value==='string' ? value : JSON.stringify(value,null,2);
+      const number = (value, fallback=0) => typeof value==='number'&&Number.isFinite(value) ? value : fallback;
+      const shortId = value => typeof value==='string' ? value.slice(0,8) : '—';
+      const pretty = value => typeof value==='string' ? value.replaceAll('_',' ') : 'Not recorded';
+      const asArray = value => Array.isArray(value) ? value : [];
+      const formatNumber = value => typeof value==='number' ? Number.isInteger(value) ? String(value) : Number(value.toPrecision(6)).toString() : display(value);
+      function badge(text, tone='') { return create('span','badge'+(tone?' '+tone:''),text); }
+      function statusBadge(status) { const tones={COMPLETED:'good',SUCCESS:'good',PENDING:'blue',RUNNING:'blue',FAILED:'bad',TRUNCATED:'warn'}; return badge(pretty(status),tones[status]||''); }
+      function clearError() { $('errorMessage').textContent=''; $('errorMessage').hidden=true; }
+      function showError(message) { $('errorMessage').textContent=message; $('errorMessage').hidden=false; }
+      function setLoading(loading) {
+        state.loading=loading;
+        $('loadingIndicator').hidden=!loading;
+        $('refreshButton').disabled=loading;
+        $('connectButton').disabled=loading;
+        $('connectButton').textContent=loading?'Connecting…':'Connect & review →';
+        for (const id of ['episodesPrevious','episodesNext','previousStep','nextStep']) $(id).disabled=loading||$(id).dataset.boundary==='true';
+      }
+      function disconnect(message='') {
+        if(state.controller) state.controller.abort();
+        state.requestId++;
+        state.key=''; state.payload=null; state.episodeId=null; state.episodeOffset=0; state.stepOffset=0; state.stepPosition=0; state.player=null; state.includePrompt=false; state.viewSnapshot=null; state.snapshotPhase='before';
+        $('apiKeyInput').value='';
+        $('apiKeyInput').placeholder='Enter API key';
+        $('workspace').hidden=true; $('authGate').hidden=false; $('connectionBar').hidden=true; $('topbarNote').hidden=false;
+        for(const id of ['runTitle','runMeta','runStats','notices','episodeList','episodeHeader','transitionContent','stepStrip','provenanceContent','asciiContent','pageScope']) $(id).replaceChildren();
+        if($('asciiDialog').open) $('asciiDialog').close();
+        document.title='Run review · Game Arena';
+        setLoading(false); clearError(); if(message) showError(message);
+      }
+      function reportUrl(format='json') {
+        const url=new URL('/v1/runs/'+encodeURIComponent(state.runId)+'/report',window.location.origin);
+        url.searchParams.set('episode_limit',String(EPISODE_LIMIT)); url.searchParams.set('episode_offset',String(state.episodeOffset));
+        url.searchParams.set('step_limit',String(STEP_LIMIT)); url.searchParams.set('step_offset',String(state.stepOffset));
+        if(state.episodeId) url.searchParams.set('episode_id',state.episodeId);
+        if(format==='text') { url.searchParams.set('format','text'); if(state.includePrompt) url.searchParams.set('include_prompt','true'); }
+        return url;
+      }
+      async function readError(response) {
+        try { const value=await response.json(); return display(value.detail??value.error??value); } catch { return response.statusText||'Request failed'; }
+      }
+      async function fetchReport(position='first') {
+        if(!state.key||!state.runId) return;
+        if(state.controller) state.controller.abort();
+        const controller=new AbortController(); state.controller=controller;
+        const requestId=++state.requestId;
+        const previousView=state.viewSnapshot;
+        let timedOut=false;
+        const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+        clearError(); setLoading(true);
+        try {
+          const response=await fetch(reportUrl(),{headers:{Authorization:'Bearer '+state.key,Accept:'application/json'},credentials:'omit',cache:'no-store',signal:controller.signal});
+          if(requestId!==state.requestId) return;
+          if(response.status===401||response.status===403) { disconnect('Access denied. Enter a valid arena API key to reconnect.'); return; }
+          if(!response.ok) throw new Error('Could not load this run ('+response.status+'). '+await readError(response));
+          const payload=await response.json();
+          if(requestId!==state.requestId) return;
+          if(!payload||!payload.run||!payload.episodes||!payload.transitions) throw new Error('The API returned an incomplete report.');
+          state.payload=payload;
+          state.episodeId=payload.selected_episode?.episode_id??null;
+          state.episodeOffset=number(payload.episodes.offset,state.episodeOffset);
+          state.stepOffset=number(payload.transitions.offset,state.stepOffset);
+          const items=asArray(payload.transitions.items);
+          state.stepPosition=position==='last'?Math.max(0,items.length-1):position==='keep'?Math.min(state.stepPosition,Math.max(0,items.length-1)):0;
+          $('workspace').hidden=false; $('authGate').hidden=true; $('connectionBar').hidden=false; $('topbarNote').hidden=true;
+          $('connectionLabel').textContent='Connected · key held in this tab';
+          $('apiKeyInput').value='';
+          window.history.replaceState(null,'','/runs/'+encodeURIComponent(state.runId));
+          render();
+        } catch(error) {
+          if(requestId===state.requestId) {
+            if(previousView&&state.payload) Object.assign(state,previousView);
+            if(timedOut) showError('The report request timed out. Check the server connection and try again.');
+            else if(error.name!=='AbortError') showError(error.message||'Could not reach the arena API.');
+          }
+        } finally { clearTimeout(timeout); if(requestId===state.requestId) setLoading(false); }
+      }
+      function stat(label,value,detail='',compact=false) { const node=create('div','stat'); node.append(create('div','stat-label',label),create('div','stat-value'+(compact?' compact':''),value)); if(detail) node.append(create('div','stat-detail',detail)); return node; }
+      function render() {
+        const {run,episodes,selected_episode:selected,notices}=state.payload;
+        const configuration=run.configuration||{};
+        const game=configuration.game||configuration.env||selected?.game_spec||selected?.game;
+        $('runTitle').textContent=game?display(game):'Run '+shortId(run.run_id);
+        const meta=$('runMeta'); meta.replaceChildren(statusBadge(run.status),create('code','',run.run_id),create('span','',pretty(run.run_type)));
+        if(run.created_at) meta.append(create('span','',new Date(run.created_at).toLocaleString()));
+        document.title=(game?display(game):shortId(run.run_id))+' · Game Arena review';
+        const counts=run.status_counts||{};
+        const countText=Object.entries(counts).map(([key,value])=>value+' '+pretty(key).toLowerCase()).join(' · ');
+        const models=asArray(configuration.model_names).length?configuration.model_names:asArray(selected?.player_agents).length?selected.player_agents:asArray(selected?.agent);
+        $('runStats').replaceChildren(
+          stat('Episodes recorded',number(run.episodes_saved)+' / '+number(run.num_episodes),countText),
+          stat('Run mode',pretty(run.run_type),configuration.rotate_seats===false?'Fixed seat assignments':configuration.rotate_seats===true?'Seat rotation enabled':''),
+          stat('Configured actors',models.length?models.map(display).join(' · '):'Not recorded','',true),
+          stat('Run seed',configuration.seed!==undefined?display(configuration.seed):'Not recorded',configuration.num_steps?'Cap: '+configuration.num_steps+' transitions':'',false)
+        );
+        const noticeNode=$('notices'); noticeNode.replaceChildren();
+        for(const notice of asArray(notices)) noticeNode.append(create('div','notice',display(notice)));
+        noticeNode.hidden=!noticeNode.childElementCount;
+        renderEpisodes(episodes);
+        renderEpisode(selected);
+        $('pageScope').textContent='Episodes '+number(episodes.limit,EPISODE_LIMIT)+' / page · Transitions '+number(state.payload.transitions.limit,STEP_LIMIT)+' / page';
+        rememberView();
+      }
+      function boundary(id,disabled) { const button=$(id); button.dataset.boundary=String(disabled); button.disabled=disabled||state.loading; }
+      function renderEpisodes(episodes) {
+        const list=$('episodeList'); list.replaceChildren();
+        const items=asArray(episodes.items), total=number(episodes.total);
+        $('episodeTotal').textContent=String(total);
+        items.forEach((episode,index)=>{
+          const button=create('button','episode-button'+(episode.episode_id===state.episodeId?' selected':'')); button.type='button'; button.setAttribute('aria-pressed',String(episode.episode_id===state.episodeId));
+          const top=create('div','episode-top'); top.append(create('span','episode-number','Episode '+(state.episodeOffset+index+1)),statusBadge(episode.status));
+          button.append(top,create('div','episode-title',episode.game||'Game not recorded'),create('div','episode-foot',shortId(episode.episode_id)+' · '+number(episode.num_steps)+' transitions'));
+          button.addEventListener('click',()=>{ if(state.loading||episode.episode_id===state.episodeId)return; state.episodeId=episode.episode_id; state.stepOffset=0; state.stepPosition=0; state.player=null; fetchReport(); });
+          list.append(button);
+        });
+        if(!items.length) list.append(create('div','empty','No recorded episodes yet. Refresh to check for new results.'));
+        $('episodeRange').textContent=total?(state.episodeOffset+1)+'–'+(state.episodeOffset+items.length)+' of '+total:'0 episodes';
+        boundary('episodesPrevious',state.episodeOffset===0); boundary('episodesNext',state.episodeOffset+items.length>=total);
+      }
+      function outcomeChip(label,value) { const node=create('span','outcome-chip',label); node.append(create('strong','',value)); return node; }
+      function renderEpisode(episode) {
+        const root=$('episodeHeader'); root.replaceChildren();
+        if(!episode) { $('timeline').hidden=true; $('transitionContent').replaceChildren(emptyPanel('Waiting for an episode','Completed episodes will appear here as workers save results.')); $('provenanceDetails').hidden=true; return; }
+        const header=create('div','episode-header'); const title=create('div');
+        title.append(create('h2','',pretty(episode.game||'Episode')));
+        const subtitle=create('div','episode-subtitle',episode.episode_id); title.append(subtitle);
+        const chips=create('div','outcome');
+        chips.append(outcomeChip('Status',pretty(episode.status)),outcomeChip('Returns',Array.isArray(episode.returns)?'['+episode.returns.map(formatNumber).join(', ')+']':'Not recorded'),outcomeChip('Transitions',number(episode.num_steps)));
+        if(episode.winner&&episode.winner!=='UNDETERMINED/TIE') chips.append(outcomeChip('Recorded winner',display(episode.winner)));
+        if(episode.seed!==undefined&&episode.seed!==null) chips.append(outcomeChip('Episode seed',display(episode.seed)));
+        if(episode.fallback_count) chips.append(outcomeChip('Fallbacks',display(episode.fallback_count)));
+        title.append(chips); header.append(title);
+        const side=create('div'); if(episode.mock===true) side.append(badge('Includes mock','warn')); else if(episode.mock===false) side.append(badge('Provider models','blue')); else side.append(badge('Model mode unrecorded'));
+        if(episode.degraded) { side.append(document.createElement('br'),badge('Fallback assisted','warn')); }
+        header.append(side); root.append(header);
+        const exportBar=create('div','run-actions'); exportBar.style.paddingTop='0'; exportBar.style.marginBottom='17px';
+        const ascii=create('button','small','View ASCII'); ascii.type='button'; ascii.addEventListener('click',()=>fetchText(false));
+        const download=create('button','small','Download text'); download.type='button'; download.addEventListener('click',()=>fetchText(true));
+        const include=create('label','export-options'); const checkbox=create('input'); checkbox.type='checkbox'; checkbox.checked=state.includePrompt; checkbox.addEventListener('change',()=>{state.includePrompt=checkbox.checked;}); include.append(checkbox,document.createTextNode('Include prompts'));
+        exportBar.append(ascii,download,include); root.append(exportBar);
+        if(episode.status==='FAILED'&&episode.error) root.append(create('div','message',episode.error));
+        $('provenanceDetails').hidden=false; $('provenanceContent').textContent=display(episode.provenance||{});
+        if(episode.trace_available===false) { $('timeline').hidden=true; $('transitionContent').replaceChildren(emptyPanel('No transition trace','This episode does not contain recorded transition evidence.')); return; }
+        renderTransition();
+      }
+      function emptyPanel(title,message) { const panel=create('div','panel empty'); panel.append(create('h3','',title),create('div','',message)); return panel; }
+      function transitionKind(event) { if(event.kind==='chance') return 'chance'; if(event.kind==='mean_field') return 'population'; if(event.kind==='simultaneous') return 'joint'; const players=asArray(event.players); return players.length?'P'+players.map(player=>player).join(','):'decision'; }
+      function renderTransition() {
+        const transitions=state.payload.transitions, items=asArray(transitions.items), total=number(transitions.total);
+        const event=items[state.stepPosition];
+        $('timeline').hidden=!total;
+        const strip=$('stepStrip'); strip.replaceChildren();
+        items.forEach((item,index)=>{
+          const button=create('button','step-button'+(index===state.stepPosition?' selected':''),String(number(item.index)+1)); button.type='button'; button.setAttribute('aria-label','Transition '+(number(item.index)+1)+': '+pretty(item.kind)); button.setAttribute('aria-pressed',String(index===state.stepPosition)); button.append(create('span','',transitionKind(item)));
+          button.addEventListener('click',()=>{if(state.loading)return;state.stepPosition=index;state.player=null;renderTransition();}); strip.append(button);
+        });
+        if(!event) { $('transitionLabel').textContent='No recorded transitions'; $('transitionContent').replaceChildren(emptyPanel('No transitions on this page','Try an earlier page or refresh the run.')); boundary('previousStep',state.stepOffset===0); boundary('nextStep',true); return; }
+        $('transitionLabel').replaceChildren(create('strong','','Transition '+(number(event.index)+1)),document.createTextNode(' / '+total+' · '+pretty(event.kind)));
+        boundary('previousStep',state.stepOffset===0&&state.stepPosition===0); boundary('nextStep',state.stepOffset+state.stepPosition+1>=total);
+        const decisions=asArray(event.decisions);
+        if(!decisions.some(decision=>decision.player===state.player)) state.player=decisions.find(decision=>asArray(decision.legal_actions).length)?.player??decisions[0]?.player??null;
+        const content=$('transitionContent'); content.replaceChildren();
+        const layout=create('div','transition-layout');
+        const snapshot=renderEvaluatorState(event);
+        if(event.kind==='chance'||event.kind==='mean_field') {
+          if(snapshot) { const column=create('div','decisions-column'); column.append(renderEnvironment(event),renderTransitionFacts(event)); layout.append(snapshot,column); }
+          else layout.append(renderEnvironment(event),renderTransitionFacts(event));
+        }
+        else {
+          const selected=decisions.find(decision=>decision.player===state.player)||decisions[0];
+          if(snapshot) { const column=create('div','state-column'); column.append(snapshot,renderObservation(selected,decisions,true)); layout.append(column); }
+          else layout.append(renderObservation(selected,decisions));
+          const column=create('div','decisions-column');
+          if(event.kind==='simultaneous') column.append(create('div','section-kicker','Joint action · '+decisions.length+' recorded actors'));
+          for(const decision of decisions) column.append(renderDecision(decision));
+          column.append(renderTransitionFacts(event)); layout.append(column);
+        }
+        content.append(layout);
+        rememberView();
+      }
+      function rememberView() { state.viewSnapshot={episodeId:state.episodeId,episodeOffset:state.episodeOffset,stepOffset:state.stepOffset,stepPosition:state.stepPosition,player:state.player}; }
+      function renderEvaluatorState(event) {
+        const snapshots=[['before',event.state_before],['after',event.state_after]].filter(([,value])=>typeof value==='string');
+        if(!snapshots.length) return null;
+        if(!snapshots.some(([phase])=>phase===state.snapshotPhase)) state.snapshotPhase=snapshots[0][0];
+        const panel=create('section','panel');
+        const heading=create('div','panel-heading'); heading.append(create('h3','','Evaluator game state'));
+        const controls=create('div','snapshot-controls'); controls.setAttribute('role','group'); controls.setAttribute('aria-label','Recorded game state before or after transition');
+        const body=create('div','snapshot-body'); const pre=create('pre','snapshot-board'); pre.setAttribute('aria-label','Recorded evaluator game state'); body.append(pre);
+        const buttons=[];
+        const update=()=>{ const selected=snapshots.find(([phase])=>phase===state.snapshotPhase); pre.textContent=selected[1]; for(const [phase,button] of buttons) {button.className=phase===state.snapshotPhase?'selected':'';button.setAttribute('aria-pressed',String(phase===state.snapshotPhase));} };
+        for(const [phase] of snapshots) { const button=create('button','',phase==='before'?'Before':'After'); button.type='button'; button.addEventListener('click',()=>{state.snapshotPhase=phase;update();}); buttons.push([phase,button]); controls.append(button); }
+        heading.append(controls); panel.append(heading,body,create('div','view-note','Recorded evaluator snapshot. The player’s supplied observation is shown separately.')); update(); return panel;
+      }
+      function roleLabel(decision) {
+        if(decision.role) return display(decision.role);
+        if(decision.agent==='RAND') return 'Random baseline';
+        if(decision.agent==='INPUT') return 'Scripted input';
+        if(!asArray(decision.legal_actions).length) return 'Inactive player';
+        return 'Recorded actor';
+      }
+      function renderObservation(decision,decisions,compact=false) {
+        const panel=create('section','panel observation-panel'+(compact?' compact':''));
+        const heading=create('div','panel-heading'); heading.append(create('h3','','Player observation'),create('span','section-kicker',decision?'Player '+decision.player:'No actor')); panel.append(heading);
+        if(!decision) { panel.append(create('div','empty','No player observation was recorded.')); return panel; }
+        const meta=create('div','observation-meta'); meta.append(badge(decision.observation_type||'Observation unavailable')); panel.append(meta);
+        const body=create('div','observation-body');
+        const observation=decision.observation;
+        if(observation!==undefined&&observation!==null&&observation!=='') { const pre=create('pre','board'+(String(decision.observation_type).endsWith('tensor')?' wrap':''),display(observation)); pre.setAttribute('aria-label','Recorded observation for player '+decision.player); body.append(pre); }
+        else body.append(create('div','empty',observation===''?'The recorded observation is empty at this state.':'No observation was recorded for this actor.'));
+        panel.append(body);
+        if(decisions.length>1) { const tabs=create('div','actor-tabs'); for(const actor of decisions) { const button=create('button',actor.player===state.player?'selected':'','Player '+actor.player); button.type='button'; button.setAttribute('aria-pressed',String(actor.player===state.player)); button.addEventListener('click',()=>{state.player=actor.player;renderTransition();}); tabs.append(button); } panel.append(tabs); }
+        panel.append(create('div','view-note','This is the recorded view supplied for this player, before the selected transition.'));
+        return panel;
+      }
+      function evidenceDetails(label,value,placeholder='Not recorded') { const details=create('details'); details.append(create('summary','',label)); const body=create('div','evidence-body'); body.append(create('pre','evidence-pre',value===undefined||value===null?placeholder:display(value))); details.append(body); return details; }
+      function renderDecision(decision) {
+        const card=create('article','decision-card'+(decision.player===state.player?' active':''));
+        const heading=create('div','decision-heading'); const identity=create('div'); identity.append(create('div','actor-name','Player '+decision.player+' · '+display(decision.agent)),create('div','actor-subtitle',roleLabel(decision))); heading.append(identity);
+        if(decision.player===state.player) heading.append(badge('Viewing','good'));
+        card.append(heading);
+        const block=create('div','action-block'); block.append(create('div','action-caption','Chosen action'));
+        const action=create('div','chosen-action'); action.append(create('span','chosen-label',decision.action_string??'Not recorded'),create('span','action-id','ID '+display(decision.action))); block.append(action,create('div','summary-label','Recorded summary'),create('p','recorded-summary',decision.summary||'No summary was recorded.'));
+        const facts=create('div','decision-facts'); if(typeof decision.latency_ms==='number') facts.append(create('span','',formatNumber(decision.latency_ms)+' ms')); if(Array.isArray(decision.legal_actions)) facts.append(create('span','',decision.legal_actions.length+' legal actions')); if(decision.usage&&Object.keys(decision.usage).length) facts.append(create('span','',Object.entries(decision.usage).map(([key,value])=>pretty(key)+': '+display(value)).join(' · '))); block.append(facts); card.append(block);
+        if(decision.fallback_reason) { const reason=decision.fallback_reason; card.append(create('div','fallback','Fallback applied · '+(typeof reason==='object'?[reason.category,reason.code,reason.message].filter(Boolean).map(display).join(' / '):display(reason)))); }
+        card.append(evidenceDetails('Raw response',decision.response,'No model response was recorded for this action.'),evidenceDetails('Exact prompt',decision.prompt,'No model prompt was recorded for this action.'));
+        const legal=create('details'); legal.append(create('summary','','Legal actions ('+asArray(decision.legal_actions).length+')')); const legalBody=create('div','evidence-body'); const list=create('ul','legal-list');
+        asArray(decision.legal_actions).forEach((id,index)=>{ const row=create('li','legal-row'); row.append(create('span','legal-id',display(id)),create('span','',asArray(decision.legal_action_strings)[index]??'Label not recorded')); list.append(row); });
+        if(!list.childElementCount) legalBody.append(create('div','actor-subtitle','No legal actions recorded.')); else legalBody.append(list); legal.append(legalBody); card.append(legal);
+        if(decision.response_metadata&&Object.keys(decision.response_metadata).length) card.append(evidenceDetails('Response metadata',decision.response_metadata));
+        return card;
+      }
+      function fact(label,value) { const row=create('div','fact-row'); row.append(create('span','',label),create('span','fact-value',value)); return row; }
+      function renderTransitionFacts(event) {
+        const panel=create('section','panel'); const heading=create('div','panel-heading'); heading.append(create('h3','','After this transition'),event.terminal?badge('Terminal','good'):badge('In progress')); panel.append(heading);
+        const rows=create('div','transition-facts'); rows.append(fact('Rewards',Array.isArray(event.rewards)?'['+event.rewards.map(formatNumber).join(', ')+']':'Not recorded'),fact('Cumulative returns',Array.isArray(event.returns)?'['+event.returns.map(formatNumber).join(', ')+']':'Not recorded'));
+        panel.append(rows,evidenceDetails('State fingerprints',{before:event.state_hash_before??null,after:event.state_hash??null}));
+        return panel;
+      }
+      function renderEnvironment(event) {
+        const panel=create('section','panel'); const body=create('div','event-card');
+        if(event.kind==='chance') {
+          body.append(badge('Environment · chance','blue'),create('h3','','Chance outcome'),create('p','','The environment selected an outcome from its recorded chance distribution. This transition contains no model decision.'),create('div','event-value',asArray(event.action_strings).map(display).join(' · ')||'Outcome not recorded'));
+          const action=asArray(event.actions)[0]; body.append(create('div','actor-subtitle','Action ID '+display(action)));
+          panel.append(body);
+          const details=create('details'); details.append(create('summary','','Recorded chance distribution ('+asArray(event.chance_outcomes).length+' outcomes)')); const rows=create('div','evidence-body probability-list');
+          for(const outcome of asArray(event.chance_outcomes)) { const row=create('div','probability-row'+(outcome[0]===action?' selected':'')); row.append(create('span','','Action '+display(outcome[0])),create('span','',formatNumber(outcome[1]))); rows.append(row); }
+          details.append(rows); panel.append(details);
+        } else {
+          body.append(badge('Environment · population','blue'),create('h3','','Mean field update'),create('p','','The environment applied the recorded population distribution. This update is an explicit population assumption, not a model action or an equilibrium result.'));
+          const support=asArray(event.distribution_support), distribution=asArray(event.distribution); body.append(create('div','event-value',support.length+' support states')); panel.append(body);
+          const details=create('details'); details.append(create('summary','','Recorded population distribution')); const rows=create('div','evidence-body probability-list');
+          support.forEach((label,index)=>{const row=create('div','probability-row'); row.append(create('span','',display(label)),create('span','',formatNumber(distribution[index]))); rows.append(row);}); details.append(rows); panel.append(details);
+        }
+        return panel;
+      }
+      async function moveStep(direction) {
+        if(state.loading||!state.payload) return;
+        const items=asArray(state.payload.transitions.items), total=number(state.payload.transitions.total);
+        if(direction>0) {
+          if(state.stepPosition+1<items.length) { state.stepPosition++; state.player=null; renderTransition(); }
+          else if(state.stepOffset+items.length<total) { state.stepOffset+=STEP_LIMIT; state.player=null; await fetchReport('first'); }
+        } else if(state.stepPosition>0) { state.stepPosition--; state.player=null; renderTransition(); }
+        else if(state.stepOffset>0) { state.stepOffset=Math.max(0,state.stepOffset-STEP_LIMIT); state.player=null; await fetchReport('last'); }
+      }
+      async function fetchText(download) {
+        if(state.loading||!state.key||!state.payload?.selected_episode) return;
+        const requestId=state.requestId;
+        const controller=new AbortController(); if(state.controller) state.controller.abort(); state.controller=controller;
+        let timedOut=false;
+        const timeout=setTimeout(()=>{timedOut=true;controller.abort();},30000);
+        setLoading(true); clearError();
+        try {
+          const response=await fetch(reportUrl('text'),{headers:{Authorization:'Bearer '+state.key,Accept:'text/plain'},credentials:'omit',cache:'no-store',signal:controller.signal});
+          if(requestId!==state.requestId) return;
+          if(response.status===401||response.status===403) { disconnect('Access denied. Enter a valid arena API key to reconnect.'); return; }
+          if(!response.ok) throw new Error('Could not load the text report ('+response.status+'). '+await readError(response));
+          const text=await response.text(); if(requestId!==state.requestId||!state.key) return;
+          if(download) {
+            const url=URL.createObjectURL(new Blob([text],{type:'text/plain;charset=utf-8'})); const link=create('a'); link.href=url; link.download='arena-'+shortId(state.runId)+'-'+shortId(state.episodeId)+'-page-'+(state.stepOffset+1)+'.txt'; document.body.append(link); link.click(); link.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+          } else { $('asciiContent').textContent=text; $('asciiDialog').showModal(); }
+        } catch(error) { if(requestId===state.requestId) {if(timedOut) showError('The text report request timed out. Try again.');else if(error.name!=='AbortError') showError(error.message||'Could not reach the arena API.');} }
+        finally { clearTimeout(timeout); if(requestId===state.requestId) setLoading(false); }
+      }
+      $('connectForm').addEventListener('submit',event=>{
+        event.preventDefault();
+        const runId=$('runIdInput').value.trim(); const key=$('apiKeyInput').value.trim()||state.key;
+        if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(runId)) { showError('Enter a valid run UUID.'); return; }
+        if(!key) { showError('Enter your arena API key.'); $('apiKeyInput').focus(); return; }
+        state.runId=runId; state.key=key; state.episodeId=null; state.episodeOffset=0; state.stepOffset=0; state.stepPosition=0; state.player=null; $('apiKeyInput').value=''; $('apiKeyInput').placeholder='Key held in this tab · enter to replace'; $('connectionLabel').textContent='Key held in this tab'; $('connectionBar').hidden=false; $('topbarNote').hidden=true; fetchReport();
+      });
+      $('disconnectButton').addEventListener('click',()=>disconnect());
+      $('refreshButton').addEventListener('click',()=>fetchReport('keep'));
+      $('episodesPrevious').addEventListener('click',()=>{if(state.loading)return;state.episodeOffset=Math.max(0,state.episodeOffset-EPISODE_LIMIT);fetchReport('keep');});
+      $('episodesNext').addEventListener('click',()=>{if(state.loading)return;state.episodeOffset+=EPISODE_LIMIT;fetchReport('keep');});
+      $('previousStep').addEventListener('click',()=>moveStep(-1));
+      $('nextStep').addEventListener('click',()=>moveStep(1));
+      $('closeAsciiButton').addEventListener('click',()=>{$('asciiDialog').close();$('asciiContent').textContent='';});
+      $('asciiDialog').addEventListener('close',()=>{$('asciiContent').textContent='';});
+      $('shareButton').addEventListener('click',async()=>{const url=new URL('/runs/'+encodeURIComponent(state.runId),window.location.origin).href;try{await navigator.clipboard.writeText(url);$('shareButton').textContent='Link copied';setTimeout(()=>{$('shareButton').textContent='Copy run link';},1700);}catch{showError('Copy this run link from the address bar. It contains no API key.');}});
+      document.addEventListener('keydown',event=>{if($('workspace').hidden||$('asciiDialog').open||event.altKey||event.ctrlKey||event.metaKey||event.isComposing||(event.target instanceof Element&&event.target.closest('input,textarea,select,button,summary,[contenteditable="true"]')))return;if(event.key==='ArrowLeft'){event.preventDefault();moveStep(-1);}else if(event.key==='ArrowRight'){event.preventDefault();moveStep(1);}});
+      let initialRun='';
+      try { const match=window.location.pathname.match(/^\/runs\/([^/]+)\/?$/); initialRun=match?decodeURIComponent(match[1]):new URLSearchParams(window.location.search).get('run_id')||''; } catch {}
+      $('runIdInput').value=initialRun;
+      window.addEventListener('pagehide',()=>disconnect());
+    })();
+  </script>
+</body>
+</html>

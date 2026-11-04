@@ -226,6 +226,36 @@ target; `DATABASE_TARGET=raspberry_pi` or `gcp` selects the corresponding URL. T
 Pi target can be reached at `100.116.74.50` over the configured Tailscale network.
 Local offline planning, execution, export, and replay never connect to that DB.
 
+## Read a run report
+
+The API serves a browser report at `http://localhost:8000/runs/RUN_ID`, or open
+`http://localhost:8000/reports` and enter a run ID. Enter the API key in the page's
+key field. The browser keeps it in page memory; it is not saved in the URL or
+browser storage. Run creation and status responses provide `report_url`,
+`text_report_url`, and `report_data_url` links.
+
+The report shows episode outcomes, recorded moves, player observations, model
+summaries, and raw responses. New traces include before/after board snapshots
+when the game has public state. Older and imperfect-information traces use
+their saved player observations; missing snapshots are not reconstructed.
+Summaries contain text supplied by the model and do not expose hidden reasoning.
+Mock models supply placeholder explanations. Evaluator data can contain private
+observations from several players. Failed or older episodes show available
+evidence and notices when traces are missing.
+
+For an ASCII report in the terminal, replace `RUN_ID` in this single-line command:
+
+```bash
+curl -sS 'http://localhost:8000/v1/runs/RUN_ID/report?format=text&step_limit=20' -H 'Authorization: Bearer local-dev-key'
+```
+
+The same authenticated endpoint returns JSON by default. Episodes and transitions
+are paginated; select an `episode_id` and use `step_offset` to continue through
+its moves. See [CLIENT_GUIDE.md](CLIENT_GUIDE.md#inspect-a-run-in-the-browser-or-terminal)
+for all report parameters. Viewing reports reads persisted results and does not
+call a model provider. The existing API serves the website; no additional hosting
+service or paid deployment is needed.
+
 ## Validation
 
 ```bash

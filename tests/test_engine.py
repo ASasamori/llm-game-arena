@@ -62,6 +62,8 @@ class EngineTests(unittest.TestCase):
         record = execute(options("kuhn_poker"))
         self.assertEqual(record["steps"][0]["kind"], "chance")
         for event in record["steps"]:
+            self.assertNotIn("state_before", event)
+            self.assertNotIn("state_after", event)
             for decision in event["decisions"]:
                 payload = prompt_data(decision["prompt"])
                 self.assertEqual(payload["observation"], decision["observation"])
@@ -77,6 +79,27 @@ class EngineTests(unittest.TestCase):
                         for action in payload["own_action_history"]
                     )
                 )
+
+    def test_evaluator_board_snapshots_are_recorded_without_changing_player_view(
+        self,
+    ) -> None:
+        record = execute(options("tic_tac_toe"))
+        first = record["steps"][0]
+        self.assertEqual(first["state_before"], "...\n...\n...")
+        self.assertEqual(first["state_after"], "x..\n...\n...")
+        decision = first["decisions"][0]
+        self.assertEqual(
+            prompt_data(decision["prompt"])["observation"], decision["observation"]
+        )
+        self.assertTrue(replay_episode(record)["verified"])
+        changed = deepcopy(record)
+        changed["steps"][0]["state_after"] = "incorrect board"
+        with self.assertRaisesRegex(ReplayError, "state snapshot mismatch"):
+            replay_episode(changed)
+        for event in record["steps"]:
+            event.pop("state_before", None)
+            event.pop("state_after", None)
+        self.assertTrue(replay_episode(record)["verified"])
 
     def test_simultaneous_choices_use_the_same_unmodified_state(self) -> None:
         from game_arena.openspiel.catalog import load_game

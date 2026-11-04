@@ -299,6 +299,43 @@ def verify_runs(
                 raise AssertionError(
                     f"Incorrect aggregate metrics for {run_id}: {metrics}"
                 )
+            decision_report = request_api(
+                base_url,
+                api_key,
+                f"/v1/runs/{run_id}/report?episode_limit=1&step_limit=1",
+            )
+            if (
+                decision_report["run"]["status"] != "COMPLETED"
+                or decision_report["episodes"]["total"] != expected
+                or len(decision_report["episodes"]["items"]) != 1
+                or len(decision_report["transitions"]["items"]) != 1
+            ):
+                raise AssertionError(
+                    "Decision report did not preserve bounded run evidence"
+                )
+            report_links = decision_report["links"]
+            text_request = Request(
+                report_links["text_report_url"],
+                headers={"Authorization": f"Bearer {api_key}"},
+            )
+            with urlopen(text_request, timeout=10) as response:
+                terminal_report = response.read().decode("utf-8")
+                if response.headers.get_content_type() != "text/plain":
+                    raise AssertionError("Terminal report has the wrong content type")
+            if run_id not in terminal_report or not terminal_report.isascii():
+                raise AssertionError(
+                    "Terminal report is missing its run identity or is not ASCII"
+                )
+            with urlopen(report_links["report_url"], timeout=10) as response:
+                shell = response.read().decode("utf-8")
+                if (
+                    response.headers.get_content_type() != "text/html"
+                    or api_key in shell
+                    or not response.headers.get("Content-Security-Policy")
+                ):
+                    raise AssertionError(
+                        "Browser report shell is not safe to open without a key"
+                    )
             report.append(
                 {
                     "run_id": run_id,
@@ -307,6 +344,7 @@ def verify_runs(
                     "replay_verified": verified,
                     "status": "COMPLETED",
                     "duplicate_checked": first.matchup_id is not None,
+                    "decision_report_verified": True,
                 }
             )
     return report

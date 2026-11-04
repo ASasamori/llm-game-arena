@@ -21,6 +21,21 @@ def state_hash(state: pyspiel.State) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
 
 
+def evaluator_state(state: pyspiel.State) -> str | None:
+    """Readable audit state for public-information games, never a model prompt.
+
+    Information-state strings can be action histories rather than boards. Keep
+    this separate from the exact player view, and omit full states for games
+    with hidden information.
+    """
+    if (
+        state.get_game().get_type().information
+        == pyspiel.GameType.Information.IMPERFECT_INFORMATION
+    ):
+        return None
+    return str(state)
+
+
 def player_view(state: pyspiel.State, player: int) -> tuple[str, str]:
     game_type = state.get_game().get_type()
     for capability, method in (

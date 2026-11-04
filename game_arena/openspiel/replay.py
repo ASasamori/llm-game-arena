@@ -12,7 +12,7 @@ import pyspiel
 from game_arena.openspiel import catalog, parsers
 from game_arena.openspiel.harness import _distribution, _initial_state, _legacy_fields
 from game_arena.openspiel.provenance import derive_seed, runtime_manifest
-from game_arena.openspiel.views import build_prompt, state_hash
+from game_arena.openspiel.views import build_prompt, evaluator_state, state_hash
 
 
 class ReplayError(ValueError):
@@ -113,6 +113,12 @@ def replay_episode(record: dict[str, Any]) -> dict[str, Any]:
             event.get("state_hash_before") == state_hash(state),
             f"{prefix} input hash mismatch",
         )
+        if "state_before" in event:
+            snapshot = evaluator_state(state)
+            _require(
+                snapshot is not None and event["state_before"] == snapshot,
+                f"{prefix} input state snapshot mismatch",
+            )
         players, actions = event["players"], event["actions"]
         kind = event["kind"]
         if kind == "chance":
@@ -315,6 +321,12 @@ def replay_episode(record: dict[str, Any]) -> dict[str, Any]:
         _require(
             event["state_hash"] == state_hash(state), f"{prefix} output hash mismatch"
         )
+        if "state_after" in event:
+            snapshot = evaluator_state(state)
+            _require(
+                snapshot is not None and event["state_after"] == snapshot,
+                f"{prefix} output state snapshot mismatch",
+            )
         _require(
             _same_values(event["rewards"], state.rewards()), f"{prefix} reward mismatch"
         )

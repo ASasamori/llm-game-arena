@@ -60,6 +60,7 @@ from orchestrator.observability import (
 )
 from orchestrator.failures import classify_exception
 from orchestrator.settings import get_database_target
+from orchestrator.report_routes import create_report_router, report_links
 
 try:
     import tiktoken
@@ -232,6 +233,15 @@ class RunCreateResponse(BaseModel):
     status: str = Field(description="Initial run status.")
     job_count: int = Field(description="Number of jobs enqueued.")
     status_url: str = Field(description="Relative URL for polling run status.")
+    report_url: str | None = Field(
+        default=None, description="Browser decision report URL."
+    )
+    text_report_url: str | None = Field(
+        default=None, description="Authenticated terminal report URL."
+    )
+    report_data_url: str | None = Field(
+        default=None, description="Authenticated report JSON URL."
+    )
     worker_triggered: bool | None = Field(
         default=None,
         description="Whether on-demand worker execution was triggered by the API.",
@@ -255,6 +265,9 @@ class MatchupStatus(BaseModel):
 
 
 class RunStatusResponse(BaseModel):
+    report_url: str | None = None
+    text_report_url: str | None = None
+    report_data_url: str | None = None
     dispatch_complete: bool | None = None
     dispatch_error: str | None = None
     configuration: dict[str, Any] | None = None
@@ -1027,7 +1040,11 @@ def stylize_client_payload(
     },
     openapi_extra={"security": [{"BearerAuth": []}, {"APIKeyHeader": []}]},
 )
-def create_run(request: RunCreateRequest, api_key: str = Depends(_authenticate)):
+def create_run(
+    request: RunCreateRequest,
+    http_request: Request,
+    api_key: str = Depends(_authenticate),
+):
     increment_counter("api.runs.create.attempt")
     token_cost = _estimate_tokens(request.model_dump())
     _enforce_rate_limit(api_key, token_cost)
@@ -1072,6 +1089,7 @@ def create_run(request: RunCreateRequest, api_key: str = Depends(_authenticate))
         worker_execution=worker_execution,
         worker_trigger_error=worker_trigger_error,
         submitted_at=now,
+        **report_links(http_request, run_id),
     )
 
 
@@ -1090,13 +1108,15 @@ def create_run(request: RunCreateRequest, api_key: str = Depends(_authenticate))
     },
     openapi_extra={"security": [{"BearerAuth": []}, {"APIKeyHeader": []}]},
 )
-def get_run_status(run_id: str, api_key: str = Depends(_authenticate)):
+def get_run_status(
+    run_id: str, request: Request, api_key: str = Depends(_authenticate)
+):
     _enforce_rate_limit(api_key, token_cost=1)
     try:
         UUID(run_id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail="run_id must be a UUID") from e
-    return _build_run_status(run_id)
+    return _build_run_status(run_id).model_copy(update=report_links(request, run_id))
 
 
 @app.get(
@@ -1650,6 +1670,15 @@ def get_run_metrics(run_id: str, api_key: str = Depends(_authenticate)):
         }
     finally:
         session.close()
+
+
+app.include_router(
+    create_report_router(
+        _authenticate,
+        lambda key: _enforce_rate_limit(key, token_cost=1),
+        lambda: get_session(),
+    )
+)
 
 
 if __name__ == "__main__":
