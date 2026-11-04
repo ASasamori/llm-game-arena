@@ -32,6 +32,9 @@ class EpisodeResult(TypedDict):
     decision_count: NotRequired[int]
     degraded: NotRequired[bool]
     winner_players: NotRequired[list[int]]
+    stop_reason: NotRequired[str | None]
+    stop_message: NotRequired[str | None]
+    game_progress: NotRequired[dict[str, Any] | None]
 
 
 class HarnessOptions(TypedDict):
@@ -47,6 +50,8 @@ class HarnessOptions(TypedDict):
     rules: NotRequired[str]
     mean_field_distribution: NotRequired[str | dict[str, float] | None]
     mean_field_population: NotRequired[int]
+    stop_after_quests: NotRequired[int]
+    permitted_stop_reasons: NotRequired[list[str]]
 
 
 ENV_TO_GAME = {

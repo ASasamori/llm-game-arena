@@ -372,12 +372,15 @@
         chips.append(outcomeChip('Status',pretty(episode.status)),outcomeChip('Returns',Array.isArray(episode.returns)?'['+episode.returns.map(formatNumber).join(', ')+']':'Not recorded'),outcomeChip('Transitions',number(episode.num_steps)));
         if(episode.winner&&episode.winner!=='UNDETERMINED/TIE') chips.append(outcomeChip('Recorded winner',display(episode.winner)));
         if(episode.provenance?.environment_backend==='native'&&episode.terminal) chips.append(outcomeChip('Winning seats',asArray(episode.winner_players).length?episode.winner_players.map(p=>'P'+p).join(', '):'None'));
+        if(episode.stop_reason) chips.append(outcomeChip('Stopped',pretty(episode.stop_reason)));
+        if(episode.provenance?.trial_budget) chips.append(outcomeChip('Accounted API cost','$'+episode.provenance.trial_budget.accounted_cost_usd));
         if(episode.seed!==undefined&&episode.seed!==null) chips.append(outcomeChip('Episode seed',display(episode.seed)));
         if(episode.fallback_count) chips.append(outcomeChip('Fallbacks',display(episode.fallback_count)));
         title.append(chips); header.append(title);
         const side=create('div'); if(episode.mock===true) side.append(badge('Includes mock','warn')); else if(episode.mock===false) side.append(badge('Provider models','blue')); else side.append(badge('Model mode unrecorded'));
         if(episode.degraded) { side.append(document.createElement('br'),badge('Fallback assisted','warn')); }
         header.append(side); root.append(header);
+        if(episode.game_progress?.quest_results) { const progress=create('div','panel'); progress.style.marginBottom='16px'; progress.append(create('h3','','Recorded quest results')); asArray(episode.game_progress.quest_results).forEach(q=>progress.append(create('div','', 'Quest '+q.quest+': '+(q.success?'SUCCEEDED':'FAILED')+' · Team '+asArray(q.team).map(p=>'P'+p).join(', ')+' · '+q.fails+' fail card(s)'))); if(!episode.game_progress.quest_results.length) progress.append(create('div','','No completed quests.')); progress.append(create('div','muted','Current phase: '+pretty(episode.game_progress.phase))); root.append(progress); }
         const exportBar=create('div','run-actions'); exportBar.style.paddingTop='0'; exportBar.style.marginBottom='17px';
         const ascii=create('button','small','View ASCII'); ascii.type='button'; ascii.addEventListener('click',()=>fetchText(false));
         const download=create('button','small','Download text'); download.type='button'; download.addEventListener('click',()=>fetchText(true));

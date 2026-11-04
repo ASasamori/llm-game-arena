@@ -10,7 +10,15 @@ from typing import Any
 import pyspiel
 
 from game_arena.openspiel import catalog, parsers
-from game_arena.openspiel.harness import _distribution, _initial_state, _legacy_fields
+from game_arena.openspiel.harness import (
+    CONTROLLED_STOP_REASONS,
+    _distribution,
+    _initial_state,
+    _legacy_fields,
+    _public_game_progress,
+    _quest_limit_reached,
+    _validate_quest_limit,
+)
 from game_arena.openspiel.provenance import derive_seed, runtime_manifest
 from game_arena.openspiel.views import build_prompt, evaluator_state, state_hash
 
@@ -81,6 +89,24 @@ def replay_episode(record: dict[str, Any]) -> dict[str, Any]:
         "Referenced game resources have changed; restore the recorded files",
     )
     game = catalog.load_game(spec, seed=manifest["seed"])
+    quest_limit = manifest.get("stop_after_quests")
+    try:
+        _validate_quest_limit(game, quest_limit)
+    except ValueError as exc:
+        raise ReplayError(str(exc)) from exc
+    permitted_stops = manifest.get("permitted_stop_reasons", [])
+    _require(
+        isinstance(permitted_stops, list)
+        and all(
+            isinstance(reason, str) and reason in CONTROLLED_STOP_REASONS
+            for reason in permitted_stops
+        ),
+        "Invalid permitted stop reasons",
+    )
+    _require(
+        type(manifest.get("max_steps")) is int and manifest["max_steps"] > 0,
+        "Invalid configured transition limit",
+    )
     state = _initial_state(game, manifest.get("mean_field_population", 0))
     _require(
         state_hash(state) == manifest.get("initial_state_hash"),
@@ -108,6 +134,10 @@ def replay_episode(record: dict[str, Any]) -> dict[str, Any]:
     for index, event in enumerate(events):
         prefix = f"Transition {index}"
         _require(not state.is_terminal(), f"{prefix} occurs after terminal state")
+        _require(
+            not _quest_limit_reached(state, quest_limit),
+            f"{prefix} occurs after its configured quest limit",
+        )
         _require(event.get("index") == index, f"{prefix} index mismatch")
         _require(
             event.get("state_hash_before") == state_hash(state),
@@ -351,10 +381,52 @@ def replay_episode(record: dict[str, Any]) -> dict[str, Any]:
         record["status"] == ("SUCCESS" if state.is_terminal() else "TRUNCATED"),
         "Episode status mismatch",
     )
+    stop_reason = record.get("stop_reason")
     _require(
-        state.is_terminal() or len(events) == manifest["max_steps"],
-        "Truncated trace ends before its configured limit",
+        stop_reason is None or isinstance(stop_reason, str),
+        "Invalid episode stop reason",
     )
+    _require(
+        len(events) <= manifest["max_steps"],
+        "Trace exceeds its configured transition limit",
+    )
+    if state.is_terminal():
+        _require(
+            stop_reason is None, "A terminal episode cannot claim a controlled stop"
+        )
+    elif stop_reason == "quest_limit":
+        _require(
+            _quest_limit_reached(state, quest_limit),
+            "Quest stop condition was not reached",
+        )
+    elif stop_reason is not None:
+        _require(
+            stop_reason in CONTROLLED_STOP_REASONS and stop_reason in permitted_stops,
+            "Episode used an unpermitted controlled stop",
+        )
+        _require(
+            len(events) < manifest["max_steps"]
+            and not _quest_limit_reached(state, quest_limit),
+            "Controlled stop conflicts with a reached episode limit",
+        )
+    else:
+        _require(
+            len(events) == manifest["max_steps"],
+            "Truncated trace ends before its configured limit",
+        )
+    if stop_reason is not None:
+        _require(
+            isinstance(record.get("stop_message"), str)
+            and bool(record["stop_message"]),
+            "Controlled stop message is missing",
+        )
+    else:
+        _require(record.get("stop_message") is None, "Stop message has no stop reason")
+    if "game_progress" in record or quest_limit is not None:
+        _require(
+            record.get("game_progress") == _public_game_progress(game, state),
+            "Recorded public game progress mismatch",
+        )
     competitive = game.get_type().utility in {
         pyspiel.GameType.Utility.ZERO_SUM,
         pyspiel.GameType.Utility.CONSTANT_SUM,

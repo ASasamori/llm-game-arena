@@ -62,6 +62,7 @@ _PROVENANCE_KEYS = (
     "initial_state_hash",
     "mean_field_population",
     "environment_backend",
+    "stop_after_quests",
 )
 _TRACE_KEYS = (
     "game",
@@ -72,6 +73,9 @@ _TRACE_KEYS = (
     "status",
     "winner",
     "winner_players",
+    "stop_reason",
+    "stop_message",
+    "game_progress",
     "returns",
     "terminal",
     "seed",
@@ -170,6 +174,7 @@ def _trace_metadata(session: Session, episode_id: str) -> dict[str, Any] | None:
                 manifest["model_configs"].label("model_configs"),
                 manifest["dependency_versions"].label("dependency_versions"),
                 manifest["game_sources"].label("game_sources"),
+                manifest["trial_budget"].label("trial_budget"),
                 *[
                     manifest["metadata"][key].label("metadata_" + key)
                     for key in ("episode_num", "matchup_index", "run_seed")
@@ -189,6 +194,22 @@ def _trace_metadata(session: Session, episode_id: str) -> dict[str, Any] | None:
         for key in _PROVENANCE_KEYS
         if row["manifest_" + key] is not None
     }
+    budget = row["trial_budget"]
+    if isinstance(budget, dict):
+        provenance["trial_budget"] = {
+            key: budget[key]
+            for key in (
+                "budget_usd",
+                "confirmed_cost_usd",
+                "reserved_uncertain_usd",
+                "accounted_cost_usd",
+                "requests",
+                "max_calls",
+                "blocked",
+                "pricing_source",
+            )
+            if key in budget
+        }
     configs = row["model_configs"]
     provenance["model_configs"] = (
         [
@@ -347,6 +368,9 @@ def build_run_report(
                 "status",
                 "winner",
                 "winner_players",
+                "stop_reason",
+                "stop_message",
+                "game_progress",
                 "returns",
                 "terminal",
                 "seed",
@@ -572,6 +596,9 @@ def render_text_report(
         "status",
         "winner",
         "winner_players",
+        "stop_reason",
+        "stop_message",
+        "game_progress",
         "terminal",
         "returns",
         "seed",

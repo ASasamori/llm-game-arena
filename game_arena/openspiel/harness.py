@@ -8,6 +8,7 @@ constructed here; callers inject stateless model implementations.
 from __future__ import annotations
 
 from collections import deque
+from copy import deepcopy
 from datetime import datetime, timezone
 import logging
 import math
@@ -28,6 +29,52 @@ from orchestrator.observability import increment_counter
 LOGGER = logging.getLogger(__name__)
 SUPPORTED_TYPES = ["INPUT", "RAND", "PVP"]
 ENV = "OPENSPIEL"
+CONTROLLED_STOP_REASONS = frozenset(
+    {"budget_exhausted", "provider_error", "call_limit"}
+)
+
+
+class EpisodeStopped(RuntimeError):
+    """A provider declines another call; retain already applied transitions."""
+
+    def __init__(self, code: str, message: str):
+        if not isinstance(code, str) or code not in CONTROLLED_STOP_REASONS:
+            raise ValueError("Unsupported controlled episode stop reason")
+        if not isinstance(message, str) or not message:
+            raise ValueError("A controlled stop requires a message")
+        self.code = code
+        super().__init__(message)
+
+
+def _validate_quest_limit(game: Any, value: Any) -> None:
+    if value is None:
+        return
+    if type(value) is not int or not 1 <= value <= 3:
+        raise ValueError("stop_after_quests must be an integer in [1, 3]")
+    if (
+        getattr(game, "environment_backend", "openspiel") != "native"
+        or game.get_type().short_name != "avalon"
+    ):
+        raise ValueError("stop_after_quests applies only to native Avalon")
+
+
+def _quest_limit_reached(state: Any, limit: int | None) -> bool:
+    return limit is not None and len(state.native.quest_results) >= limit
+
+
+def _public_game_progress(game: Any, state: Any) -> dict[str, Any] | None:
+    """Public final progress survives a stop before the next player observation."""
+    if (
+        getattr(game, "environment_backend", "openspiel") != "native"
+        or game.get_type().short_name != "avalon"
+    ):
+        return None
+    return {
+        "phase": state.native.phase,
+        "quest_results": deepcopy(state.native.quest_results),
+        "leader": state.native.leader,
+        "consecutive_rejections": state.native.rejections,
+    }
 
 
 def _initial_state(game: Any, population: int = 0) -> Any:
@@ -126,6 +173,18 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
         raise catalog.UnsupportedGameError("; ".join(info["unsupported_reasons"]))
     game = catalog.load_game(spec, seed=seed)
     backend = getattr(game, "environment_backend", "openspiel")
+    quest_limit = options.get("stop_after_quests")
+    _validate_quest_limit(game, quest_limit)
+    permitted_stops = options.get(
+        "permitted_stop_reasons", sorted(CONTROLLED_STOP_REASONS)
+    )
+    if not isinstance(permitted_stops, list) or any(
+        not isinstance(reason, str) or reason not in CONTROLLED_STOP_REASONS
+        for reason in permitted_stops
+    ):
+        raise ValueError(
+            "permitted_stop_reasons must contain supported controlled stop codes"
+        )
     effective_rules = options.get("rules", "") or getattr(game, "rules", "")
     player_count = game.num_players()
     if mode == "PVP" and len(models) != player_count:
@@ -173,6 +232,8 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
     own_history: list[list[dict[str, Any]]] = [[] for _ in range(player_count)]
     steps: list[dict[str, Any]] = []
     fallback_count = 0
+    stop_reason: str | None = None
+    stop_message: str | None = None
     manifest = {
         **runtime_manifest(),
         "episode_id": episode_id,
@@ -192,6 +253,8 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
             for model in models
         ],
         "max_steps": max_steps,
+        "stop_after_quests": quest_limit,
+        "permitted_stop_reasons": sorted(set(permitted_stops)),
         "failure_policy": failure_policy,
         "rules": effective_rules,
         "environment_backend": backend,
@@ -268,6 +331,8 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
                     player=player,
                 )
                 action, summary = parsed.action, parsed.summary
+            except EpisodeStopped:
+                raise
             except Exception as exc:
                 if failure_policy == "raise":
                     raise
@@ -305,6 +370,10 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
 
     for index in range(max_steps):
         if state.is_terminal():
+            break
+        if _quest_limit_reached(state, quest_limit):
+            stop_reason = "quest_limit"
+            stop_message = f"Stopped after {quest_limit} resolved Avalon quests."
             break
         before = state_hash(state)
         event: dict[str, Any] = {
@@ -348,7 +417,13 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
             )
             state.update_distribution(probabilities)
         elif state.is_simultaneous_node():
-            decisions = [choose(player) for player in range(player_count)]
+            try:
+                decisions = [choose(player) for player in range(player_count)]
+            except EpisodeStopped as exc:
+                if exc.code not in permitted_stops:
+                    raise
+                stop_reason, stop_message = exc.code, str(exc)
+                break
             event.update(
                 kind="simultaneous",
                 players=list(range(player_count)),
@@ -361,7 +436,13 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
             player = state.current_player()
             if not 0 <= player < player_count:
                 raise ValueError(f"Unsupported player node {player}")
-            decision = choose(player)
+            try:
+                decision = choose(player)
+            except EpisodeStopped as exc:
+                if exc.code not in permitted_stops:
+                    raise
+                stop_reason, stop_message = exc.code, str(exc)
+                break
             if decision["action"] == pyspiel.INVALID_ACTION:
                 raise ValueError("Non-terminal decision node has no legal actions")
             event.update(
@@ -425,7 +506,11 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
         degraded=fallback_count > 0,
         error="No errors"
         if terminal
-        else f"Reached configured num_steps={max_steps} before terminal state.",
+        else stop_message
+        or f"Reached configured num_steps={max_steps} before terminal state.",
+        stop_reason=stop_reason,
+        stop_message=stop_message,
+        game_progress=_public_game_progress(game, state),
         summary=summary_list,
         action=action_list,
         start_time=started_at,
