@@ -1,0 +1,31 @@
+name: Offline Arena
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  mock-arena:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install locked dependencies
+        run: |
+          python -m pip install uv
+          uv sync --frozen --no-install-project
+      - name: Test without provider credentials or external services
+        run: |
+          uv run python -m unittest discover -s tests -p 'test_*.py'
+          uv run python -m unittest discover -s game_arena/openspiel -p 'test_*.py'
+      - name: Exercise spawned mock workers and resumable dataset export
+        run: |
+          uv run python -m game_arena.openspiel plan --games tic_tac_toe kuhn_poker matrix_rps matching_pennies_3p catch --episodes 2 --max-steps 100 --seed 123 --output analytics/ci-mock --execute-mock --workers 2
+          uv run python -m game_arena.openspiel plan --games tic_tac_toe kuhn_poker matrix_rps matching_pennies_3p catch --episodes 2 --max-steps 100 --seed 123 --output analytics/ci-mock --execute-mock --workers 2
+          uv run python -m game_arena.openspiel export --dataset analytics/ci-mock --output analytics/ci-export
