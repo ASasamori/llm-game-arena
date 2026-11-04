@@ -1,17 +1,13 @@
 import dataclasses
 import datetime
+import importlib
+import json
 import os
 import re
 from typing import Any, Protocol
 
 from absl import logging
-from dotenv import find_dotenv, load_dotenv
-from google import genai as google_genai
-from google.genai import types as google_genai_types
-from anthropic import Anthropic
 import tenacity
-
-load_dotenv(find_dotenv(usecwd=True), override=True)
 
 MAX_RETRY_SECONDS = int(os.environ.get("MODEL_API_RETRY_MAX_SECONDS", "90"))
 if MAX_RETRY_SECONDS < 1:
@@ -53,6 +49,8 @@ def _mock_response_text(provider: str, prompt: str) -> str:
     case = MODEL_API_MOCK_CASE
     if case == "raise_error":
         raise RuntimeError(f"Injected mock failure for provider={provider}")
+    if case == "default" and '"legal_actions"' in prompt:
+        return MockModel(name=provider).generate_with_text_input(prompt).main_response
     base = MOCK_TEST_CASES.get(case, MOCK_TEST_CASES["default"])
     if case not in MOCK_TEST_CASES:
         logging.warning(
@@ -72,10 +70,25 @@ def _log_retry_warning(retry_state: tenacity.RetryCallState) -> None:
     )
 
 
-# Retry decorator for handling rate limits and transient errors
+def _retryable_model_error(exc: BaseException) -> bool:
+    if isinstance(exc, (ValueError, TypeError)):
+        return False
+    status = getattr(exc, "status_code", None)
+    return (
+        isinstance(exc, (TimeoutError, ConnectionError))
+        or status in {408, 429}
+        or (isinstance(status, int) and status >= 500)
+        or type(exc).__name__
+        in {"APIConnectionError", "APITimeoutError", "RateLimitError"}
+    )
+
+
+# Bound transient retries. Bad credentials and malformed output fail immediately.
 _retry_decorator = tenacity.retry(
+    retry=tenacity.retry_if_exception(_retryable_model_error),
     wait=tenacity.wait_random_exponential(min=1, max=60),
-    stop=tenacity.stop_after_delay(datetime.timedelta(seconds=MAX_RETRY_SECONDS)),
+    stop=tenacity.stop_after_delay(datetime.timedelta(seconds=MAX_RETRY_SECONDS))
+    | tenacity.stop_after_attempt(3),
     before_sleep=_log_retry_warning,
     reraise=True,
 )
@@ -86,6 +99,8 @@ class GenerateResponse:
     """Simple response container with the model's output."""
 
     main_response: str
+    usage: dict[str, int] = dataclasses.field(default_factory=dict)
+    metadata: dict[str, Any] = dataclasses.field(default_factory=dict)
 
 
 class ModelResponseGuardrailError(ValueError):
@@ -154,6 +169,36 @@ class LLMModel(Protocol):
     def __str__(self) -> str: ...
 
 
+class MockModel:
+    """Stateless offline model; no SDK import, environment lookup, key or network."""
+
+    def __init__(self, name: str = "mock", *, model_name: str | None = None):
+        self._model_name = model_name or name
+        self._mock_mode = True
+
+    def __str__(self) -> str:
+        return f"MockModel({self._model_name})"
+
+    def generate_with_text_input(
+        self,
+        prompt: str,
+        system_instruction: str | None = None,
+        mock: bool = False,
+    ) -> GenerateResponse:
+        # The prompt contains exactly one JSON object. raw_decode allows suffix instructions.
+        start = prompt.rfind("\n{") + 1
+        if not prompt[start:].startswith("{"):
+            raise ValueError("MockModel requires a structured legal_actions prompt")
+        payload, _ = json.JSONDecoder().raw_decode(prompt[start:])
+        legal = payload.get("legal_actions", [])
+        if not legal:
+            raise ValueError("MockModel requires at least one legal action")
+        return GenerateResponse(
+            main_response=f"Summary: Deterministic offline legal action.\nFinal Answer: {legal[0]['id']}",
+            metadata={"mock": True, "model": self._model_name},
+        )
+
+
 class GeminiModel:
     """Simple wrapper for Google Gemini API."""
 
@@ -174,6 +219,7 @@ class GeminiModel:
             raise ValueError(
                 "No API key provided. Set GEMINI_API_KEY environment variable or pass api_key argument."
             )
+        google_genai = importlib.import_module("google.genai")
         self._client = google_genai.Client(api_key=key)
 
     @_retry_decorator
@@ -190,6 +236,8 @@ class GeminiModel:
         client = self._client
         if client is None:
             raise RuntimeError("Gemini client is not initialized")
+        from google.genai import types as google_genai_types
+
         config = google_genai_types.GenerateContentConfig(
             system_instruction=system_instruction,  # type: ignore
         )
@@ -210,7 +258,14 @@ class GeminiModel:
                 if part.text:
                     main_response += part.text
 
-        return GenerateResponse(main_response=_validate_model_response(main_response))
+        usage = response.usage_metadata
+        return GenerateResponse(
+            main_response=_validate_model_response(main_response),
+            usage={
+                "input_tokens": (usage.prompt_token_count or 0) if usage else 0,
+                "output_tokens": (usage.candidates_token_count or 0) if usage else 0,
+            },
+        )
 
     def __str__(self) -> str:
         return f"GeminiModel({self._model_name})"
@@ -225,8 +280,6 @@ class GPTModel:
         api_key: str | None = None,
         mock_mode: bool | None = None,
     ):
-        from openai import OpenAI
-
         self._model_name = model_name
         self._mock_mode = MODEL_API_MOCK_MODE if mock_mode is None else mock_mode
         self._client: Any | None = None
@@ -237,7 +290,9 @@ class GPTModel:
             raise ValueError(
                 "No API key provided. Set OPENAI_API_KEY environment variable or pass api_key argument."
             )
-        self._client = OpenAI(api_key=key)
+        from openai import OpenAI
+
+        self._client = OpenAI(api_key=key, timeout=60, max_retries=0)
 
     @_retry_decorator
     def generate_with_text_input(
@@ -264,7 +319,14 @@ class GPTModel:
         )
 
         main_response = response.choices[0].message.content or ""
-        return GenerateResponse(main_response=_validate_model_response(main_response))
+        usage = response.usage
+        return GenerateResponse(
+            main_response=_validate_model_response(main_response),
+            usage={
+                "input_tokens": usage.prompt_tokens if usage else 0,
+                "output_tokens": usage.completion_tokens if usage else 0,
+            },
+        )
 
     def __str__(self) -> str:
         return f"GPTModel({self._model_name})"
@@ -289,7 +351,9 @@ class ClaudeModel:
             raise ValueError(
                 "No API key provided. Set ANTHROPIC_API_KEY environment variable or pass api_key argument."
             )
-        self._client = Anthropic(api_key=key)
+        from anthropic import Anthropic
+
+        self._client = Anthropic(api_key=key, timeout=60, max_retries=0)
 
     @_retry_decorator
     def generate_with_text_input(
@@ -321,7 +385,13 @@ class ClaudeModel:
             if block.type == "text":
                 main_response += block.text
 
-        return GenerateResponse(main_response=_validate_model_response(main_response))
+        return GenerateResponse(
+            main_response=_validate_model_response(main_response),
+            usage={
+                "input_tokens": response.usage.input_tokens,
+                "output_tokens": response.usage.output_tokens,
+            },
+        )
 
     def __str__(self) -> str:
         return f"ClaudeModel({self._model_name})"

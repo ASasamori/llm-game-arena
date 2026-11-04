@@ -1,5 +1,5 @@
 import pyspiel
-from typing import TypedDict
+from typing import Any, NotRequired, TypedDict
 from collections import deque
 from datetime import datetime
 
@@ -20,6 +20,18 @@ class EpisodeResult(TypedDict):
     action: list[str]
     start_time: datetime
     end_time: datetime
+    seed: NotRequired[int]
+    game_spec: NotRequired[str]
+    returns: NotRequired[list[float]]
+    terminal: NotRequired[bool]
+    player_agents: NotRequired[list[str]]
+    steps: NotRequired[list[dict[str, Any]]]
+    manifest: NotRequired[dict[str, Any]]
+    final_state_hash: NotRequired[str]
+    fallback_count: NotRequired[int]
+    decision_count: NotRequired[int]
+    degraded: NotRequired[bool]
+    winner_players: NotRequired[list[int]]
 
 
 class HarnessOptions(TypedDict):
@@ -28,6 +40,13 @@ class HarnessOptions(TypedDict):
     num_steps: int | None
     input: deque | None
     game: str
+    seed: NotRequired[int]
+    episode_id: NotRequired[str]
+    metadata: NotRequired[dict[str, Any]]
+    failure_policy: NotRequired[str]
+    rules: NotRequired[str]
+    mean_field_distribution: NotRequired[str | dict[str, float] | None]
+    mean_field_population: NotRequired[int]
 
 
 ENV_TO_GAME = {
@@ -37,12 +56,9 @@ ENV_TO_GAME = {
 
 
 def resolve_game_from_env(env: str) -> str:
-    normalized_env = (env or "").strip().lower()
-    if normalized_env not in ENV_TO_GAME:
-        raise ValueError(
-            f"Unsupported env '{env}'. Supported envs: {sorted(ENV_TO_GAME.keys())}"
-        )
-    return ENV_TO_GAME[normalized_env]
+    from game_arena.openspiel.catalog import resolve_game_spec
+
+    return resolve_game_spec(env)
 
 
 def get_action_string_history(state: pyspiel.State) -> str:

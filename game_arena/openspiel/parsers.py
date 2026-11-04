@@ -1,4 +1,5 @@
 import dataclasses
+import json
 import re
 from typing import Protocol, Sequence
 from absl import logging
@@ -17,6 +18,74 @@ class TextParserInput:
     state_str: str | None = None
     legal_moves: Sequence[str] | None = None
     player_number: int | None = None
+
+
+@dataclasses.dataclass(frozen=True)
+class ParsedAction:
+    action: int
+    summary: str
+
+
+def parse_legal_action(
+    response: str,
+    legal_actions: dict[int, str],
+    *,
+    game: str = "",
+    player: int = 0,
+) -> ParsedAction:
+    """Resolve an integer ID or exact label against the supplied legal mapping.
+
+    Never call string_to_action: it is not implemented by every OpenSpiel game.
+    The legacy board notation parser remains available for existing clients.
+    """
+    cleaned = ANSI_ESCAPE_RE.sub("", response).strip()
+    if cleaned.startswith("```json") and cleaned.endswith("```"):
+        cleaned = cleaned[7:-3].strip()
+    if cleaned.startswith("{"):
+        try:
+            payload = json.loads(cleaned)
+        except json.JSONDecodeError as exc:
+            raise ValueError("Invalid action JSON") from exc
+        if not isinstance(payload, dict) or type(payload.get("action")) is not int:
+            raise ValueError("JSON action must be an integer")
+        action = payload["action"]
+        if action not in legal_actions:
+            raise ValueError(f"Illegal action ID {action}")
+        return ParsedAction(action, str(payload.get("summary", "")))
+
+    # Strip markup around section labels without destroying '_' in action labels.
+    cleaned = re.sub(r"\*\*(Summary|Final\s*Answer):\*\*", r"\1:", cleaned, flags=re.I)
+    answers = list(re.finditer(r"final\s*answer\s*:\s*", cleaned, re.I))
+    if not answers:
+        raise ValueError("Missing Final Answer section")
+    final = answers[-1]
+    tail = re.split(r"\n|summary\s*:", cleaned[final.end() :], maxsplit=1, flags=re.I)[
+        0
+    ]
+    answer = tail.strip().strip("`*").strip()
+    summaries = list(SUMMARY_RE.finditer(cleaned[: final.start()]))
+    summary = cleaned[summaries[-1].end() : final.start()].strip() if summaries else ""
+    if re.fullmatch(r"[+-]?\d+", answer):
+        action = int(answer)
+        if action not in legal_actions:
+            raise ValueError(f"Illegal action ID {action}")
+        return ParsedAction(action, summary)
+    matches = [action for action, label in legal_actions.items() if label == answer]
+    if len(matches) == 1:
+        return ParsedAction(matches[0], summary)
+    if game in {"chess", "connect_four", "tic_tac_toe", "go", "universal_poker"}:
+        label = SoftMoveParser(game_short_name=game).parse(
+            TextParserInput(
+                text=answer,
+                state_str="",
+                legal_moves=list(legal_actions.values()),
+                player_number=player,
+            )
+        )
+        matches = [action for action, value in legal_actions.items() if value == label]
+        if len(matches) == 1:
+            return ParsedAction(matches[0], summary)
+    raise ValueError("Final Answer did not identify a legal action unambiguously")
 
 
 def get_legal_action_strings(state: pyspiel.State) -> Sequence[str]:

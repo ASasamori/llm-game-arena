@@ -10,6 +10,7 @@ from __future__ import annotations
 import contextlib
 import copy
 from functools import lru_cache
+import hashlib
 import importlib
 import io
 import json
@@ -104,6 +105,7 @@ def _metadata(game_type: Any) -> dict[str, Any]:
         "min_num_players": game_type.min_num_players,
         "max_num_players": game_type.max_num_players,
         "num_players": None,
+        "num_populations": None,
         "default_loadable": bool(game_type.default_loadable),
         "is_concrete": bool(game_type.is_concrete),
         "parameter_specification": parameters,
@@ -187,6 +189,84 @@ def _seed_parameters(parameters: dict[str, Any], seed: int) -> None:
             parameters.setdefault("seed", seed % 2_147_483_647)
 
 
+def canonical_game_spec(spec: str, seed: int = 0) -> str:
+    """Keep the registered constructor name and its effective explicit inputs.
+
+    Some OpenSpiel transformations return an implementation-specific short name
+    from Game.to_string() (e.g. matrix_nfg), which cannot be loaded again. The
+    original parsed constructor is therefore the source of replay configuration.
+    """
+    if not isinstance(seed, int) or isinstance(seed, bool) or seed < 0:
+        raise UnsupportedGameError("seed must be a non-negative integer")
+    resolved = resolve_game_spec(spec)
+    try:
+        parameters = pyspiel.game_parameters_from_string(resolved)
+        _seed_parameters(parameters, seed)
+
+        def absolute_sources(values: dict[str, Any]) -> None:
+            if values.get("name") in {"efg_game", "nfg_game"} and values.get(
+                "filename"
+            ):
+                values["filename"] = str(
+                    Path(str(values["filename"])).expanduser().resolve()
+                )
+            for value in values.values():
+                if isinstance(value, dict) and "name" in value:
+                    absolute_sources(value)
+
+        absolute_sources(parameters)
+        return pyspiel.game_parameters_to_string(parameters)
+    except UnsupportedGameError:
+        raise
+    except Exception as exc:
+        raise UnsupportedGameError(
+            f"Invalid OpenSpiel configuration '{resolved}': {exc}"
+        ) from exc
+
+
+def game_source_files(
+    spec: str, *, max_file_bytes: int = 64 * 1024 * 1024
+) -> list[dict[str, Any]]:
+    """Fingerprint external EFG/NFG definitions, including nested transforms.
+
+    Definitions are not embedded or returned: introspection must not turn a
+    caller-supplied game filename into arbitrary file-content retrieval. Replay
+    requires the same definition files and validates these digests before play.
+    """
+    parameters = pyspiel.game_parameters_from_string(resolve_game_spec(spec))
+    sources: list[dict[str, Any]] = []
+
+    def visit(values: dict[str, Any], parameter_path: list[str]) -> None:
+        name = values.get("name")
+        if name in {"efg_game", "nfg_game"} and values.get("filename"):
+            path = Path(str(values["filename"])).expanduser().resolve()
+            digest = hashlib.sha256()
+            total = 0
+            with path.open("rb") as stream:
+                while chunk := stream.read(1024 * 1024):
+                    total += len(chunk)
+                    if total > max_file_bytes:
+                        raise UnsupportedGameError(
+                            f"Game definition exceeds {max_file_bytes} bytes"
+                        )
+                    digest.update(chunk)
+            sources.append(
+                {
+                    "path": str(path),
+                    "parameter_path": parameter_path + ["filename"],
+                    "sha256": digest.hexdigest(),
+                    "size_bytes": total,
+                    "format": "efg" if name == "efg_game" else "nfg",
+                }
+            )
+        for key, value in values.items():
+            if isinstance(value, dict) and "name" in value:
+                visit(value, parameter_path + [key])
+
+    visit(parameters, [])
+    return sources
+
+
 def _load(spec: str, seed: int) -> Any:
     resolved = resolve_game_spec(spec)
     try:
@@ -248,8 +328,10 @@ def _inspect_in_process(spec: str, seed: int) -> dict[str, Any]:
             "Sampled stochastic game exposes no reproducible RNG seed parameter"
         )
     info.update(
-        game=game.to_string(),
-        canonical_game=game.to_string(),
+        game=canonical_game_spec(resolved, seed),
+        canonical_game=canonical_game_spec(resolved, seed),
+        implementation_game=game.to_string(),
+        source_files=game_source_files(resolved),
         num_players=game.num_players(),
         parameters=game.get_parameters(),
     )
@@ -258,10 +340,13 @@ def _inspect_in_process(spec: str, seed: int) -> dict[str, Any]:
         for requirement in info["requirements"]
         if requirement != "explicit_game_parameters"
     ]
+    info["num_populations"] = 1
     if info["supported"]:
         # Constructor success alone does not establish that a usable state exists.
         if game.get_type().dynamics == pyspiel.GameType.Dynamics.MEAN_FIELD:
-            if not game.new_initial_states():
+            populations = game.new_initial_states()
+            info["num_populations"] = len(populations)
+            if not populations:
                 raise UnsupportedGameError("Game provides no initial population states")
         else:
             game.new_initial_state()

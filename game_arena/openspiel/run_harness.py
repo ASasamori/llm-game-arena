@@ -1,6 +1,7 @@
 import argparse
 import random
 import time
+from collections import deque
 from typing import Callable
 
 from game_arena.openspiel import harness
@@ -10,6 +11,8 @@ from game_arena.openspiel import utils
 
 def _build_model(provider: str, model_name: str | None) -> model_generation.LLMModel:
     provider_normalized = provider.strip().lower()
+    if provider_normalized == "mock":
+        return model_generation.MockModel(name=model_name or "mock")
     if provider_normalized == "claude":
         return model_generation.ClaudeModel(
             model_name=model_name or "claude-3-haiku-20240307"
@@ -84,16 +87,24 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--mode", default="PVP", choices=["PVP", "RAND", "INPUT"])
     parser.add_argument("--num-steps", type=int, default=8)
+    parser.add_argument("--game", default="connect_four")
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--input-actions", nargs="+", type=int)
+    parser.add_argument(
+        "--allow-live",
+        action="store_true",
+        help="Explicitly enable credentialed provider execution",
+    )
     parser.add_argument(
         "--player-one-provider",
-        default="claude",
-        choices=["claude", "gemini", "gpt"],
+        default="mock",
+        choices=["mock", "claude", "gemini", "gpt"],
     )
     parser.add_argument("--player-one-model", default=None)
     parser.add_argument(
         "--player-two-provider",
-        default="gemini",
-        choices=["claude", "gemini", "gpt"],
+        default="mock",
+        choices=["mock", "claude", "gemini", "gpt"],
     )
     parser.add_argument("--player-two-model", default=None)
     parser.add_argument("--max-attempts", type=int, default=4)
@@ -104,18 +115,29 @@ def _parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = _parse_args()
+    if not args.allow_live and any(
+        provider != "mock"
+        for provider in [args.player_one_provider, args.player_two_provider]
+    ):
+        raise ValueError(
+            "Provider execution requires --allow-live; use mock providers for offline tests"
+        )
+    from game_arena.openspiel.catalog import inspect_game
+
+    players = inspect_game(args.game)["num_players"]
     model_one = _build_model(args.player_one_provider, args.player_one_model)
     models: list[model_generation.LLMModel] = [model_one]
     if args.mode == "PVP":
-        model_two = _build_model(args.player_two_provider, args.player_two_model)
-        models.append(model_two)
+        for _ in range(1, players):
+            models.append(_build_model(args.player_two_provider, args.player_two_model))
 
     options = utils.HarnessOptions(
         type=args.mode,
         num_steps=args.num_steps,
         models=models,
-        input=None,
-        game="connect_four",
+        input=deque(args.input_actions) if args.input_actions else None,
+        game=args.game,
+        seed=args.seed,
     )
 
     result = run_with_backoff(
