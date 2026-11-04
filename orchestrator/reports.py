@@ -258,6 +258,80 @@ def _trace_metadata(session: Session, episode_id: str) -> dict[str, Any] | None:
     return result
 
 
+def _transition_index(
+    session: Session, episode_id: str, total: int, game: str
+) -> dict[str, Any]:
+    """Read small navigation fields, never prompts, responses or private views.
+
+    The overview is capped independently of transition payload pages. Numeric
+    jumps still address every transition in episodes larger than this overview.
+    """
+    payload = EpisodeTransition.payload
+    board = payload["public_state_before"]
+    rows = session.execute(
+        select(
+            EpisodeTransition.step_index,
+            payload["kind"].label("kind"),
+            board["phase"].label("phase"),
+            board["quest_number"].label("quest"),
+            board["turn"].label("turn"),
+            payload["action_strings"].label("actions"),
+        )
+        .where(EpisodeTransition.episode_id == episode_id)
+        .order_by(EpisodeTransition.step_index)
+        .limit(5000)
+    ).mappings()
+    items = []
+    for row in rows:
+        actions = row["actions"]
+        label = (
+            ", ".join(str(value) for value in actions)
+            if isinstance(actions, list)
+            else ""
+        )
+        phase = row["phase"]
+        # Older Avalon traces predate public snapshots. Labels identify only
+        # the public phase; role assignments and individual ballots stay out.
+        if phase is None and game.split("(", 1)[0] == "avalon":
+            first = str(actions[0]) if isinstance(actions, list) and actions else ""
+            phase = next(
+                (
+                    name
+                    for name, prefixes in (
+                        ("deal", ("deal_role:",)),
+                        ("leader", ("initial_leader:",)),
+                        ("proposal", ("propose_team:",)),
+                        ("vote", ("approve_team", "reject_team")),
+                        ("quest", ("quest_success", "quest_fail")),
+                        ("assassinate", ("assassinate_player:",)),
+                        (
+                            "discussion",
+                            ("claim_", "accuse_player:", "trust_player:", "pass"),
+                        ),
+                    )
+                    if first.startswith(prefixes)
+                ),
+                None,
+            )
+        # Labels can contain private chance outcomes or ballots. Navigation
+        # names the phase only for hidden-information native games.
+        if row["kind"] == "chance":
+            label = "Chance event"
+        elif phase in {"deal", "quest", "vote"}:
+            label = str(phase).replace("_", " ").title()
+        items.append(
+            {
+                "index": row["step_index"],
+                "kind": row["kind"],
+                "phase": phase,
+                "quest": row["quest"],
+                "turn": row["turn"],
+                "label": label[:200],
+            }
+        )
+    return {"items": items, "total": total, "truncated": total > len(items)}
+
+
 def build_run_report(
     session: Session,
     run_id: str,
@@ -327,6 +401,7 @@ def build_run_report(
     selected: dict[str, Any] | None = None
     transitions: list[dict[str, Any]] = []
     transition_total = 0
+    transition_index: dict[str, Any] = {"items": [], "total": 0, "truncated": False}
     notices = [
         "Model summaries and raw responses are recorded output, not access to hidden reasoning."
     ]
@@ -415,10 +490,22 @@ def build_run_report(
                     .limit(step_limit)
                 ).scalars()
             )
+            transition_index = _transition_index(
+                session, selected_id, transition_total, selected["game"]
+            )
             if transition_total == 0:
                 notices.append("No transitions were recorded for the selected episode.")
             elif not any(
-                "state_before" in item or "state_after" in item for item in transitions
+                any(
+                    key in item
+                    for key in (
+                        "state_before",
+                        "state_after",
+                        "public_state_before",
+                        "public_state_after",
+                    )
+                )
+                for item in transitions
             ):
                 notices.append(
                     "Evaluator board snapshots were not recorded on this page; player observations are shown exactly as stored."
@@ -477,6 +564,7 @@ def build_run_report(
             "limit": step_limit,
             "offset": step_offset,
         },
+        "transition_index": transition_index,
         "notices": notices,
     }
 
@@ -634,6 +722,9 @@ def render_text_report(
                 "Evaluator state before (separate from the player's observation):"
             )
             text.line(transition["state_before"], "  ")
+        if "public_state_before" in transition:
+            text.line("Public board before:")
+            text.line(transition["public_state_before"], "  ")
         for key in (
             "players",
             "actions",
@@ -720,6 +811,9 @@ def render_text_report(
         if "state_after" in transition:
             text.line("Evaluator state after:")
             text.line(transition["state_after"], "  ")
+        if "public_state_after" in transition:
+            text.line("Public board after:")
+            text.line(transition["public_state_after"], "  ")
     if not include_prompt:
         text.line(
             "Prompts omitted from text view; the authenticated JSON page retains recorded prompts."

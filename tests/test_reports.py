@@ -18,7 +18,7 @@ from sqlalchemy.orm import sessionmaker
 from game_arena.openspiel import harness, utils
 from game_arena.openspiel.model_generation import MockModel
 from orchestrator import tasks
-from orchestrator.models import Base, Episode, Run, RunConfiguration
+from orchestrator.models import Base, Episode, EpisodeTransition, Run, RunConfiguration
 from orchestrator.reports import (
     ReportNotFound,
     ReportRequestError,
@@ -191,6 +191,57 @@ class ReportTests(unittest.TestCase):
         self.assertIn("Evaluator state after", text)
         self.assertIn("xox", text.lower())
         self.assertIn("Observation (recorded before action)", text)
+
+    def test_navigation_index_is_independent_of_page_and_omits_private_evidence(
+        self,
+    ) -> None:
+        run_id = self.create_run()
+        record = self.mock_result(game="avalon", steps=100, players=5)
+        self.save(run_id, record)
+        with self.sessions() as session:
+            report = build_run_report(session, run_id, step_offset=12, step_limit=1)
+        index = report["transition_index"]
+        self.assertEqual(len(index["items"]), len(record.get("steps", [])))
+        self.assertEqual(index["total"], report["transitions"]["total"])
+        self.assertFalse(index["truncated"])
+        self.assertEqual(report["transitions"]["items"][0]["index"], 12)
+        self.assertEqual(index["items"][0]["index"], 0)
+        self.assertEqual(index["items"][0]["label"], "Chance event")
+        phases = {item["phase"] for item in index["items"]}
+        self.assertIn("proposal", phases)
+        self.assertIn("vote", phases)
+        self.assertNotIn("reject_team", json.dumps(index))
+        self.assertNotIn("deal_role", json.dumps(index))
+        self.assertNotIn("observation", json.dumps(index))
+        self.assertNotIn("prompt", json.dumps(index))
+        self.assertNotIn("response", json.dumps(index))
+
+    def test_large_index_stays_bounded_but_numeric_jump_reaches_final_step(
+        self,
+    ) -> None:
+        run_id = self.create_run()
+        record = self.mock_result(steps=1)
+        self.save(run_id, record)
+        episode_id = record["episode_id"]
+        with self.sessions() as session:
+            session.add_all(
+                EpisodeTransition(
+                    episode_id=episode_id,
+                    step_index=index,
+                    payload={
+                        "index": index,
+                        "kind": "decision",
+                        "action_strings": ["move"],
+                    },
+                )
+                for index in range(1, 5002)
+            )
+            session.commit()
+            report = build_run_report(session, run_id, step_offset=5001, step_limit=1)
+        self.assertEqual(len(report["transition_index"]["items"]), 5000)
+        self.assertTrue(report["transition_index"]["truncated"])
+        self.assertEqual(report["transition_index"]["total"], 5002)
+        self.assertEqual(report["transitions"]["items"][0]["index"], 5001)
 
     def test_explicit_selection_can_be_outside_page_but_not_outside_run(self) -> None:
         run_id = self.create_run(2)
