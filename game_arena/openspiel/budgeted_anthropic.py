@@ -24,6 +24,13 @@ from game_arena.openspiel.model_generation import (
 )
 
 PRICING_SOURCE = "https://platform.claude.com/docs/en/about-claude/pricing"
+DEFAULT_GAME_SYSTEM = (
+    "Choose one legal action for the acting player from the supplied game state. "
+    "Reply with exactly two lines and nothing else:\n"
+    "Summary: <one brief sentence of at most 12 words>\n"
+    "Final Answer: <one integer id from the provided legal_actions>\n"
+    "Do not add analysis, lists, markdown, extra headings, or explanations of the rules."
+)
 # Integer nano-USD per token; published rates are USD per million tokens.
 PRICES: dict[str, tuple[int, int]] = {
     "claude-haiku-5-5": (100, 500),
@@ -346,13 +353,15 @@ class BudgetedClaudeModel:
             raise EpisodeStopped(
                 "provider_error", "Invalid structured arena prompt; no request was made"
             ) from None
-        combined = prompt + (system_instruction or "")
+        effective_system = system_instruction or DEFAULT_GAME_SYSTEM
+        combined = prompt + effective_system
         reservation = self.ledger.reserve(self._model_name, combined, self.max_tokens)
         kwargs: dict[str, Any] = {
             "model": self._model_name,
             "max_tokens": self.max_tokens,
             "messages": [{"role": "user", "content": prompt}],
             "thinking": {"type": "disabled"},
+            "system": effective_system,
         }
         if self._model_name in {
             "claude-haiku-5-5",
@@ -362,8 +371,6 @@ class BudgetedClaudeModel:
             kwargs["output_config"] = {"effort": "low"}
         if self._model_name == "claude-sonnet-5-5":
             kwargs["thinking"] = {"type": "between_tools"}
-        if system_instruction:
-            kwargs["system"] = system_instruction
         try:
             response = self._client.messages.create(**kwargs)
         except Exception as exc:
@@ -408,6 +415,7 @@ class BudgetedClaudeModel:
             usage=usage,
             metadata={
                 "provider": "anthropic",
+                "system_instruction": effective_system,
                 "mock": False,
                 "model": response.model,
                 "request_id": request_id,

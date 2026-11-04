@@ -15,6 +15,7 @@ from game_arena.openspiel.budgeted_anthropic import (
     ANTHROPIC_MODELS,
     BudgetLedger,
     BudgetedClaudeModel,
+    DEFAULT_GAME_SYSTEM,
     JEV_MODELS,
     JEV_PRICING_SOURCE,
     PRICING_SOURCE,
@@ -94,6 +95,39 @@ class BudgetedAnthropicTests(unittest.TestCase):
             ).fetchone()
         self.assertIn("Final Answer: 0", raw)
         self.assertEqual(status, "completed")
+
+    def test_default_system_is_concise_and_recorded_with_its_input_bound(self):
+        ledger = self.ledger()
+        client = FakeClient()
+        response = self.model(ledger, client).generate_with_text_input(PROMPT)
+        self.assertEqual(client.calls[0]["system"], DEFAULT_GAME_SYSTEM)
+        self.assertIn("exactly two lines", DEFAULT_GAME_SYSTEM)
+        self.assertIn("at most 12 words", DEFAULT_GAME_SYSTEM)
+        self.assertEqual(response.metadata["system_instruction"], DEFAULT_GAME_SYSTEM)
+        with sqlite3.connect(self.path) as connection:
+            bound, prompt_hash = connection.execute(
+                "SELECT input_bound,prompt_sha256 FROM requests"
+            ).fetchone()
+        self.assertEqual(bound, len((PROMPT + DEFAULT_GAME_SYSTEM).encode()) + 1024)
+        import hashlib
+
+        self.assertEqual(
+            prompt_hash,
+            hashlib.sha256((PROMPT + DEFAULT_GAME_SYSTEM).encode()).hexdigest(),
+        )
+
+    def test_explicit_system_is_preserved_and_counted_instead_of_default(self):
+        ledger = self.ledger()
+        client = FakeClient()
+        custom = "Custom game instruction with unicode: café."
+        response = self.model(ledger, client).generate_with_text_input(
+            PROMPT, system_instruction=custom
+        )
+        self.assertEqual(client.calls[0]["system"], custom)
+        self.assertEqual(response.metadata["system_instruction"], custom)
+        with sqlite3.connect(self.path) as connection:
+            bound = connection.execute("SELECT input_bound FROM requests").fetchone()[0]
+        self.assertEqual(bound, len((PROMPT + custom).encode()) + 1024)
 
     def test_transport_failure_retains_reservation_and_never_retries(self):
         ledger = self.ledger()
