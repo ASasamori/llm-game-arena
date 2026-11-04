@@ -26,6 +26,7 @@ jobs:
           uv run python -m game_arena environments simulate --game 'one_night_werewolf(players=3)' --seed 123 --output analytics/ci-werewolf.json
           uv run python -m game_arena environments simulate --game 'avalon(players=5)' --seed 123 --output analytics/ci-avalon.json
           uv run python -m game_arena environments simulate --game 'coup(players=3)' --seed 123 --output analytics/ci-coup.json
+          uv run python -m game_arena environments simulate --game 'catan(players=4,max_turns=8)' --seed 123 --output analytics/ci-catan.json
       - name: Test without provider credentials or external services
         run: |
           uv run python -m unittest discover -s tests -p 'test_*.py'

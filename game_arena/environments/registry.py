@@ -12,7 +12,7 @@ ALIASES = {
     "werewolf": "one_night_werewolf",
     "one_night_ultimate_werewolf": "one_night_werewolf",
 }
-NAMES = ("one_night_werewolf", "avalon", "coup")
+NAMES = ("one_night_werewolf", "avalon", "coup", "catan")
 
 
 def native_name(spec: str) -> str | None:
@@ -47,12 +47,14 @@ def parse_spec(spec: str) -> tuple[str, dict[str, Any]]:
 def create_game(name: str, parameters: dict[str, Any] | None = None) -> NativeGame:
     from game_arena.environments.avalon import AvalonGame
     from game_arena.environments.coup import CoupGame
+    from game_arena.environments.catan import CatanGame
     from game_arena.environments.werewolf import WerewolfGame
 
     factories = {
         "one_night_werewolf": WerewolfGame,
         "avalon": AvalonGame,
         "coup": CoupGame,
+        "catan": CatanGame,
     }
     name = ALIASES.get(name, name)
     if name not in factories:
@@ -74,9 +76,12 @@ def canonical_spec(game: NativeGame) -> str:
 
 
 def describe(game: NativeGame) -> dict[str, Any]:
-    low, high = {"avalon": (5, 10), "coup": (2, 6), "one_night_werewolf": (3, 10)}[
-        game.name
-    ]
+    low, high = {
+        "avalon": (5, 10),
+        "coup": (2, 6),
+        "one_night_werewolf": (3, 10),
+        "catan": (3, 4),
+    }[game.name]
     return {
         "short_name": game.name,
         "long_name": game.name.replace("_", " ").title(),

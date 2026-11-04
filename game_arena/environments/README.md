@@ -1,4 +1,4 @@
-# Standalone social deduction environments
+# Standalone game environments
 
 These rules engines are ordinary Python. They import neither OpenSpiel nor model
 SDKs and need no credentials, database, Redis, or network. The existing runner
@@ -41,6 +41,8 @@ print([(a, state.action_to_string(player, a)) for a in state.legal_actions(playe
 Invalid parameters and illegal actions raise `ValueError`. Actions are checked
 before state mutation. `clone()` isolates a copy. `serialize()` is a full private
 audit representation; only `observation_string(player)` is safe for a player.
+`public_state()` provides spectator facts for the board viewer. It excludes
+secret roles, hands, unrevealed ballots, deck contents, and private trade drafts.
 
 ## Games and parameters
 
@@ -82,6 +84,39 @@ Clockwise reaction priority resolves simultaneous physical-table challenges.
 The declared tournament turn cap gives everyone zero utility if nobody has won;
 it never declares the remaining players winners. Reformation and the alternate
 two-player deal are unsupported.
+
+`catan(players=4,starting_player=-1,max_turns=500,max_actions_per_turn=200)`
+supports the base game for 3–4 players, following the publisher's
+[2020 rules and combined trade/build variant](https://www.catan.com/sites/default/files/2021-07/catan-25th-rules_eng-200313.pdf).
+It uses 19 hexes, 54 intersections, 72 road locations, variable terrain,
+standard spiral number tokens, nine fixed ports, and reverse-order second
+placement. Production, bank shortages, seven/discards, robber theft, all five
+development card types, piece supplies, Longest Road, Largest Army, and the
+10-point victory condition are implemented. A development card bought this turn
+cannot be played until a later turn; victory-point cards count immediately.
+Expansion content, Helpers, and 2/5/6-player variants are unsupported.
+
+`starting_player=-1` selects the first seat through a recorded chance action;
+otherwise it must identify a seat. `max_turns` accepts 1–10000 and
+`max_actions_per_turn` accepts 20–10000. These are declared arena safety caps,
+including negotiation actions; reaching either without a winner records a draw.
+`num_steps` remains the independent harness transition cap and records truncation.
+
+Domestic trades support arbitrary resource bundles, consent, rejection, and
+counteroffers. During the active player's main phase, choose `Propose domestic trade`,
+select a partner, edit the give/receive bundles, then send the offer. Only the
+recipient can accept, reject, or counter; acceptance checks both holdings before
+moving cards atomically. Drafts are private to their editor. No gifts, loans,
+same-resource exchanges, or development-card trading are permitted. Every trade
+involves the active player. Maritime actions apply 4:1, general-port 3:1, or
+resource-port 2:1 rates and check bank supply. The report displays offered bundles
+and completed trades while keeping each player's resource mix private.
+
+```bash
+uv run python -m game_arena environments simulate --game 'catan(players=3,max_turns=20)' --seed 0 --output analytics/catan-baseline.json
+uv run python -m game_arena environments replay analytics/catan-baseline.json
+uv run python -m game_arena plan --games 'catan(players=3,max_turns=20)' --models smoke --episodes 2 --seed 0 --max-steps 5000 --output analytics/catan-smoke --execute-mock --workers 2
+```
 
 ## Use the existing arena after validation
 

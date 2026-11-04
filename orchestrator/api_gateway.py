@@ -174,7 +174,7 @@ class RunCreateRequest(BaseModel):
     )
     env: str = Field(
         default="connect_four_v1",
-        description="OpenSpiel or native social deduction game specification, including parameters, or a legacy environment alias.",
+        description="OpenSpiel or native game specification, including parameters, or a legacy environment alias.",
     )
 
     seed: int = Field(default=0, ge=0, le=4294967295)

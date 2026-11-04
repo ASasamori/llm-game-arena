@@ -47,6 +47,27 @@ class AStandaloneEnvironmentIntegrationTests(unittest.TestCase):
                         self.assertTrue(metadata["supported"])
                         self.assertTrue(metadata["rules"])
 
+    def test_catan_player_bounds_and_tournament_parameters_roundtrip(self) -> None:
+        for players in (3, 4):
+            for starting in range(-1, players):
+                spec = f"catan(players={players},starting_player={starting},max_turns=8,max_actions_per_turn=30)"
+                game = registry.load_game(spec)
+                self.assertEqual(
+                    registry.load_game(registry.canonical_spec(game)).parameters,
+                    game.parameters,
+                )
+                self.assertEqual(registry.describe(game)["num_players"], players)
+        for spec in (
+            "catan(players=2)",
+            "catan(players=5)",
+            "catan(starting_player=4)",
+            "catan(max_turns=0)",
+            "catan(max_actions_per_turn=1)",
+            "catan(extra=1)",
+        ):
+            with self.subTest(spec=spec), self.assertRaises(ValueError):
+                registry.load_game(spec)
+
     def test_aliases_boolean_parameters_and_role_decks_are_canonical(self) -> None:
         game = registry.load_game("werewolf(players=3,lone_wolf=false)")
         self.assertEqual(game.name, "one_night_werewolf")
@@ -124,7 +145,7 @@ class AStandaloneEnvironmentIntegrationTests(unittest.TestCase):
                             "game_arena.environments",
                             "simulate",
                             "--game",
-                            game,
+                            f"{game}(max_turns=8)" if game == "catan" else game,
                             "--seed",
                             "44",
                             "--output",
@@ -166,7 +187,7 @@ def guarded(name,*args,**kwargs):
  return original_import(name,*args,**kwargs)
 builtins.__import__=guarded
 from game_arena.environments.cli import replay,simulate
-for name in ('one_night_werewolf','avalon','coup'):
+for name in ('one_night_werewolf','avalon','coup','catan(max_turns=8)'):
  result=simulate(name,seed=7)
  assert result['terminal'] and replay(result)['verified']
 assert not any(any(name==p or name.startswith(p+'.') for p in blocked) for name in sys.modules)
@@ -229,7 +250,12 @@ class BMockArenaIntegrationTests(unittest.TestCase):
         from game_arena.openspiel import catalog
         from game_arena.openspiel.replay import replay_episode
 
-        for spec, players in (("one_night_werewolf", 3), ("avalon", 5), ("coup", 3)):
+        for spec, players in (
+            ("one_night_werewolf", 3),
+            ("avalon", 5),
+            ("coup", 3),
+            ("catan(players=3,max_turns=8)", 3),
+        ):
             with self.subTest(game=spec):
                 metadata = catalog.inspect_game(spec)
                 self.assertTrue(metadata["supported"])
@@ -251,7 +277,12 @@ class BMockArenaIntegrationTests(unittest.TestCase):
         from game_arena.openspiel import catalog
         from game_arena.openspiel.harness import _initial_state
 
-        for spec, players in (("one_night_werewolf", 3), ("avalon", 5), ("coup", 3)):
+        for spec, players in (
+            ("one_night_werewolf", 3),
+            ("avalon", 5),
+            ("coup", 3),
+            ("catan(players=3,max_turns=8)", 3),
+        ):
             with self.subTest(game=spec):
                 result = self.execute(spec, players)
                 state = _initial_state(

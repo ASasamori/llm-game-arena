@@ -36,6 +36,17 @@ CASES: tuple[tuple[dict[str, Any], int], ...] = (
     (
         {
             "run_type": "PVP",
+            "env": "catan(players=4,max_turns=8)",
+            "num_episodes": 4,
+            "num_steps": 1000,
+            "model_names": ["MOCK:a", "MOCK:b", "MOCK:c", "MOCK:d"],
+            "seed": 888,
+        },
+        4,
+    ),
+    (
+        {
+            "run_type": "PVP",
             "env": "avalon(players=6)",
             "num_episodes": 6,
             "num_steps": 1000,
