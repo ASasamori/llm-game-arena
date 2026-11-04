@@ -63,6 +63,19 @@ For mean field games include `"mean_field_distribution":"uniform"` or a support
 probability mapping, plus `"mean_field_population":0`. This records an exogenous
 population assumption, not an equilibrium solver.
 
+For base Catan, use `catan(players=3)` or `catan(players=4)` and supply one model
+per seat. This short mock smoke run uses declared game safety caps:
+
+```bash
+curl -sS -X POST http://localhost:8000/v1/runs -H 'Authorization: Bearer local-dev-key' -H 'Content-Type: application/json' -d '{"run_type":"PVP","env":"catan(players=3,max_turns=20)","num_episodes":1,"num_steps":5000,"model_names":["MOCK:a","MOCK:b","MOCK:c"],"seed":123,"failure_policy":"raise"}'
+```
+
+Trading is part of the environment's legal action protocol: choose a partner,
+draft resource quantities, send, then accept/reject/counter. Bank/port trades
+are separate legal actions. The recorded viewer shows the island and offered
+bundles; it is a replay viewer, not an interactive human game client. See the
+[environment guide](game_arena/environments/README.md) for rules and parameters.
+
 ```bash
 curl http://localhost:8000/v1/runs/<RUN_ID> \
   -H 'Authorization: Bearer local-dev-key'
@@ -105,11 +118,14 @@ Run creation and status responses include these absolute URLs:
 - `text_report_url`: the authenticated ASCII report endpoint.
 - `report_data_url`: the authenticated JSON report endpoint.
 
-The browser lets you choose an episode and page through its transitions. Reports
+The browser lets you choose an episode, jump to a numbered step, select a phase,
+and step through transitions using buttons or arrow keys. Reports
 show outcomes and return vectors, moves, recorded player observations, summaries,
-and raw model responses. New traces include before/after evaluator board snapshots
-for games with public state. Older traces and imperfect-information games retain
-their saved observations; the report does not reconstruct missing snapshots.
+and raw model responses. New native traces include before/after public board
+snapshots, with private player views shown separately. Older Avalon traces can
+display public fields extracted from stored observations, labelled as such;
+missing after-state evidence is left unavailable. Generic OpenSpiel games retain
+their existing evaluator boards and observations.
 A summary is text the model supplied during play; it does not expose hidden
 internal reasoning. Mock responses are placeholders and should not be interpreted
 as strategic reasoning. State views and private observations are evaluator
@@ -135,11 +151,20 @@ curl -sS 'http://localhost:8000/v1/runs/RUN_ID/report?format=text&episode_id=EPI
 - `include_prompt`: include recorded prompts in text output; default `false`.
 
 The JSON payload has `schema_version`, `run`, `episodes`, `selected_episode`,
-`transitions`, and `notices` fields. Both page collections include their items,
+`transitions`, `transition_index`, and `notices` fields. Both page collections include their items,
 total, limit, and offset. JSON transition records include the saved model data;
 `include_prompt` controls only the plain-text rendering. Report requests use the
 usual authentication and rate limits. Reading a report does not request new model
 generations or incur provider API fees. The website needs no separate hosting.
+
+`transition_index` projects small navigation fields for at most 5,000 transitions:
+zero-based `index`, `kind`, public `phase`, `quest`, `turn`, and a short `label`.
+It excludes prompts, observations, and responses. Its `total` and `truncated`
+fields describe the full episode. Numeric jumps still reach any later step using
+`step_offset`; transition payload pages remain limited to 200 items. The browser
+uses human-readable step numbers starting at 1 and saves `episode_id` and `step`
+in its URL. New native transition records have `public_state_before` and
+`public_state_after`; these contain spectator facts rather than hidden game state.
 
 ## Jev typed decision agents
 

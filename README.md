@@ -115,14 +115,14 @@ their contents are not embedded. Replay requires the retained files and checks
 their hashes before loading the game. The source hash covers repository Python
 code; it does not archive external game assets.
 
-## Standalone social deduction environments
+## Standalone game environments
 
 Jev can act as a typed legal-action policy through `JEV:jev-1.14.0`. It records
 classifier probabilities and confidence instead of generated explanations.
 The [Jev client setup](CLIENT_GUIDE.md#jev-typed-decision-agents) includes the
 funded-key requirement, mock mode, and a shared $0.10 capped Avalon trial.
 
-One Night Werewolf, original Avalon, and base Coup now have model-independent
+One Night Werewolf, original Avalon, base Coup, and base Catan have model-independent
 Python rules engines. Validate and replay them without AI or OpenSpiel before
 using the existing runner, reports, or dataset pipeline. See the
 [environment guide](game_arena/environments/README.md) for exact supported rules,
@@ -257,9 +257,15 @@ browser storage. Run creation and status responses provide `report_url`,
 `text_report_url`, and `report_data_url` links.
 
 The report shows episode outcomes, recorded moves, player observations, model
-summaries, and raw responses. New traces include before/after board snapshots
-when the game has public state. Older and imperfect-information traces use
-their saved player observations; missing snapshots are not reconstructed.
+summaries, and raw responses. Jump directly to a numbered step, choose a phase
+from the index, or use the previous/next and first/last controls. Step links
+retain the episode and step in the URL so a position can be revisited.
+New native traces include public boards before and after every transition.
+Avalon shows quest results, the proposed team, leader, and resolved approval
+votes; pending ballots and hidden roles stay out of the public board. The
+recorded actor's private view remains a separate panel. Older traces can show
+public facts extracted from their saved observations, labelled as such; an
+unrecorded after-state is not invented.
 Summaries contain text supplied by the model and do not expose hidden reasoning.
 Mock models supply placeholder explanations. Evaluator data can contain private
 observations from several players. Failed or older episodes show available

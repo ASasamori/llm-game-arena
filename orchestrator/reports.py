@@ -275,6 +275,7 @@ def _transition_index(
             board["phase"].label("phase"),
             board["quest_number"].label("quest"),
             board["turn"].label("turn"),
+            board["turn_number"].label("turn_number"),
             payload["action_strings"].label("actions"),
         )
         .where(EpisodeTransition.episode_id == episode_id)
@@ -325,7 +326,9 @@ def _transition_index(
                 "kind": row["kind"],
                 "phase": phase,
                 "quest": row["quest"],
-                "turn": row["turn"],
+                "turn": row["turn_number"]
+                if row["turn_number"] is not None
+                else row["turn"],
                 "label": label[:200],
             }
         )

@@ -10,7 +10,7 @@
     :root { --ink:#18272b; --muted:#637277; --faint:#8a969a; --paper:#fff; --ground:#f4f6f5; --line:#dce3df; --accent:#17634f; --accent-soft:#eaf4ee; --blue:#315f9a; --blue-soft:#edf3fa; --amber:#8b6323; --amber-soft:#faf2e4; --red:#9a3e3e; --red-soft:#fbefed; --mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace; --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
     * { box-sizing:border-box; }
     body { margin:0; background:var(--ground); color:var(--ink); font:14px/1.55 var(--sans); -webkit-font-smoothing:antialiased; }
-    button,input { font:inherit; }
+    button,input,select { font:inherit; }
     button,a,input,summary { -webkit-tap-highlight-color:transparent; }
     button { cursor:pointer; }
     button:disabled { cursor:default; opacity:.4; }
@@ -68,7 +68,7 @@
     .stat-label { color:var(--muted); font-size:11px; margin-bottom:6px; }
     .stat-value { font-size:20px; font-weight:650; letter-spacing:-.5px; overflow-wrap:anywhere; }
     .stat-value.compact { font-size:13px; letter-spacing:0; font-weight:550; }
-    .stat-detail { color:var(--faint); font:10px var(--mono); margin-top:4px; }
+    .stat-detail { color:var(--faint); font:10px var(--mono); margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .workspace-grid { display:grid; grid-template-columns:246px minmax(0,1fr); gap:24px; align-items:start; }
     .panel { background:var(--paper); border:1px solid var(--line); border-radius:8px; overflow:hidden; }
     .panel-heading { padding:17px 18px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:12px; }
@@ -103,6 +103,66 @@
     .step-button span { font-size:9px; color:var(--faint); text-transform:uppercase; }
     .step-button.selected { background:var(--accent); color:var(--paper); border-color:var(--accent); }
     .step-button.selected span { color:#c9dfd5; }
+    .timeline-tools { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; padding:11px 0; }
+    .jump-form { display:flex; flex-wrap:wrap; align-items:center; gap:7px; font-size:11px; color:var(--muted); }
+    .jump-form input { width:76px; min-width:0; border:1px solid var(--line); border-radius:5px; padding:6px 8px; color:var(--ink); background:white; font:12px var(--mono); }
+    .jump-form button { padding:5px 9px; font-size:11px; }
+    .phase-picker { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:11px; min-width:0; max-width:100%; }
+    .phase-picker select { width:250px; max-width:100%; min-width:0; background:white; color:var(--ink); border:1px solid var(--line); padding:7px; border-radius:5px; font-size:11px; }
+    .index-note { color:var(--faint); font-size:10px; padding:0 0 7px; }
+    .game-board { margin-bottom:18px; }
+    .game-board .panel-heading h3 { font-size:14px; }
+    .game-board-body { padding:20px; background:#fbfcfa; }
+    .board-status { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:17px; }
+    .board-status h4 { margin:0 0 3px; font-size:19px; letter-spacing:-.4px; }
+    .phase-explainer { font-size:12px; color:var(--muted); max-width:660px; }
+    .quest-track { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:9px; margin:17px 0 20px; }
+    .quest-card { border:1px solid var(--line); border-radius:7px; background:white; padding:13px 11px; min-width:0; }
+    .quest-card.success { background:var(--blue-soft); border-color:#b9cfe6; }
+    .quest-card.failed { background:var(--red-soft); border-color:#e3bdb7; }
+    .quest-card.current { border:2px solid var(--accent); padding:12px 10px; }
+    .quest-card h5 { font-size:11px; margin:0 0 10px; color:var(--muted); font-weight:600; }
+    .quest-symbol { font-size:21px; line-height:1.1; font-weight:700; color:var(--faint); margin-bottom:8px; }
+    .quest-card.success .quest-symbol { color:var(--blue); }
+    .quest-card.failed .quest-symbol { color:var(--red); }
+    .quest-detail { font-size:10px; line-height:1.65; overflow-wrap:anywhere; color:var(--muted); }
+    .quest-team { color:var(--ink); }
+    .seat-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(125px,1fr)); gap:9px; }
+    .seat-card { border:1px solid var(--line); background:white; border-radius:7px; padding:12px; min-width:0; }
+    .seat-card.in-team { background:#edf5f0; border-color:#bad0c2; }
+    .seat-card.acting { box-shadow:inset 0 3px 0 var(--accent); }
+    .seat-card.eliminated { opacity:.6; }
+    .seat-name { display:flex; align-items:center; justify-content:space-between; gap:7px; font-weight:700; font-size:14px; margin-bottom:7px; }
+    .seat-model { font:9px/1.5 var(--mono); color:var(--muted); overflow-wrap:anywhere; margin-top:7px; }
+    .seat-facts { display:flex; flex-wrap:wrap; gap:4px; font-size:10px; color:var(--muted); }
+    .seat-tag { border-radius:3px; padding:2px 5px; background:#edf0ee; color:#53655c; font-size:9px; white-space:nowrap; }
+    .seat-tag.leader { background:#fff2cf; color:#8b6323; }
+    .seat-tag.active { background:var(--accent); color:white; }
+    .seat-tag.approved { background:var(--blue-soft); color:var(--blue); }
+    .seat-tag.rejected { background:var(--red-soft); color:var(--red); }
+    .board-footer { display:flex; flex-wrap:wrap; justify-content:space-between; gap:10px; padding-top:15px; margin-top:17px; border-top:1px solid var(--line); font-size:11px; color:var(--muted); }
+    .rejection-track { display:flex; align-items:center; flex-wrap:wrap; gap:5px; }
+    .rejection-dot { width:14px; height:14px; border-radius:50%; background:#e4e9e5; border:1px solid #ced7d0; }
+    .rejection-dot.filled { background:var(--red); border-color:var(--red); }
+    .public-log { margin:17px 0 0; border:1px solid var(--line); border-radius:5px; background:white; }
+    .public-log summary { padding:9px 12px; }
+    .log-row { font-size:11px; color:var(--muted); padding:8px 12px; border-top:1px solid #edf0ed; overflow-wrap:anywhere; }
+    .private-banner { padding:11px 18px; background:var(--amber-soft); color:var(--amber); font-size:11px; }
+    .private-facts { display:grid; gap:9px; padding:15px 18px; font-size:12px; }
+    .private-fact { display:flex; align-items:baseline; justify-content:space-between; gap:12px; border-bottom:1px solid #edf0ed; padding-bottom:7px; }
+    .private-fact:last-child { border:0; padding:0; }
+    .private-fact strong { font:11px/1.6 var(--mono); max-width:70%; text-align:right; overflow-wrap:anywhere; }
+    .catan-layout { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(180px,1fr); gap:18px; align-items:start; }
+    .catan-map { width:100%; height:auto; display:block; max-height:540px; background:#eaf2f3; border-radius:8px; }
+    .catan-map text { font-family:var(--sans); pointer-events:none; }
+    .map-legend { display:flex; gap:9px; flex-wrap:wrap; font-size:10px; margin-top:10px; color:var(--muted); }
+    .legend-dot { display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:4px; }
+    .trade-card { background:#fff; border:1px solid var(--line); padding:14px; border-radius:7px; margin-bottom:13px; }
+    .trade-card h5 { margin:0 0 9px; font-size:12px; }
+    .resource-chips { display:flex; flex-wrap:wrap; gap:5px; }
+    .resource-chip { border:1px solid var(--line); border-radius:4px; padding:4px 6px; font:10px var(--mono); background:#f8faf8; }
+    .trade-arrow { margin:8px 0; font-size:11px; color:var(--muted); }
+    .trade-note { color:var(--muted); font-size:11px; line-height:1.7; }
     .transition-layout { display:grid; grid-template-columns:minmax(0,1.03fr) minmax(0,1fr); gap:18px; align-items:start; }
     .observation-panel { position:sticky; top:18px; }
     .state-column { display:flex; flex-direction:column; gap:16px; min-width:0; }
@@ -178,6 +238,7 @@
     @media (min-width:1400px) { .workspace-grid { grid-template-columns:258px minmax(0,1fr); gap:28px; } .transition-layout { gap:20px; } }
     @media (max-width:1050px) { .workspace-grid { grid-template-columns:210px minmax(0,1fr); gap:18px; } .transition-layout { grid-template-columns:1fr; } .observation-panel { position:static; } .board { max-height:400px; } .auth-wrap { gap:35px; } }
     @media (max-width:700px) { main { padding:22px 16px; } .topbar-inner { padding:15px 16px; } .topbar-note { display:none; } .connection-label { display:none; } .auth-wrap { grid-template-columns:1fr; margin:28px auto 40px; gap:28px; max-width:460px; } .auth-intro h1 { font-size:37px; } .auth-intro p { font-size:14px; } .evidence-flow { margin-top:20px; } .auth-card { padding:22px; } .run-header { flex-direction:column; gap:13px; } .run-header h1 { font-size:28px; } .run-actions { padding:0; } .stats { grid-template-columns:repeat(2,minmax(0,1fr)); } .stat { padding:14px 16px; } .stat:nth-child(2) { border-right:0; } .stat:nth-child(-n+2) { border-bottom:1px solid var(--line); } .stat-value { font-size:18px; } .workspace-grid { grid-template-columns:1fr; } .episode-list { display:flex; gap:5px; max-height:none; overflow:auto; padding:7px; } .episode-button { flex:0 0 185px; margin:0; } .episode-top { gap:5px; } .episode-header { margin-top:5px; } .episode-header h2 { font-size:19px; } .timeline-top { align-items:flex-start; } .timeline-nav button { min-width:65px; } .transition-layout { gap:15px; } .footer { font-size:10px; } }
+    @media (max-width:700px) { .quest-track { gap:4px; } .quest-card { padding:10px 6px; } .quest-card.current { padding:9px 5px; } .quest-card h5 { font-size:10px; } .quest-detail { font-size:9px; } .quest-symbol { font-size:17px; } .game-board-body { padding:14px; } .seat-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .phase-picker { width:100%; } .phase-picker select { flex:1; } .catan-layout { grid-template-columns:1fr; } .jump-form { gap:5px; } }
     @media (prefers-reduced-motion:reduce) { .busy::before { animation:none; } }
   </style>
 </head>
@@ -224,6 +285,8 @@
           <div id="episodeHeader"></div>
           <div class="timeline" id="timeline" hidden>
             <div class="timeline-top"><div class="timeline-label" id="transitionLabel"></div><div class="timeline-nav"><button type="button" id="previousStep">← Previous</button><button type="button" id="nextStep">Next →</button></div></div>
+            <div class="timeline-tools"><form class="jump-form" id="jumpForm"><button type="button" id="firstStep" aria-label="First transition">First</button><label for="stepJump">Go to step</label><input id="stepJump" type="number" min="1" step="1" inputmode="numeric" required><button type="submit" id="jumpButton">Go →</button><button type="button" id="lastStep" aria-label="Last recorded transition">Last</button></form><label class="phase-picker" for="phaseIndex">Find phase<select id="phaseIndex"><option value="">Choose a phase…</option></select></label></div>
+            <div class="index-note" id="indexNote"></div>
             <div class="step-strip" id="stepStrip" aria-label="Recorded transitions on this page"></div>
           </div>
           <div id="transitionContent"></div>
@@ -248,6 +311,8 @@
       const pretty = value => typeof value==='string' ? value.replaceAll('_',' ') : 'Not recorded';
       const asArray = value => Array.isArray(value) ? value : [];
       const formatNumber = value => typeof value==='number' ? Number.isInteger(value) ? String(value) : Number(value.toPrecision(6)).toString() : display(value);
+      function gameName(specification) { const name=String(specification||'Game').split('(')[0].trim(); const labels={avalon:'Avalon',catan:'Catan',coup:'Coup',one_night_werewolf:'One Night Werewolf',one_night_ultimate_werewolf:'One Night Werewolf',connect_four:'Connect Four',tic_tac_toe:'Tic Tac Toe',kuhn_poker:'Kuhn Poker'}; return labels[name]||name.replaceAll('_',' ').replace(/\b\w/g,letter=>letter.toUpperCase()); }
+      function modelName(identity) { const name=display(identity); const claude=name.match(/(?:claude[-_: ]*)?(haiku|sonnet|opus)[-_ ](\d+)(?:[-_. ](\d+))?/i); if(claude) return claude[1][0].toUpperCase()+claude[1].slice(1).toLowerCase()+' '+claude[2]+(claude[3]?'.'+claude[3]:''); if(/^MOCK:/i.test(name)) return 'Mock '+name.slice(5); return name.replace(/^(?:ClaudeModel|MockModel|JevModel|GPTModel|GeminiModel)\((.*)\)$/,'$1').replace(/^model(?:_name)?\s*=\s*['"]?(.*?)['"]?$/,'$1'); }
       function badge(text, tone='') { return create('span','badge'+(tone?' '+tone:''),text); }
       function statusBadge(status) { const tones={COMPLETED:'good',SUCCESS:'good',PENDING:'blue',RUNNING:'blue',FAILED:'bad',TRUNCATED:'warn'}; return badge(pretty(status),tones[status]||''); }
       function clearError() { $('errorMessage').textContent=''; $('errorMessage').hidden=true; }
@@ -258,7 +323,7 @@
         $('refreshButton').disabled=loading;
         $('connectButton').disabled=loading;
         $('connectButton').textContent=loading?'Connecting…':'Connect & review →';
-        for (const id of ['episodesPrevious','episodesNext','previousStep','nextStep']) $(id).disabled=loading||$(id).dataset.boundary==='true';
+        for (const id of ['episodesPrevious','episodesNext','previousStep','nextStep','firstStep','lastStep','jumpButton','phaseIndex','stepJump']) $(id).disabled=loading||$(id).dataset.boundary==='true';
       }
       function disconnect(message='') {
         if(state.controller) state.controller.abort();
@@ -305,11 +370,10 @@
           state.episodeOffset=number(payload.episodes.offset,state.episodeOffset);
           state.stepOffset=number(payload.transitions.offset,state.stepOffset);
           const items=asArray(payload.transitions.items);
-          state.stepPosition=position==='last'?Math.max(0,items.length-1):position==='keep'?Math.min(state.stepPosition,Math.max(0,items.length-1)):0;
+          state.stepPosition=typeof position==='number'?Math.max(0,Math.min(items.length-1,position-state.stepOffset)):position==='last'?Math.max(0,items.length-1):position==='keep'?Math.min(state.stepPosition,Math.max(0,items.length-1)):0;
           $('workspace').hidden=false; $('authGate').hidden=true; $('connectionBar').hidden=false; $('topbarNote').hidden=true;
           $('connectionLabel').textContent='Connected · key held in this tab';
           $('apiKeyInput').value='';
-          window.history.replaceState(null,'','/runs/'+encodeURIComponent(state.runId));
           render();
         } catch(error) {
           if(requestId===state.requestId) {
@@ -319,22 +383,22 @@
           }
         } finally { clearTimeout(timeout); if(requestId===state.requestId) setLoading(false); }
       }
-      function stat(label,value,detail='',compact=false) { const node=create('div','stat'); node.append(create('div','stat-label',label),create('div','stat-value'+(compact?' compact':''),value)); if(detail) node.append(create('div','stat-detail',detail)); return node; }
+      function stat(label,value,detail='',compact=false) { const node=create('div','stat'); node.append(create('div','stat-label',label),create('div','stat-value'+(compact?' compact':''),value)); if(detail) { const detailNode=create('div','stat-detail',detail); detailNode.title=detail; node.append(detailNode); } return node; }
       function render() {
         const {run,episodes,selected_episode:selected,notices}=state.payload;
         const configuration=run.configuration||{};
         const game=configuration.game||configuration.env||selected?.game_spec||selected?.game;
-        $('runTitle').textContent=game?display(game):'Run '+shortId(run.run_id);
+        $('runTitle').textContent=game?gameName(game):'Run '+shortId(run.run_id); $('runTitle').title=game?display(game):'';
         const meta=$('runMeta'); meta.replaceChildren(statusBadge(run.status),create('code','',run.run_id),create('span','',pretty(run.run_type)));
         if(run.created_at) meta.append(create('span','',new Date(run.created_at).toLocaleString()));
-        document.title=(game?display(game):shortId(run.run_id))+' · Game Arena review';
+        document.title=(game?gameName(game):shortId(run.run_id))+' · Game Arena review';
         const counts=run.status_counts||{};
         const countText=Object.entries(counts).map(([key,value])=>value+' '+pretty(key).toLowerCase()).join(' · ');
         const models=asArray(configuration.model_names).length?configuration.model_names:asArray(selected?.player_agents).length?selected.player_agents:asArray(selected?.agent);
         $('runStats').replaceChildren(
           stat('Episodes recorded',number(run.episodes_saved)+' / '+number(run.num_episodes),countText),
           stat('Run mode',pretty(run.run_type),configuration.rotate_seats===false?'Fixed seat assignments':configuration.rotate_seats===true?'Seat rotation enabled':''),
-          stat('Configured actors',models.length?models.map(display).join(' · '):'Not recorded','',true),
+          stat('Configured actors',models.length?models.length+' players':'Not recorded',models.length?models.map(modelName).join(' · '):'',false),
           stat('Run seed',configuration.seed!==undefined?display(configuration.seed):'Not recorded',configuration.num_steps?'Cap: '+configuration.num_steps+' transitions':'',false)
         );
         const noticeNode=$('notices'); noticeNode.replaceChildren();
@@ -366,7 +430,7 @@
         const root=$('episodeHeader'); root.replaceChildren();
         if(!episode) { $('timeline').hidden=true; $('transitionContent').replaceChildren(emptyPanel('Waiting for an episode','Completed episodes will appear here as workers save results.')); $('provenanceDetails').hidden=true; return; }
         const header=create('div','episode-header'); const title=create('div');
-        title.append(create('h2','',pretty(episode.game||'Episode')));
+        title.append(create('h2','',gameName(episode.game||'Episode')));
         const subtitle=create('div','episode-subtitle',episode.episode_id); title.append(subtitle);
         const chips=create('div','outcome');
         chips.append(outcomeChip('Status',pretty(episode.status)),outcomeChip('Returns',Array.isArray(episode.returns)?'['+episode.returns.map(formatNumber).join(', ')+']':'Not recorded'),outcomeChip('Transitions',number(episode.num_steps)));
@@ -380,7 +444,6 @@
         const side=create('div'); if(episode.mock===true) side.append(badge('Includes mock','warn')); else if(episode.mock===false) side.append(badge('Provider models','blue')); else side.append(badge('Model mode unrecorded'));
         if(episode.degraded) { side.append(document.createElement('br'),badge('Fallback assisted','warn')); }
         header.append(side); root.append(header);
-        if(episode.game_progress?.quest_results) { const progress=create('div','panel'); progress.style.marginBottom='16px'; progress.append(create('h3','','Recorded quest results')); asArray(episode.game_progress.quest_results).forEach(q=>progress.append(create('div','', 'Quest '+q.quest+': '+(q.success?'SUCCEEDED':'FAILED')+' · Team '+asArray(q.team).map(p=>'P'+p).join(', ')+' · '+q.fails+' fail card(s)'))); if(!episode.game_progress.quest_results.length) progress.append(create('div','','No completed quests.')); progress.append(create('div','muted','Current phase: '+pretty(episode.game_progress.phase))); root.append(progress); }
         const exportBar=create('div','run-actions'); exportBar.style.paddingTop='0'; exportBar.style.marginBottom='17px';
         const ascii=create('button','small','View ASCII'); ascii.type='button'; ascii.addEventListener('click',()=>fetchText(false));
         const download=create('button','small','Download text'); download.type='button'; download.addEventListener('click',()=>fetchText(true));
@@ -388,7 +451,7 @@
         exportBar.append(ascii,download,include); root.append(exportBar);
         if(episode.status==='FAILED'&&episode.error) root.append(create('div','message',episode.error));
         if(episode.stop_message) root.append(create('div','message',episode.stop_message));
-        $('provenanceDetails').hidden=false; $('provenanceContent').textContent=display(episode.provenance||{});
+        $('provenanceDetails').hidden=false; $('provenanceContent').textContent=display({...episode.provenance,recorded_game_spec:episode.game_spec||episode.game,recorded_actors:asArray(episode.player_agents).length?episode.player_agents:episode.agent});
         if(episode.trace_available===false) { $('timeline').hidden=true; $('transitionContent').replaceChildren(emptyPanel('No transition trace','This episode does not contain recorded transition evidence.')); return; }
         renderTransition();
       }
@@ -398,6 +461,7 @@
         const transitions=state.payload.transitions, items=asArray(transitions.items), total=number(transitions.total);
         const event=items[state.stepPosition];
         $('timeline').hidden=!total;
+        renderStepIndex(event,total);
         const strip=$('stepStrip'); strip.replaceChildren();
         items.forEach((item,index)=>{
           const button=create('button','step-button'+(index===state.stepPosition?' selected':''),String(number(item.index)+1)); button.type='button'; button.setAttribute('aria-label','Transition '+(number(item.index)+1)+': '+pretty(item.kind)); button.setAttribute('aria-pressed',String(index===state.stepPosition)); button.append(create('span','',transitionKind(item)));
@@ -409,6 +473,7 @@
         const decisions=asArray(event.decisions);
         if(!decisions.some(decision=>decision.player===state.player)) state.player=decisions.find(decision=>asArray(decision.legal_actions).length)?.player??decisions[0]?.player??null;
         const content=$('transitionContent'); content.replaceChildren();
+        const publicBoard=renderPublicBoard(event); if(publicBoard) content.append(publicBoard);
         const layout=create('div','transition-layout');
         const snapshot=renderEvaluatorState(event);
         if(event.kind==='chance'||event.kind==='mean_field') {
@@ -427,7 +492,132 @@
         content.append(layout);
         rememberView();
       }
-      function rememberView() { state.viewSnapshot={episodeId:state.episodeId,episodeOffset:state.episodeOffset,stepOffset:state.stepOffset,stepPosition:state.stepPosition,player:state.player}; }
+      function rememberView() {
+        state.viewSnapshot={episodeId:state.episodeId,episodeOffset:state.episodeOffset,stepOffset:state.stepOffset,stepPosition:state.stepPosition,player:state.player};
+        if(state.key&&state.runId) window.history.replaceState(null,'',viewUrl());
+      }
+      function viewUrl() { const url=new URL('/runs/'+encodeURIComponent(state.runId),window.location.origin); if(state.episodeId) url.searchParams.set('episode_id',state.episodeId); if(state.payload?.transitions?.total) url.searchParams.set('step',String(state.stepOffset+state.stepPosition+1)); return url; }
+      function renderStepIndex(event,total) {
+        const current=number(event?.index,state.stepOffset+state.stepPosition);
+        $('stepJump').max=String(total||1); $('stepJump').value=String(current+1);
+        boundary('firstStep',current===0||!total); boundary('lastStep',current>=total-1||!total); boundary('jumpButton',!total); boundary('stepJump',!total);
+        const index=state.payload.transition_index, items=asArray(index?.items).length?index.items:asArray(state.payload.transitions.items).map(item=>({index:item.index,kind:item.kind,phase:item.public_state_before?.phase,quest:item.public_state_before?.quest_number,turn:item.public_state_before?.turn_number}));
+        const picker=$('phaseIndex'); picker.replaceChildren(create('option','','Choose a phase…')); picker.firstChild.value='';
+        let previous='', count=0;
+        for(const item of items) {
+          if(!item.phase) continue;
+          const key=[item.phase,item.quest??'',item.turn??''].join('|'); if(key===previous) continue; previous=key;
+          const parts=['#'+(number(item.index)+1)]; if(item.quest) parts.push('Quest '+item.quest); if(item.turn!==undefined&&item.turn!==null) parts.push('Turn '+item.turn); parts.push(phaseName(item.phase));
+          const option=create('option','',parts.join(' · ')); option.value=String(item.index); picker.append(option); count++; if(count>=700) break;
+        }
+        boundary('phaseIndex',count===0);
+        $('indexNote').textContent='← / → to step · The link keeps this episode and step'+(index?.truncated?' · Phase index covers the first '+items.length+' transitions; Go to step reaches the full episode.':count?'':' · Phase markers are unavailable in this older trace.');
+      }
+      async function jumpToStep(index) {
+        if(state.loading||!state.payload||!Number.isInteger(index)) return;
+        const total=number(state.payload.transitions.total); if(index<0||index>=total) { showError('Enter a step from 1 to '+total+'.'); return; }
+        clearError(); state.player=null;
+        if(index>=state.stepOffset&&index<state.stepOffset+asArray(state.payload.transitions.items).length) { state.stepPosition=index-state.stepOffset; renderTransition(); }
+        else { state.stepOffset=Math.floor(index/STEP_LIMIT)*STEP_LIMIT; await fetchReport(index); }
+      }
+      function parseObservation(decision) { if(!decision) return null; const value=decision.observation; if(value&&typeof value==='object'&&!Array.isArray(value)) return value; if(typeof value==='string') { try { const parsed=JSON.parse(value); return parsed&&typeof parsed==='object'&&!Array.isArray(parsed)?parsed:null; } catch {} } return null; }
+      function phaseName(phase) { const labels={deal:'Deal roles',leader:'Choose first leader',proposal:'Propose a team',discussion:'Public discussion',vote:'Team approval vote',quest:'Resolve the quest',assassinate:'Assassination',terminal:'Game ended',night:'Night actions',day:'Day discussion',action:'Choose an action',turn:'Take a turn',roll:'Roll dice',pre_roll:'Roll dice',dice:'Resolve dice roll',main:'Trade and build',terrain:'Set up island',starting_player:'Choose first player',discard:'Discard resources',robber:'Move the robber',victim:'Choose a victim',steal:'Draw a stolen resource',development_draw:'Draw a development card',free_roads:'Build free roads',plenty:'Choose Year of Plenty resources',monopoly:'Choose a Monopoly resource',trade:'Trade negotiation',trade_partner:'Choose a trading partner',trade_draft:'Draft a trade',trade_response:'Respond to trade',trade_offer:'Trade offer',setup_settlement:'Place a starting settlement',setup_road:'Place a starting road'}; return labels[phase]||pretty(phase); }
+      function legacyAvalonPublic(event,after=false) {
+        const episode=state.payload.selected_episode;
+        if(!String(episode?.game_spec||episode?.game||'').startsWith('avalon')) return null;
+        const items=asArray(state.payload.transitions.items), next=items[state.stepPosition+1];
+        const decision=asArray((after?next:event)?.decisions).find(actor=>parseObservation(actor)?.game==='avalon');
+        const view=parseObservation(decision);
+        const final=after&&number(event.index)+1===number(state.payload.transitions.total)?episode.game_progress:null;
+        if(!view&&!final) return null;
+        const fields=['phase','current_player','leader','quest_number','team_size','proposed_team','consecutive_rejections','quest_results','public_history','winner','end_reason'];
+        const result={game:'avalon',schema_version:1}; for(const field of fields) if(view?.[field]!==undefined) result[field]=view[field];
+        if(final) { Object.assign(result,final); result.quest_number=Math.min(5,asArray(final.quest_results).length+1); result.current_player=null; }
+        const count=asArray(episode.player_agents).length||asArray(episode.agent).length||6;
+        result.players=Array.from({length:count},(_,seat)=>({seat}));
+        const votes=asArray(result.public_history).filter(entry=>entry?.kind==='team_vote'); result.last_team_vote=votes.at(-1)||null;
+        return result;
+      }
+      function renderPublicBoard(event) {
+        const snapshots=[['before',event.public_state_before||legacyAvalonPublic(event)],['after',event.public_state_after||legacyAvalonPublic(event,true)]].filter(([,value])=>value&&typeof value==='object'&&value.game);
+        if(!snapshots.length) return null;
+        if(!snapshots.some(([phase])=>phase===state.snapshotPhase)) state.snapshotPhase=snapshots[0][0];
+        const panel=create('section','panel game-board'); panel.setAttribute('aria-label','Public game board');
+        const heading=create('div','panel-heading'); heading.append(create('h3','','Public board · '+pretty(snapshots[0][1].game)));
+        const controls=create('div','snapshot-controls'); controls.setAttribute('role','group'); controls.setAttribute('aria-label','Public board before or after this transition');
+        const body=create('div','game-board-body'), buttons=[];
+        const update=()=>{ const board=snapshots.find(([phase])=>phase===state.snapshotPhase)[1]; body.replaceChildren(); if(board.game==='avalon') renderAvalonBoard(body,board); else if(board.game==='catan') renderCatanBoard(body,board); else renderSocialBoard(body,board); for(const [phase,button] of buttons) { button.className=phase===state.snapshotPhase?'selected':''; button.setAttribute('aria-pressed',String(phase===state.snapshotPhase)); } };
+        for(const [phase] of snapshots) { const button=create('button','',phase==='before'?'Before action':'After action'); button.type='button'; button.addEventListener('click',()=>{state.snapshotPhase=phase;update();}); controls.append(button); buttons.push([phase,button]); }
+        heading.append(controls); panel.append(heading,body,create('div','view-note',event.public_state_before||event.public_state_after?'Public state only. Hidden roles, hands, and pending secret votes stay in the separate player view.':'Public fields recovered from recorded player observations. Some older transitions have only a before view.')); update(); return panel;
+      }
+      function boardStatus(root,board,explanation) {
+        const status=create('div','board-status'), title=create('div'); title.append(create('h4','',phaseName(board.phase)),create('div','phase-explainer',explanation)); status.append(title);
+        if(Number.isInteger(board.current_player)&&board.current_player>=0) status.append(badge('P'+board.current_player+' to act','good'));
+        else if(board.phase==='terminal') status.append(badge(board.winner!==undefined&&board.winner!==null?'Winner: '+display(board.winner):'Final state','blue'));
+        else if(board.current_player===null||board.current_player===undefined) status.append(badge(board.phase==='night'?'Actor private':'Actor not recorded','blue'));
+        else status.append(badge('Environment','blue')); root.append(status);
+      }
+      function playerCard(player,board) {
+        const seat=player.seat, team=asArray(board.proposed_team).includes(seat), acting=board.current_player===seat;
+        const card=create('div','seat-card'+(team?' in-team':'')+(acting?' acting':'')+(player.eliminated?' eliminated':''));
+        const name=create('div','seat-name'); name.append(create('span','','P'+seat)); if(board.leader===seat||player.is_leader) name.append(create('span','seat-tag leader','Leader')); card.append(name);
+        const tags=create('div','seat-facts'); if(acting) tags.append(create('span','seat-tag active','To act')); if(team||player.on_proposed_team) tags.append(create('span','seat-tag','On team')); if(player.eliminated) tags.append(create('span','seat-tag rejected','Eliminated'));
+        if(player.role) tags.append(create('span','seat-tag',pretty(player.role))); if(player.dead) tags.append(create('span','seat-tag rejected','Dead')); if(player.winner===true) tags.append(create('span','seat-tag approved','Winner')); card.append(tags);
+        const models=asArray(state.payload.selected_episode?.player_agents).length?state.payload.selected_episode.player_agents:asArray(state.payload.selected_episode?.agent); if(models[seat]) { const model=create('div','seat-model',modelName(models[seat])); model.title=display(models[seat]); card.append(model); }
+        return card;
+      }
+      function renderAvalonBoard(root,board) {
+        const phase=board.phase, explanations={deal:'Roles are dealt privately. Players receive only their own role and permitted knowledge.',leader:'The starting leader is selected by the recorded chance outcome.',proposal:'The leader chooses the players who would go on this quest.',discussion:'Players make public claims and discuss the proposed quest team.',vote:'Each player privately approves or rejects the team. Votes appear together after everyone has voted.',quest:'Team members submit secret quest cards. Only the total number of fail cards is revealed.',assassinate:'Three quests succeeded. The Assassin makes the final attempt to identify Merlin.',terminal:board.end_reason?pretty(board.end_reason):'The game has ended.'};
+        boardStatus(root,board,explanations[phase]||'Follow the proposed team, public votes, and quest outcomes.');
+        const players=asArray(board.players), n=players.length, sizes=n<=5?[2,3,2,3,3]:n===6?[2,3,4,3,4]:n===7?[2,3,3,4,4]:[3,4,4,5,5];
+        const track=create('div','quest-track'); track.setAttribute('aria-label','Five quest mission track');
+        for(let q=1;q<=5;q++) { const result=asArray(board.quest_results).find(item=>item.quest===q), current=!result&&q===board.quest_number&&phase!=='terminal'; const card=create('div','quest-card'+(result?(result.success?' success':' failed'):'')+(current?' current':'')); card.append(create('h5','','QUEST '+q),create('div','quest-symbol',result?(result.success?'✓':'×'):current?'●':'○'),create('div','quest-detail',result?(result.success?'Succeeded':'Failed'):current?'Current':'Upcoming'));
+          card.append(create('div','quest-detail',sizes[q-1]+' players'+(n>=7&&q===4?' · 2 fails required':'')));
+          if(result) card.append(create('div','quest-detail quest-team',asArray(result.team).map(p=>'P'+p).join(' · ')),create('div','quest-detail',result.fails+' fail card'+(result.fails===1?'':'s'))); else if(current&&asArray(board.proposed_team).length) card.append(create('div','quest-detail quest-team',board.proposed_team.map(p=>'P'+p).join(' · '))); track.append(card); }
+        root.append(track);
+        const seats=create('div','seat-grid'), lastVote=board.last_team_vote; for(const player of players) { const card=playerCard(player,board); if(lastVote&&typeof asArray(lastVote.votes)[player.seat]==='boolean') card.append(create('div','seat-facts', 'Last vote: '+(lastVote.votes[player.seat]?'Approve ✓':'Reject ×'))); seats.append(card); } root.append(seats);
+        const footer=create('div','board-footer'), rejection=create('div','rejection-track'); rejection.append(create('span','','Rejected teams')); for(let i=0;i<5;i++) { const dot=create('span','rejection-dot'+(i<number(board.consecutive_rejections)?' filled':'')); dot.setAttribute('aria-label','Rejection '+(i+1)+(i<number(board.consecutive_rejections)?' reached':'')); rejection.append(dot); } rejection.append(create('span','',number(board.consecutive_rejections)+' / 5')); footer.append(rejection);
+        if(lastVote) footer.append(create('span','','Last revealed vote · Quest '+lastVote.quest+' · '+(lastVote.approved?'Team approved':'Team rejected'))); else footer.append(create('span','','Approval votes stay hidden until all players vote.')); root.append(footer); appendPublicLog(root,board.public_history,board.public_history_total);
+      }
+      function publicEventLabel(entry) {
+        if(typeof entry==='string') return entry; if(!entry||typeof entry!=='object') return display(entry);
+        const team=asArray(entry.team).map(p=>'P'+p).join(', ');
+        if(entry.kind==='proposal') return 'Quest '+entry.quest+' · P'+entry.leader+' proposed '+team;
+        if(entry.kind==='discussion') return 'P'+entry.player+' · '+pretty(entry.statement);
+        if(entry.kind==='team_vote') return 'Quest '+entry.quest+' · '+(entry.approved?'Team approved':'Team rejected')+' · '+asArray(entry.votes).map((vote,p)=>'P'+p+' '+(vote?'✓':'×')).join('  ');
+        if(entry.kind==='quest_result') return 'Quest '+entry.quest+' '+(entry.success?'succeeded':'failed')+' · '+team+' · '+entry.fails+' fail card(s)';
+        if(entry.kind==='assassination') return 'P'+entry.player+' attempted to assassinate P'+entry.target;
+        return display(entry);
+      }
+      function appendPublicLog(root,history,total) {
+        const entries=asArray(history); if(!entries.length) return; const details=create('details','public-log'); details.append(create('summary','','Public history ('+number(total,entries.length)+' events)')); for(const entry of entries.slice(-30)) details.append(create('div','log-row',publicEventLabel(entry))); if(number(total,entries.length)>30) details.append(create('div','log-row','Showing the most recent 30 public events.')); root.append(details);
+      }
+      function renderSocialBoard(root,board) {
+        const coup=board.game==='coup'; boardStatus(root,board,coup?'Coins, remaining influence, and revealed cards are public. Live hands remain private.':board.phase==='night'?'Night actions and original roles remain private. The public board does not identify the acting role.':board.phase==='terminal'?'Final roles and the vote outcome are now revealed.':'Follow the public discussion and final vote. Roles remain hidden during play.');
+        const seats=create('div','seat-grid'); for(const player of asArray(board.players)) { const card=playerCard(player,board); if(coup) { card.append(create('div','quest-detail',number(player.coins)+' coins · '+number(player.influence_count)+' influence')); if(asArray(player.revealed_influence).length) card.append(create('div','quest-detail','Revealed: '+player.revealed_influence.map(pretty).join(', '))); } seats.append(card); } root.append(seats);
+        if(coup&&board.pending_action) { const pending=create('div','trade-card'); pending.append(create('h5','','Pending action'),create('div','trade-note',display(board.pending_action))); root.append(pending); }
+        if(coup&&board.challenge) root.append(create('div','trade-note','Challenge: '+display(board.challenge)));
+        if(board.votes) root.append(evidenceDetails('Revealed votes',board.votes));
+        if(board.end_reason||board.finish_reason) root.append(create('div','board-footer',pretty(board.end_reason||board.finish_reason)));
+        appendPublicLog(root,board.public_history,board.public_history_total);
+      }
+      function resourceBundle(bundle) { const root=create('div','resource-chips'); for(const [resource,count] of Object.entries(bundle||{})) if(number(count)>0) root.append(create('span','resource-chip',count+' '+pretty(resource))); if(!root.childElementCount) root.append(create('span','trade-note','Nothing')); return root; }
+      function renderCatanBoard(root,board) {
+        boardStatus(root,board,'Turn '+number(board.turn_number)+' · '+(board.turn_player!==undefined?'P'+board.turn_player+' owns this turn. ':'')+(board.dice?'Last dice: '+display(board.dice)+'. ':'')+'Trades exchange only after the other player accepts.');
+        const layout=create('div','catan-layout'), mapColumn=create('div'), aside=create('div'), geometry=board.board||{}, vertices=asArray(geometry.vertices), edges=asArray(geometry.edges), tiles=asArray(geometry.tiles), colors=['#245caa','#c15b3a','#754ba1','#c39122','#288b78','#6a6c6f'], resources={brick:'#c58b73',lumber:'#4e805c',wood:'#4e805c',wool:'#a7c17f',grain:'#e9ce83',wheat:'#e9ce83',ore:'#99a8ae',desert:'#e8ddbd'};
+        const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'); svg.classList.add('catan-map'); svg.setAttribute('viewBox','-220 -205 440 410'); svg.setAttribute('role','img'); svg.setAttribute('aria-label','Catan hex board with roads, settlements, cities, ports and robber');
+        const node=(tag,attrs,text)=>{ const el=document.createElementNS('http://www.w3.org/2000/svg',tag); for(const [key,value] of Object.entries(attrs)) el.setAttribute(key,String(value)); if(text!==undefined) el.textContent=String(text); return el; }, coord=v=>[number(v?.x)*39,number(v?.y)*39], title=(el,text)=>{ el.append(node('title',{},text)); return el; }, vertexById=new Map(vertices.map(v=>[v.id,v]));
+        for(const tile of tiles) { const polygon=asArray(tile.vertices).map(id=>coord(vertexById.get(id)).join(',')).join(' '); if(!polygon) continue; const [x,y]=coord(tile); const group=node('g',{}); group.append(title(node('polygon',{points:polygon,fill:resources[tile.resource]||'#dadbbf',stroke:'#faf6e5','stroke-width':2}), 'Tile '+tile.id+' · '+pretty(tile.resource)+(tile.number?' · '+tile.number:''))); if(tile.number) { group.append(node('circle',{cx:x,cy:y,r:11,fill:'#fff8e9',stroke:'#998d71','stroke-width':.7}),node('text',{x,y:y+3.5,'text-anchor':'middle','font-size':10,'font-weight':700,fill:tile.number===6||tile.number===8?'#aa3d2f':'#3c423a'},tile.number)); } if(geometry.robber===tile.id) { group.append(node('circle',{cx:x+13,cy:y-13,r:8,fill:'#263534',stroke:'white','stroke-width':1}),node('text',{x:x+13,y:y-10,'text-anchor':'middle','font-size':8,'font-weight':700,fill:'white'},'R')); } svg.append(group); }
+        for(const edge of edges) { const a=coord(vertexById.get(edge.a)),b=coord(vertexById.get(edge.b)); svg.append(title(node('line',{x1:a[0],y1:a[1],x2:b[0],y2:b[1],stroke:edge.owner===null||edge.owner===undefined?'#59716c66':colors[edge.owner%colors.length],'stroke-width':edge.owner===null||edge.owner===undefined?1:5,'stroke-linecap':'round'}),'Road '+edge.id+(edge.owner===null||edge.owner===undefined?' · empty':' · P'+edge.owner))); }
+        const ids=node('g',{'font-size':5.5,'font-weight':600,fill:'#253d39',stroke:'#fffdf5','stroke-width':1.8,'paint-order':'stroke','text-anchor':'middle',display:'none'});
+        for(const tile of tiles) { const [x,y]=coord(tile); ids.append(node('text',{x,y:y+22},'T'+tile.id)); }
+        for(const edge of edges) { const a=coord(vertexById.get(edge.a)),b=coord(vertexById.get(edge.b)); ids.append(node('text',{x:(a[0]+b[0])/2,y:(a[1]+b[1])/2+3},'R'+edge.id)); }
+        for(const vertex of vertices) { const [x,y]=coord(vertex); if(vertex.port) svg.append(title(node('circle',{cx:x,cy:y,r:5,fill:'#f8e6ac',stroke:'#b88f48','stroke-width':1}), 'Port '+vertex.id+' · '+(vertex.port==='any'?'3:1':pretty(vertex.port)+' 2:1'))); if(vertex.owner!==null&&vertex.owner!==undefined) { const attrs={fill:colors[vertex.owner%colors.length],stroke:'white','stroke-width':1}; svg.append(title(vertex.level===2?node('rect',{x:x-5,y:y-5,width:10,height:10,rx:1,...attrs}):node('path',{d:'M '+(x-5)+' '+(y+4)+' L '+(x-5)+' '+(y-2)+' L '+x+' '+(y-6)+' L '+(x+5)+' '+(y-2)+' L '+(x+5)+' '+(y+4)+' Z',...attrs}), 'Vertex '+vertex.id+' · P'+vertex.owner+' '+(vertex.level===2?'city':'settlement'))); } ids.append(node('text',{x,y:y-7},'V'+vertex.id)); } svg.append(ids); mapColumn.append(svg);
+        const resourceLegend=create('div','map-legend'); resourceLegend.append(create('span','','Resources:')); for(const resource of ['brick','lumber','wool','grain','ore','desert']) { const label=create('span'), dot=create('i','legend-dot'); dot.style.backgroundColor=resources[resource]; label.append(dot,document.createTextNode(resource[0].toUpperCase()+resource.slice(1))); resourceLegend.append(label); } mapColumn.append(resourceLegend);
+        const legend=create('div','map-legend'); for(const [seat,color] of colors.slice(0,asArray(board.players).length).entries()) { const label=create('span'), dot=create('i','legend-dot'); dot.style.backgroundColor=color; label.append(dot,document.createTextNode('P'+seat)); legend.append(label); } const toggle=create('button','small','Show location IDs'); toggle.type='button'; let showIds=false; toggle.addEventListener('click',()=>{showIds=!showIds; ids.setAttribute('display',showIds?'inline':'none');toggle.textContent=showIds?'Hide location IDs':'Show location IDs';toggle.setAttribute('aria-pressed',String(showIds));}); legend.append(toggle); mapColumn.append(legend);
+        const trade=create('div','trade-card'); trade.append(create('h5','','Player trading')); if(board.trade?.status==='offered') { const offer=board.trade; trade.append(create('div','trade-note','P'+offer.proposer+' offers P'+offer.recipient),resourceBundle(offer.give),create('div','trade-arrow','in exchange for'),resourceBundle(offer.receive),create('div','trade-note','Awaiting P'+offer.recipient+' · accept, reject, or counter.')); } else trade.append(create('div','trade-note','No public offer is open. A player can prepare a resource bundle on their turn, choose a partner, and propose a trade.')); aside.append(trade);
+        const seats=create('div','seat-grid'); for(const player of asArray(board.players)) { const card=playerCard(player,board); card.append(create('div','quest-detail',number(player.public_points)+' public points · '+number(player.resource_count)+' resource cards'),create('div','quest-detail',number(player.roads)+' roads · '+number(player.settlements)+' settlements · '+number(player.cities)+' cities'),create('div','quest-detail',number(player.development_count)+' development cards · '+number(player.knights)+' knights')); const ports=[...new Set(vertices.filter(vertex=>vertex.owner===player.seat&&number(vertex.level)>0&&vertex.port).map(vertex=>vertex.port))]; card.append(create('div','quest-detail',ports.length?'Ports: '+ports.map(port=>port==='any'?'any resource 3:1':pretty(port)+' 2:1').join(' · '):'Bank trade 4:1 · no owned port')); if(board.longest_road_owner===player.seat) card.append(create('span','seat-tag approved','Longest road')); if(board.largest_army_owner===player.seat) card.append(create('span','seat-tag approved','Largest army')); seats.append(card); } aside.append(seats); layout.append(mapColumn,aside); root.append(layout); if(board.last_event) root.append(create('div','board-footer',typeof board.last_event==='string'?board.last_event:display(board.last_event))); appendPublicLog(root,board.public_history);
+      }
       function renderEvaluatorState(event) {
         const snapshots=[['before',event.state_before],['after',event.state_after]].filter(([,value])=>typeof value==='string');
         if(!snapshots.length) return null;
@@ -450,14 +640,23 @@
       }
       function renderObservation(decision,decisions,compact=false) {
         const panel=create('section','panel observation-panel'+(compact?' compact':''));
-        const heading=create('div','panel-heading'); heading.append(create('h3','','Player observation'),create('span','section-kicker',decision?'Player '+decision.player:'No actor')); panel.append(heading);
+        const parsed=parseObservation(decision), native=['avalon','coup','one_night_werewolf','catan'].includes(parsed?.game);
+        const heading=create('div','panel-heading'); heading.append(create('h3','',native?'Private player view':'Player observation'),create('span','section-kicker',decision?'Player '+decision.player:'No actor')); panel.append(heading);
         if(!decision) { panel.append(create('div','empty','No player observation was recorded.')); return panel; }
         const meta=create('div','observation-meta'); meta.append(badge(decision.observation_type||'Observation unavailable')); panel.append(meta);
         const body=create('div','observation-body');
         const observation=decision.observation;
-        if(observation!==undefined&&observation!==null&&observation!=='') { const pre=create('pre','board'+(String(decision.observation_type).endsWith('tensor')?' wrap':''),display(observation)); pre.setAttribute('aria-label','Recorded observation for player '+decision.player); body.append(pre); }
+        if(native) {
+          panel.append(create('div','private-banner','Only P'+decision.player+' received this view before the action. This panel can contain their secret role, cards, or knowledge.'));
+          const facts=create('div','private-facts');
+          const fields={role:'Own role',alignment:'Alignment',knowledge:'Role knowledge',own_approval_vote:'Own approval vote',own_quest_card:'Own quest card',initial_role:'Original role',private_findings:'Night findings',own_vote:'Own vote',own_influence:'Influence in hand',exchange_pool:'Exchange cards',returns_remaining:'Cards still to return',own_private_history:'Private history',resources:'Resources in hand',own_resources:'Resources in hand',hand:'Cards in hand',development_cards:'Development cards',own_development_cards:'Development cards',bought_this_turn:'Development cards bought this turn',victory_points:'Own total victory points',private_events:'Private history',trade_draft:'Private trade draft'};
+          for(const [key,label] of Object.entries(fields)) if(parsed[key]!==undefined&&parsed[key]!==null) { const row=create('div','private-fact'), value=parsed[key]; row.append(create('span','',label),create('strong','',Array.isArray(value)?value.map(item=>typeof item==='string'?pretty(item):display(item)).join(', ')||'None':typeof value==='boolean'?(value?'Yes':'No'):typeof value==='string'?pretty(value):display(value))); facts.append(row); }
+          if(parsed.trade?.status==='draft') { const row=create('div','private-fact'); row.append(create('span','','Private trade draft'),create('strong','',display(parsed.trade))); facts.append(row); }
+          if(!facts.childElementCount) facts.append(create('div','trade-note','No additional private fields were recorded at this step.')); panel.append(facts,evidenceDetails('Exact player observation',observation));
+        }
+        else if(observation!==undefined&&observation!==null&&observation!=='') { const pre=create('pre','board'+(String(decision.observation_type).endsWith('tensor')?' wrap':''),display(observation)); pre.setAttribute('aria-label','Recorded observation for player '+decision.player); body.append(pre); }
         else body.append(create('div','empty',observation===''?'The recorded observation is empty at this state.':'No observation was recorded for this actor.'));
-        panel.append(body);
+        if(!native) panel.append(body);
         if(decisions.length>1) { const tabs=create('div','actor-tabs'); for(const actor of decisions) { const button=create('button',actor.player===state.player?'selected':'','Player '+actor.player); button.type='button'; button.setAttribute('aria-pressed',String(actor.player===state.player)); button.addEventListener('click',()=>{state.player=actor.player;renderTransition();}); tabs.append(button); } panel.append(tabs); }
         panel.append(create('div','view-note','This is the recorded view supplied for this player, before the selected transition.'));
         return panel;
@@ -467,7 +666,7 @@
         const classifier=decision.response_metadata?.summary_source==='adapter';
         const responseMeta=decision.response_metadata||{};
         const card=create('article','decision-card'+(decision.player===state.player?' active':''));
-        const heading=create('div','decision-heading'); const identity=create('div'); identity.append(create('div','actor-name','Player '+decision.player+' · '+display(decision.agent)),create('div','actor-subtitle',roleLabel(decision))); heading.append(identity);
+        const heading=create('div','decision-heading'); const identity=create('div'), actorName=create('div','actor-name','Player '+decision.player+' · '+modelName(decision.agent)); actorName.title=display(decision.agent); identity.append(actorName,create('div','actor-subtitle',roleLabel(decision))); heading.append(identity);
         if(decision.player===state.player) heading.append(badge('Viewing','good'));
         card.append(heading);
         const block=create('div','action-block'); block.append(create('div','action-caption','Chosen action'));
@@ -539,7 +738,9 @@
         const runId=$('runIdInput').value.trim(); const key=$('apiKeyInput').value.trim()||state.key;
         if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(runId)) { showError('Enter a valid run UUID.'); return; }
         if(!key) { showError('Enter your arena API key.'); $('apiKeyInput').focus(); return; }
-        state.runId=runId; state.key=key; state.episodeId=null; state.episodeOffset=0; state.stepOffset=0; state.stepPosition=0; state.player=null; $('apiKeyInput').value=''; $('apiKeyInput').placeholder='Key held in this tab · enter to replace'; $('connectionLabel').textContent='Key held in this tab'; $('connectionBar').hidden=false; $('topbarNote').hidden=true; fetchReport();
+        const currentUrl=new URL(window.location.href), linkedEpisode=currentUrl.searchParams.get('episode_id'), linkedStep=Number(currentUrl.searchParams.get('step'));
+        const useLink=currentUrl.pathname==='/runs/'+runId, validEpisode=linkedEpisode&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(linkedEpisode), step=useLink&&Number.isSafeInteger(linkedStep)&&linkedStep>=1?linkedStep-1:0;
+        state.runId=runId; state.key=key; state.episodeId=useLink&&validEpisode?linkedEpisode:null; state.episodeOffset=0; state.stepOffset=Math.floor(step/STEP_LIMIT)*STEP_LIMIT; state.stepPosition=0; state.player=null; $('apiKeyInput').value=''; $('apiKeyInput').placeholder='Key held in this tab · enter to replace'; $('connectionLabel').textContent='Key held in this tab'; $('connectionBar').hidden=false; $('topbarNote').hidden=true; fetchReport(step);
       });
       $('disconnectButton').addEventListener('click',()=>disconnect());
       $('refreshButton').addEventListener('click',()=>fetchReport('keep'));
@@ -547,10 +748,14 @@
       $('episodesNext').addEventListener('click',()=>{if(state.loading)return;state.episodeOffset+=EPISODE_LIMIT;fetchReport('keep');});
       $('previousStep').addEventListener('click',()=>moveStep(-1));
       $('nextStep').addEventListener('click',()=>moveStep(1));
+      $('firstStep').addEventListener('click',()=>jumpToStep(0));
+      $('lastStep').addEventListener('click',()=>jumpToStep(number(state.payload?.transitions?.total)-1));
+      $('jumpForm').addEventListener('submit',event=>{event.preventDefault();jumpToStep(Number($('stepJump').value)-1);});
+      $('phaseIndex').addEventListener('change',()=>{if($('phaseIndex').value!=='')jumpToStep(Number($('phaseIndex').value));});
       $('closeAsciiButton').addEventListener('click',()=>{$('asciiDialog').close();$('asciiContent').textContent='';});
       $('asciiDialog').addEventListener('close',()=>{$('asciiContent').textContent='';});
-      $('shareButton').addEventListener('click',async()=>{const url=new URL('/runs/'+encodeURIComponent(state.runId),window.location.origin).href;try{await navigator.clipboard.writeText(url);$('shareButton').textContent='Link copied';setTimeout(()=>{$('shareButton').textContent='Copy run link';},1700);}catch{showError('Copy this run link from the address bar. It contains no API key.');}});
-      document.addEventListener('keydown',event=>{if($('workspace').hidden||$('asciiDialog').open||event.altKey||event.ctrlKey||event.metaKey||event.isComposing||(event.target instanceof Element&&event.target.closest('input,textarea,select,button,summary,[contenteditable="true"]')))return;if(event.key==='ArrowLeft'){event.preventDefault();moveStep(-1);}else if(event.key==='ArrowRight'){event.preventDefault();moveStep(1);}});
+      $('shareButton').addEventListener('click',async()=>{const url=viewUrl().href;try{await navigator.clipboard.writeText(url);$('shareButton').textContent='Step link copied';setTimeout(()=>{$('shareButton').textContent='Copy run link';},1700);}catch{showError('Copy this step link from the address bar. It contains no API key.');}});
+      document.addEventListener('keydown',event=>{if($('workspace').hidden||$('asciiDialog').open||event.altKey||event.ctrlKey||event.metaKey||event.isComposing||(event.target instanceof Element&&event.target.closest('input,textarea,select,summary,[contenteditable="true"]')))return;if(event.key==='ArrowLeft'){event.preventDefault();moveStep(-1);}else if(event.key==='ArrowRight'){event.preventDefault();moveStep(1);}else if(event.key==='Home'){event.preventDefault();jumpToStep(0);}else if(event.key==='End'){event.preventDefault();jumpToStep(number(state.payload?.transitions?.total)-1);}});
       let initialRun='';
       try { const match=window.location.pathname.match(/^\/runs\/([^/]+)\/?$/); initialRun=match?decodeURIComponent(match[1]):new URLSearchParams(window.location.search).get('run_id')||''; } catch {}
       $('runIdInput').value=initialRun;

@@ -243,6 +243,21 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(report["transition_index"]["total"], 5002)
         self.assertEqual(report["transitions"]["items"][0]["index"], 5001)
 
+    def test_catan_index_includes_public_turn_numbers(self) -> None:
+        run_id = self.create_run()
+        record = self.mock_result(
+            game="catan(players=3,max_turns=3)", players=3, steps=200
+        )
+        self.save(run_id, record)
+        with self.sessions() as session:
+            report = build_run_report(session, run_id, step_offset=35)
+        items = report["transition_index"]["items"]
+        self.assertEqual({item["turn"] for item in items}, {0, 1, 2, 3})
+        self.assertIn("Public board before:", render_text_report(report))
+        self.assertFalse(
+            any("snapshots were not recorded" in notice for notice in report["notices"])
+        )
+
     def test_explicit_selection_can_be_outside_page_but_not_outside_run(self) -> None:
         run_id = self.create_run(2)
         first, second = self.mock_result(start=0), self.mock_result(start=1)
