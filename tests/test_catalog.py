@@ -1,5 +1,6 @@
 """Registry discovery, parameter safety, and native RNG reproducibility."""
 
+from contextlib import chdir
 import hashlib
 from pathlib import Path
 import tempfile
@@ -21,6 +22,9 @@ class CatalogTests(unittest.TestCase):
         entries = {row["short_name"]: row for row in rows}
         self.assertIn("tic_tac_toe", entries)
         self.assertIn("python_kuhn_poker", entries)
+        self.assertIn("python_mfg_predator_prey", entries)
+        self.assertIn("python_mfg_crowd_avoidance", entries)
+        self.assertIn("mean_field_nfg", entries)
         self.assertFalse(entries["tic_tac_toe"]["verified"])
         self.assertIn(
             "explicit_game_parameters", entries["repeated_game"]["requirements"]
@@ -125,6 +129,64 @@ class CatalogTests(unittest.TestCase):
             path.write_text(content + "\n")
             self.assertNotEqual(
                 sources[0]["sha256"], catalog.game_source_files(spec)[0]["sha256"]
+            )
+
+    def test_declared_resource_parameters_are_generic_and_absolute(self) -> None:
+        with tempfile.TemporaryDirectory() as directory, chdir(directory):
+            path = Path("instances.txt")
+            path.write_text("resource fixture")
+            for spec, key in [
+                ("bargaining(instances_file=instances.txt)", "instances_file"),
+                ("colored_trails(boards_file=instances.txt)", "boards_file"),
+                (
+                    "zerosum(game=bargaining(instances_file=instances.txt))",
+                    "instances_file",
+                ),
+            ]:
+                with self.subTest(spec=spec):
+                    canonical = catalog.canonical_game_spec(spec)
+                    self.assertIn(str(path.resolve()), canonical)
+                    sources = catalog.game_source_files(spec)
+                    self.assertEqual(sources[0]["parameter_path"][-1], key)
+                    self.assertEqual(sources[0]["format"], "resource")
+                    self.assertEqual(sources[0]["size_bytes"], path.stat().st_size)
+                    self.assertNotIn("content", sources[0])
+            # Unknown parameters are rejected by the constructor; they must not
+            # trigger resource access during pure canonicalization.
+            self.assertEqual(
+                catalog.game_source_files("chess(unknown_file=does_not_exist)"), []
+            )
+
+    def test_relative_definition_uses_callers_directory_in_inspection_and_conformance(
+        self,
+    ) -> None:
+        from game_arena.openspiel.conformance import check_game
+
+        with tempfile.TemporaryDirectory() as directory, chdir(directory):
+            path = Path("fixture.nfg")
+            path.write_text(pyspiel.game_to_nfg_string(pyspiel.load_game("matrix_rps")))
+            info = catalog.inspect_game("nfg_game(filename=fixture.nfg)")
+            self.assertIn(str(path.resolve()), info["canonical_game"])
+            self.assertEqual(info["source_files"][0]["path"], str(path.resolve()))
+            catalog.load_game(info["canonical_game"])
+            result = check_game("nfg_game(filename=fixture.nfg)", max_steps=2)
+            self.assertEqual(result["status"], "passed", result.get("reason"))
+            self.assertTrue(result["replay_verified"])
+
+    def test_changed_definition_invalidates_cached_inspection(self) -> None:
+        with tempfile.TemporaryDirectory() as directory, chdir(directory):
+            path = Path("fixture.nfg")
+            spec = "nfg_game(filename=fixture.nfg)"
+            path.write_text(pyspiel.game_to_nfg_string(pyspiel.load_game("matrix_rps")))
+            first = catalog.inspect_game(spec)
+            self.assertEqual(first["num_players"], 2)
+            path.write_text(
+                pyspiel.game_to_nfg_string(pyspiel.load_game("matching_pennies_3p"))
+            )
+            second = catalog.inspect_game(spec)
+            self.assertEqual(second["num_players"], 3)
+            self.assertNotEqual(
+                first["source_files"][0]["sha256"], second["source_files"][0]["sha256"]
             )
 
     def test_cached_inspection_returns_independent_results(self) -> None:

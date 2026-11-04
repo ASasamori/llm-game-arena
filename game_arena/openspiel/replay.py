@@ -239,6 +239,13 @@ def replay_episode(record: dict[str, Any]) -> dict[str, Any]:
                 prompt, view_type, observation, labels = build_prompt(
                     state, player, legal, own_history[player], manifest.get("rules", "")
                 )
+                expects_model = manifest["run_type"] == "PVP" or player == 0
+                _require(
+                    isinstance(decision.get("prompt"), str)
+                    if expects_model
+                    else decision.get("prompt") is None,
+                    f"{prefix} model prompt presence mismatch",
+                )
                 _require(
                     decision["action_string"] == labels[action],
                     f"{prefix} action label mismatch",

@@ -165,6 +165,31 @@ class EngineTests(unittest.TestCase):
         self.assertTrue(any(event["kind"] == "mean_field" for event in record["steps"]))
         self.assertTrue(replay_episode(dict(record))["verified"])
 
+    def test_multiple_populations_use_the_selected_player_view(self) -> None:
+        for game, players, population in [
+            ("python_mfg_crowd_avoidance", 2, 1),
+            ("python_mfg_predator_prey", 3, 2),
+        ]:
+            with self.subTest(game=game):
+                record = execute(
+                    options(
+                        game,
+                        players,
+                        mean_field_distribution="uniform",
+                        mean_field_population=population,
+                    )
+                )
+                decisions = [
+                    decision
+                    for event in record["steps"]
+                    for decision in event["decisions"]
+                ]
+                self.assertTrue(decisions)
+                self.assertEqual(
+                    {decision["player"] for decision in decisions}, {population}
+                )
+                self.assertTrue(replay_episode(record)["verified"])
+
     def test_replay_rejects_changed_action_reward_prompt_and_missing_tail(self) -> None:
         original = dict(execute(options("tic_tac_toe")))
         for corruption in ("action", "reward", "prompt", "tail"):

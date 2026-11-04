@@ -47,11 +47,16 @@ def register_python_games() -> None:
         if _PYTHON_GAMES_REGISTERED:
             return
         captured = io.StringIO()
-        try:
-            with contextlib.redirect_stdout(captured):
-                importlib.import_module("open_spiel.python.games")
-        except ImportError as exc:
-            _REGISTRATION_WARNINGS.append(str(exc))
+        for module in (
+            "open_spiel.python.games",
+            "open_spiel.python.mfg.games",
+            "open_spiel.python.mfg.games.normal_form_game",
+        ):
+            try:
+                with contextlib.redirect_stdout(captured):
+                    importlib.import_module(module)
+            except ImportError as exc:
+                _REGISTRATION_WARNINGS.append(f"{module}: {exc}")
         warning = captured.getvalue().strip()
         if warning:
             _REGISTRATION_WARNINGS.append(warning)
@@ -189,6 +194,19 @@ def _seed_parameters(parameters: dict[str, Any], seed: int) -> None:
             parameters.setdefault("seed", seed % 2_147_483_647)
 
 
+def _is_resource_parameter(values: dict[str, Any], key: str, value: Any) -> bool:
+    """Recognize only declared, explicit file/path string parameters."""
+    if (
+        not isinstance(value, str)
+        or not value
+        or not any(marker in key.lower() for marker in ("file", "path"))
+    ):
+        return False
+    name = values.get("name")
+    game_type = _types().get(name) if isinstance(name, str) else None
+    return game_type is not None and key in game_type.parameter_specification
+
+
 def canonical_game_spec(spec: str, seed: int = 0) -> str:
     """Keep the registered constructor name and its effective explicit inputs.
 
@@ -204,14 +222,10 @@ def canonical_game_spec(spec: str, seed: int = 0) -> str:
         _seed_parameters(parameters, seed)
 
         def absolute_sources(values: dict[str, Any]) -> None:
-            if values.get("name") in {"efg_game", "nfg_game"} and values.get(
-                "filename"
-            ):
-                values["filename"] = str(
-                    Path(str(values["filename"])).expanduser().resolve()
-                )
-            for value in values.values():
-                if isinstance(value, dict) and "name" in value:
+            for key, value in list(values.items()):
+                if _is_resource_parameter(values, key, value):
+                    values[key] = str(Path(value).expanduser().resolve())
+                elif isinstance(value, dict) and "name" in value:
                     absolute_sources(value)
 
         absolute_sources(parameters)
@@ -227,7 +241,7 @@ def canonical_game_spec(spec: str, seed: int = 0) -> str:
 def game_source_files(
     spec: str, *, max_file_bytes: int = 64 * 1024 * 1024
 ) -> list[dict[str, Any]]:
-    """Fingerprint external EFG/NFG definitions, including nested transforms.
+    """Fingerprint declared external file/path inputs, including nested transforms.
 
     Definitions are not embedded or returned: introspection must not turn a
     caller-supplied game filename into arbitrary file-content retrieval. Replay
@@ -238,29 +252,31 @@ def game_source_files(
 
     def visit(values: dict[str, Any], parameter_path: list[str]) -> None:
         name = values.get("name")
-        if name in {"efg_game", "nfg_game"} and values.get("filename"):
-            path = Path(str(values["filename"])).expanduser().resolve()
-            digest = hashlib.sha256()
-            total = 0
-            with path.open("rb") as stream:
-                while chunk := stream.read(1024 * 1024):
-                    total += len(chunk)
-                    if total > max_file_bytes:
-                        raise UnsupportedGameError(
-                            f"Game definition exceeds {max_file_bytes} bytes"
-                        )
-                    digest.update(chunk)
-            sources.append(
-                {
-                    "path": str(path),
-                    "parameter_path": parameter_path + ["filename"],
-                    "sha256": digest.hexdigest(),
-                    "size_bytes": total,
-                    "format": "efg" if name == "efg_game" else "nfg",
-                }
-            )
-        for key, value in values.items():
-            if isinstance(value, dict) and "name" in value:
+        for key, value in sorted(values.items()):
+            if _is_resource_parameter(values, key, value):
+                path = Path(value).expanduser().resolve()
+                digest = hashlib.sha256()
+                total = 0
+                with path.open("rb") as stream:
+                    while chunk := stream.read(1024 * 1024):
+                        total += len(chunk)
+                        if total > max_file_bytes:
+                            raise UnsupportedGameError(
+                                f"Game resource exceeds {max_file_bytes} bytes"
+                            )
+                        digest.update(chunk)
+                sources.append(
+                    {
+                        "path": str(path),
+                        "parameter_path": parameter_path + [key],
+                        "sha256": digest.hexdigest(),
+                        "size_bytes": total,
+                        "format": ("efg" if name == "efg_game" else "nfg")
+                        if key == "filename" and name in {"efg_game", "nfg_game"}
+                        else "resource",
+                    }
+                )
+            elif isinstance(value, dict) and "name" in value:
                 visit(value, parameter_path + [key])
 
     visit(parameters, [])
@@ -268,10 +284,9 @@ def game_source_files(
 
 
 def _load(spec: str, seed: int) -> Any:
-    resolved = resolve_game_spec(spec)
+    resolved = canonical_game_spec(spec, seed=seed)
     try:
         parameters = pyspiel.game_parameters_from_string(resolved)
-        _seed_parameters(parameters, seed)
         name = parameters.pop("name")
         game_type = _types()[name]
         if not game_type.default_loadable and not parameters:
@@ -354,7 +369,9 @@ def _inspect_in_process(spec: str, seed: int) -> dict[str, Any]:
 
 
 @lru_cache(maxsize=256)
-def _inspect_cached(spec: str, seed: int, timeout: float) -> dict[str, Any]:
+def _inspect_cached(
+    spec: str, seed: int, timeout: float, working_directory: str
+) -> dict[str, Any]:
     project_root = str(Path(__file__).resolve().parents[2])
     env = os.environ.copy()
     env["PYTHONPATH"] = os.pathsep.join(
@@ -368,7 +385,7 @@ def _inspect_cached(spec: str, seed: int, timeout: float) -> dict[str, Any]:
             capture_output=True,
             timeout=timeout,
             env=env,
-            cwd=project_root,
+            cwd=working_directory,
             check=False,
         )
     except subprocess.TimeoutExpired as exc:
@@ -400,7 +417,15 @@ def inspect_game(spec: str, seed: int = 0, timeout: float = 10) -> dict[str, Any
         raise UnsupportedGameError("seed must be a non-negative integer")
     if timeout <= 0:
         raise ValueError("inspection timeout must be positive")
-    return copy.deepcopy(_inspect_cached(resolved, seed, timeout))
+    working_directory = os.getcwd()
+    info = copy.deepcopy(_inspect_cached(resolved, seed, timeout, working_directory))
+    if info.get("source_files") and game_source_files(resolved) != info["source_files"]:
+        # Never serve a cached inspection for a changed external game definition.
+        _inspect_cached.cache_clear()
+        info = copy.deepcopy(
+            _inspect_cached(resolved, seed, timeout, working_directory)
+        )
+    return info
 
 
 get_game_info = inspect_game
