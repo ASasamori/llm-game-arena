@@ -115,6 +115,23 @@ their contents are not embedded. Replay requires the retained files and checks
 their hashes before loading the game. The source hash covers repository Python
 code; it does not archive external game assets.
 
+## Standalone social deduction environments
+
+One Night Werewolf, original Avalon, and base Coup now have model-independent
+Python rules engines. Validate and replay them without AI or OpenSpiel before
+using the existing runner, reports, or dataset pipeline. See the
+[environment guide](game_arena/environments/README.md) for exact supported rules,
+player counts, parameter validation, and commands.
+
+```bash
+uv run python -m game_arena environments simulate --game 'avalon(players=5)' --seed 123 --output analytics/avalon-baseline.json
+uv run python -m game_arena environments replay analytics/avalon-baseline.json
+```
+
+Database collections can be exported with `python -m game_arena export-db`, or
+downloaded per run from authenticated `GET /v1/runs/{run_id}/export`. See the
+[client guide](CLIENT_GUIDE.md#export-a-collection).
+
 ## Large experiments and datasets
 
 Plans generate jobs lazily. Mock execution uses at most `2 * workers` pending jobs

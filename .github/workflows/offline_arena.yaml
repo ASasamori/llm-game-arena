@@ -20,12 +20,18 @@ jobs:
         run: |
           python -m pip install uv
           uv sync --frozen --no-install-project
+      - name: Validate standalone rules before arena integration
+        run: |
+          uv run python -m unittest discover -s tests -p 'test_*environment.py'
+          uv run python -m game_arena environments simulate --game 'one_night_werewolf(players=3)' --seed 123 --output analytics/ci-werewolf.json
+          uv run python -m game_arena environments simulate --game 'avalon(players=5)' --seed 123 --output analytics/ci-avalon.json
+          uv run python -m game_arena environments simulate --game 'coup(players=3)' --seed 123 --output analytics/ci-coup.json
       - name: Test without provider credentials or external services
         run: |
           uv run python -m unittest discover -s tests -p 'test_*.py'
           uv run python -m unittest discover -s game_arena/openspiel -p 'test_*.py'
       - name: Exercise spawned mock workers and resumable dataset export
         run: |
-          uv run python -m game_arena.openspiel plan --games tic_tac_toe kuhn_poker matrix_rps matching_pennies_3p catch --episodes 2 --max-steps 100 --seed 123 --output analytics/ci-mock --execute-mock --workers 2
-          uv run python -m game_arena.openspiel plan --games tic_tac_toe kuhn_poker matrix_rps matching_pennies_3p catch --episodes 2 --max-steps 100 --seed 123 --output analytics/ci-mock --execute-mock --workers 2
+          uv run python -m game_arena plan --games tic_tac_toe kuhn_poker matrix_rps matching_pennies_3p catch one_night_werewolf avalon coup --episodes 2 --max-steps 10000 --seed 123 --output analytics/ci-mock --execute-mock --workers 2
+          uv run python -m game_arena plan --games tic_tac_toe kuhn_poker matrix_rps matching_pennies_3p catch one_night_werewolf avalon coup --episodes 2 --max-steps 10000 --seed 123 --output analytics/ci-mock --execute-mock --workers 2
           uv run python -m game_arena.openspiel export --dataset analytics/ci-mock --output analytics/ci-export

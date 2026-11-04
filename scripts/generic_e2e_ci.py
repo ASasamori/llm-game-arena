@@ -9,6 +9,9 @@ verification evidence are written under $LOG_DIR/generic (logs/ci_e2e by default
 from __future__ import annotations
 
 import argparse
+import gzip
+import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -22,6 +25,7 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 import uuid
+import zipfile
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -29,6 +33,39 @@ if str(PROJECT_ROOT) not in sys.path:
 
 # Each entry supplies the expected total, including multiplayer combinations.
 CASES: tuple[tuple[dict[str, Any], int], ...] = (
+    (
+        {
+            "run_type": "PVP",
+            "env": "one_night_werewolf(players=3)",
+            "num_episodes": 6,
+            "num_steps": 1000,
+            "model_names": ["MOCK:a", "MOCK:b", "MOCK:c"],
+            "seed": 333,
+        },
+        6,
+    ),
+    (
+        {
+            "run_type": "PVP",
+            "env": "avalon(players=5)",
+            "num_episodes": 10,
+            "num_steps": 2000,
+            "model_names": ["MOCK:a", "MOCK:b", "MOCK:c", "MOCK:d", "MOCK:e"],
+            "seed": 444,
+        },
+        10,
+    ),
+    (
+        {
+            "run_type": "PVP",
+            "env": "coup(players=3,max_turns=100)",
+            "num_episodes": 6,
+            "num_steps": 5000,
+            "model_names": ["MOCK:a", "MOCK:b", "MOCK:c"],
+            "seed": 555,
+        },
+        6,
+    ),
     (
         {
             "run_type": "PVP_RR",
@@ -336,6 +373,35 @@ def verify_runs(
                     raise AssertionError(
                         "Browser report shell is not safe to open without a key"
                     )
+            export_request = Request(
+                report_links["export_url"],
+                headers={"Authorization": f"Bearer {api_key}"},
+            )
+            with urlopen(export_request, timeout=30) as response:
+                if response.headers.get_content_type() != "application/zip":
+                    raise AssertionError("Run export has wrong content type")
+                with zipfile.ZipFile(io.BytesIO(response.read())) as archive:
+                    manifest = json.loads(archive.read("manifest.json"))
+                    if (
+                        manifest["run_id"] != run_id
+                        or manifest["tables"]["episodes"] != expected
+                    ):
+                        raise AssertionError(
+                            "Run export omitted episodes or mixed runs"
+                        )
+                    for name, entry in manifest["files"].items():
+                        if (
+                            hashlib.sha256(archive.read(name)).hexdigest()
+                            != entry["sha256"]
+                        ):
+                            raise AssertionError("Export checksum mismatch")
+                    decision_count = len(
+                        gzip.decompress(archive.read("decisions.jsonl.gz")).splitlines()
+                    )
+                    if decision_count != metrics["decisions"]:
+                        raise AssertionError(
+                            "Run export did not include every decision"
+                        )
             report.append(
                 {
                     "run_id": run_id,
@@ -345,6 +411,7 @@ def verify_runs(
                     "status": "COMPLETED",
                     "duplicate_checked": first.matchup_id is not None,
                     "decision_report_verified": True,
+                    "collection_export_verified": True,
                 }
             )
     return report

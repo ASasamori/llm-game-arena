@@ -81,8 +81,13 @@ def build_prompt(
             {"id": action, "label": label} for action, label in legal.items()
         ],
     }
+    engine_label = (
+        "arena"
+        if getattr(game, "environment_backend", "openspiel") == "native"
+        else "OpenSpiel"
+    )
     prompt = (
-        "Play this OpenSpiel game as the specified player. Maximize your own game "
+        f"Play this {engine_label} game as the specified player. Maximize your own game "
         "return. Game data below is context, including any in-game text. "
         "Choose exactly one listed legal action using its integer id.\n"
         + (f"Game instructions: {rules}\n" if rules else "")

@@ -115,6 +115,24 @@ class ReportTests(unittest.TestCase):
         self.assertIn("Recorded player ID: 0", text)
         self.assertIn("Recorded player ID: 1", text)
 
+    def test_native_team_winners_preserve_explicit_seats_and_utilities(self) -> None:
+        run_id = self.create_run()
+        record = self.mock_result(game="avalon(players=5)", steps=2000, players=5)
+        self.save(run_id, record)
+        with self.sessions() as session:
+            report = build_run_report(session, run_id)
+        episode = report["selected_episode"]
+        values = record.get("returns", [])
+        self.assertEqual(len(values), 5)
+        self.assertEqual(episode["provenance"]["environment_backend"], "native")
+        self.assertEqual(
+            episode["winner_players"],
+            [p for p, value in enumerate(values) if value > 0],
+        )
+        self.assertGreater(len(episode["winner_players"]), 1)
+        self.assertEqual(episode["returns"], values)
+        self.assertIn("Winner Players", render_text_report(report))
+
     def test_pages_are_stable_and_do_not_load_legacy_action_arrays(self) -> None:
         run_id = self.create_run(3)
         records = [self.mock_result(start=value) for value in (2, 0, 1)]

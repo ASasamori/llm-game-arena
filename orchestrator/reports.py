@@ -61,6 +61,7 @@ _PROVENANCE_KEYS = (
     "failure_policy",
     "initial_state_hash",
     "mean_field_population",
+    "environment_backend",
 )
 _TRACE_KEYS = (
     "game",
@@ -70,6 +71,7 @@ _TRACE_KEYS = (
     "arena_type",
     "status",
     "winner",
+    "winner_players",
     "returns",
     "terminal",
     "seed",
@@ -344,6 +346,7 @@ def build_run_report(
                 "arena_type",
                 "status",
                 "winner",
+                "winner_players",
                 "returns",
                 "terminal",
                 "seed",
@@ -568,6 +571,7 @@ def render_text_report(
         "game_spec",
         "status",
         "winner",
+        "winner_players",
         "terminal",
         "returns",
         "seed",

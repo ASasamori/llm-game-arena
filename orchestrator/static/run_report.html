@@ -371,6 +371,7 @@
         const chips=create('div','outcome');
         chips.append(outcomeChip('Status',pretty(episode.status)),outcomeChip('Returns',Array.isArray(episode.returns)?'['+episode.returns.map(formatNumber).join(', ')+']':'Not recorded'),outcomeChip('Transitions',number(episode.num_steps)));
         if(episode.winner&&episode.winner!=='UNDETERMINED/TIE') chips.append(outcomeChip('Recorded winner',display(episode.winner)));
+        if(episode.provenance?.environment_backend==='native'&&episode.terminal) chips.append(outcomeChip('Winning seats',asArray(episode.winner_players).length?episode.winner_players.map(p=>'P'+p).join(', '):'None'));
         if(episode.seed!==undefined&&episode.seed!==null) chips.append(outcomeChip('Episode seed',display(episode.seed)));
         if(episode.fallback_count) chips.append(outcomeChip('Fallbacks',display(episode.fallback_count)));
         title.append(chips); header.append(title);

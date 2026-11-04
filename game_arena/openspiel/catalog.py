@@ -24,6 +24,8 @@ from typing import Any
 
 import pyspiel
 
+from game_arena.environments import registry as native_registry
+
 ENV_ALIASES = {"connect_four_v1": "connect_four", "chess_v1": "chess"}
 _REGISTRATION_LOCK = threading.Lock()
 _PYTHON_GAMES_REGISTERED = False
@@ -136,7 +138,12 @@ def list_games() -> list[dict[str, Any]]:
     mean default parameters are sufficient or that a full game was tested.
     ``requirements`` must be satisfied by the caller before execution.
     """
-    return [_metadata(entry) for _, entry in sorted(_types().items())]
+    games = [_metadata(entry) for _, entry in sorted(_types().items())]
+    games.extend(
+        native_registry.describe(native_registry.load_game(name))
+        for name in native_registry.NAMES
+    )
+    return sorted(games, key=lambda entry: entry["short_name"])
 
 
 def registration_warnings() -> list[str]:
@@ -157,6 +164,11 @@ def resolve_game_spec(env: str) -> str:
             "Game specification exceeds the configured size limit"
         )
     name = spec.split("(", 1)[0].strip()
+    if native_registry.native_name(spec) is not None:
+        try:
+            return native_registry.canonical_spec(native_registry.load_game(spec))
+        except ValueError as exc:
+            raise UnsupportedGameError(str(exc)) from exc
     if not _NAME_PATTERN.fullmatch(name) or name not in _types():
         raise UnsupportedGameError(f"Unknown OpenSpiel game '{name}'")
     if "(" in spec and not spec.endswith(")"):
@@ -217,6 +229,8 @@ def canonical_game_spec(spec: str, seed: int = 0) -> str:
     if not isinstance(seed, int) or isinstance(seed, bool) or seed < 0:
         raise UnsupportedGameError("seed must be a non-negative integer")
     resolved = resolve_game_spec(spec)
+    if native_registry.native_name(resolved) is not None:
+        return resolved
     try:
         parameters = pyspiel.game_parameters_from_string(resolved)
         _seed_parameters(parameters, seed)
@@ -247,7 +261,10 @@ def game_source_files(
     caller-supplied game filename into arbitrary file-content retrieval. Replay
     requires the same definition files and validates these digests before play.
     """
-    parameters = pyspiel.game_parameters_from_string(resolve_game_spec(spec))
+    resolved = resolve_game_spec(spec)
+    if native_registry.native_name(resolved) is not None:
+        return []
+    parameters = pyspiel.game_parameters_from_string(resolved)
     sources: list[dict[str, Any]] = []
 
     def visit(values: dict[str, Any], parameter_path: list[str]) -> None:
@@ -285,6 +302,10 @@ def game_source_files(
 
 def _load(spec: str, seed: int) -> Any:
     resolved = canonical_game_spec(spec, seed=seed)
+    if native_registry.native_name(resolved) is not None:
+        from game_arena.environments.adapter import ArenaGame
+
+        return ArenaGame(native_registry.load_game(resolved))
     try:
         parameters = pyspiel.game_parameters_from_string(resolved)
         name = parameters.pop("name")
@@ -328,6 +349,8 @@ def load_game(spec: str, seed: int = 0) -> Any:
 
 def _inspect_in_process(spec: str, seed: int) -> dict[str, Any]:
     resolved = resolve_game_spec(spec)
+    if native_registry.native_name(resolved) is not None:
+        return native_registry.describe(native_registry.load_game(resolved))
     if resolved.split("(", 1)[0] == "chat_game":
         info = _metadata(_types()["chat_game"])
         info.update(game=resolved, canonical_game=resolved)

@@ -1,6 +1,6 @@
-"""Generic, reproducible OpenSpiel episode execution.
+"""Generic, reproducible arena episode execution.
 
-OpenSpiel owns game rules. This module owns player isolation, independent RNG
+OpenSpiel and standalone native environments own game rules. This module owns player isolation, independent RNG
 streams, legal-action selection and an auditable transition log. No provider is
 constructed here; callers inject stateless model implementations.
 """
@@ -125,6 +125,8 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
     if not info["supported"]:
         raise catalog.UnsupportedGameError("; ".join(info["unsupported_reasons"]))
     game = catalog.load_game(spec, seed=seed)
+    backend = getattr(game, "environment_backend", "openspiel")
+    effective_rules = options.get("rules", "") or getattr(game, "rules", "")
     player_count = game.num_players()
     if mode == "PVP" and len(models) != player_count:
         raise ValueError(
@@ -191,7 +193,8 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
         ],
         "max_steps": max_steps,
         "failure_policy": failure_policy,
-        "rules": options.get("rules", ""),
+        "rules": effective_rules,
+        "environment_backend": backend,
         "input_actions": list(scripted_actions) if mode == "INPUT" else None,
         "mean_field_distribution": mean_field,
         "mean_field_population": population,
@@ -215,7 +218,7 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
                 "fallback_reason": None,
             }
         prompt, view_type, observation, legal = build_prompt(
-            state, player, legal_actions, own_history[player], options.get("rules", "")
+            state, player, legal_actions, own_history[player], effective_rules
         )
         record: dict[str, Any] = {
             "player": player,
@@ -390,7 +393,9 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
         pyspiel.GameType.Utility.CONSTANT_SUM,
     }
     winners = (
-        [p for p, value in enumerate(returns) if value == max(returns)]
+        [p for p, value in enumerate(returns) if value > 0]
+        if terminal and backend == "native"
+        else [p for p, value in enumerate(returns) if value == max(returns)]
         if terminal and competitive
         else []
     )
@@ -403,7 +408,7 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
     increment_counter("harness.episode.completed", tags={"run_type": mode})
     return utils.EpisodeResult(
         episode_id=episode_id,
-        env=ENV,
+        env="NATIVE" if backend == "native" else ENV,
         agent=[str(model) for model in models],
         arena_type=mode,
         game=game.get_type().short_name,

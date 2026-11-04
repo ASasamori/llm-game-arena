@@ -361,7 +361,10 @@ def replay_episode(record: dict[str, Any]) -> dict[str, Any]:
     }
     values = list(state.returns())
     winners = (
-        [p for p, value in enumerate(values) if value == max(values)]
+        [p for p, value in enumerate(values) if value > 0]
+        if state.is_terminal()
+        and getattr(game, "environment_backend", "openspiel") == "native"
+        else [p for p, value in enumerate(values) if value == max(values)]
         if state.is_terminal() and competitive
         else []
     )
