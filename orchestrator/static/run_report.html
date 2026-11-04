@@ -387,6 +387,7 @@
         const include=create('label','export-options'); const checkbox=create('input'); checkbox.type='checkbox'; checkbox.checked=state.includePrompt; checkbox.addEventListener('change',()=>{state.includePrompt=checkbox.checked;}); include.append(checkbox,document.createTextNode('Include prompts'));
         exportBar.append(ascii,download,include); root.append(exportBar);
         if(episode.status==='FAILED'&&episode.error) root.append(create('div','message',episode.error));
+        if(episode.stop_message) root.append(create('div','message',episode.stop_message));
         $('provenanceDetails').hidden=false; $('provenanceContent').textContent=display(episode.provenance||{});
         if(episode.trace_available===false) { $('timeline').hidden=true; $('transitionContent').replaceChildren(emptyPanel('No transition trace','This episode does not contain recorded transition evidence.')); return; }
         renderTransition();
