@@ -141,6 +141,48 @@ total, limit, and offset. JSON transition records include the saved model data;
 usual authentication and rate limits. Reading a report does not request new model
 generations or incur provider API fees. The website needs no separate hosting.
 
+## Export a collection
+
+Download all recorded data for a run, without report pagination:
+
+```bash
+curl -fsS "$ARENA_URL/v1/runs/$RUN_ID/export" -H "Authorization: Bearer $ARENA_KEY" -o "arena-$RUN_ID.zip"
+```
+
+Creation/status responses include `export_url`. The ZIP contains complete gzip
+JSONL database rows, normalized `decisions.jsonl.gz`, and `manifest.json` with
+row counts, file sizes, and SHA-256 checksums. It includes all episodes and
+transitions for the run, not only the currently selected report page. Global
+ratings are omitted from single-run exports. Empty or incomplete runs retain
+their actual stored status; exports do not manufacture results.
+
+For the entire configured database, explicitly supply its connection URL through
+the environment. The utility does not guess a Raspberry Pi or cloud target:
+
+```bash
+export DATABASE_URL='postgresql+psycopg2://USER:PASSWORD@HOST:5432/DATABASE'
+uv run python -m orchestrator.exports --output analytics/collection.zip
+uv run python -m orchestrator.exports --run-id "$RUN_ID" --output analytics/single-run.zip
+uv run python -m orchestrator.exports --postgres-dump --output analytics/backup.zip
+```
+
+`--postgres-dump` adds `arena-postgres.dump` for `pg_restore` into a PostgreSQL
+server you choose. It requires a compatible installed `pg_dump`; on Homebrew,
+use `--pg-dump-binary /opt/homebrew/opt/postgresql@17/bin/pg_dump` when needed.
+It is available only for whole PostgreSQL databases. SQLite supports JSONL ZIP
+exports. PostgreSQL exports share a repeatable-read snapshot, including the
+optional database backup, so the files describe the same point in time while
+workers continue collecting. Rows are streamed with bounded memory and archives
+are published atomically without overwriting existing output. No database rows
+are changed. API download files are removed after the response finishes.
+
+The archive contains private player observations, prompts, and raw responses.
+No API keys or database connection settings are added by the exporter. It is a
+local/private collection artifact; moving it to another server is an explicit
+operation. A temporary tunnel's database is not automatically your permanent
+Raspberry Pi collection. Run export against the intended database while it is
+available; this command does not restart stopped temporary services.
+
 ## Service configuration
 
 Important environment settings:

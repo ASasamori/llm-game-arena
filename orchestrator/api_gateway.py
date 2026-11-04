@@ -174,7 +174,7 @@ class RunCreateRequest(BaseModel):
     )
     env: str = Field(
         default="connect_four_v1",
-        description="OpenSpiel game specification, including parameters, or a legacy environment alias.",
+        description="OpenSpiel or native social deduction game specification, including parameters, or a legacy environment alias.",
     )
 
     seed: int = Field(default=0, ge=0, le=4294967295)
@@ -242,6 +242,7 @@ class RunCreateResponse(BaseModel):
     report_data_url: str | None = Field(
         default=None, description="Authenticated report JSON URL."
     )
+    export_url: str | None = None
     worker_triggered: bool | None = Field(
         default=None,
         description="Whether on-demand worker execution was triggered by the API.",
@@ -268,6 +269,7 @@ class RunStatusResponse(BaseModel):
     report_url: str | None = None
     text_report_url: str | None = None
     report_data_url: str | None = None
+    export_url: str | None = None
     dispatch_complete: bool | None = None
     dispatch_error: str | None = None
     configuration: dict[str, Any] | None = None

@@ -5,12 +5,23 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 import secrets
+import shutil
+import tempfile
 from typing import Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    Response,
+)
 from sqlalchemy.orm import Session
+from starlette.background import BackgroundTask
+
+from orchestrator.exports import ExportNotFound, export_database
 
 from orchestrator.reports import (
     ReportNotFound,
@@ -34,6 +45,7 @@ def report_links(request: Request, run_id: str) -> dict[str, str]:
         "report_url": str(request.url_for("run_report_viewer", run_id=run_id)),
         "text_report_url": data_url + "?format=text",
         "report_data_url": data_url,
+        "export_url": str(request.url_for("export_run", run_id=run_id)),
     }
 
 
@@ -51,6 +63,33 @@ def create_report_router(
 ) -> APIRouter:
     """Inject gateway dependencies without adding a circular module import."""
     router = APIRouter()
+
+    @router.get(
+        "/v1/runs/{run_id}/export",
+        name="export_run",
+        tags=["runs"],
+        summary="Download all recorded evidence for one run as a ZIP",
+    )
+    def export_run(run_id: str, api_key: str = Depends(authenticate)) -> FileResponse:
+        enforce_rate_limit(api_key)
+        _validate_uuid(run_id, "run_id")
+        directory = Path(tempfile.mkdtemp(prefix="arena-download-"))
+        try:
+            with session_factory() as session:
+                path = directory / "run.zip"
+                export_database(session, path, run_id=run_id)
+        except Exception as exc:
+            shutil.rmtree(directory, ignore_errors=True)
+            if isinstance(exc, ExportNotFound):
+                raise HTTPException(status_code=404, detail=str(exc)) from exc
+            raise
+        return FileResponse(
+            path,
+            media_type="application/zip",
+            filename=f"arena-{run_id}.zip",
+            headers=_PRIVATE_HEADERS,
+            background=BackgroundTask(shutil.rmtree, directory, ignore_errors=True),
+        )
 
     @router.get(
         "/reports",
