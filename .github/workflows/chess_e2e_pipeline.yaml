@@ -65,6 +65,10 @@ jobs:
         run: |
           uv run bash scripts/chess_e2e_ci.sh
 
+      - name: Run Generic Four-Worker End-to-End Smoke
+        run: |
+          uv run python scripts/generic_e2e_ci.py
+
       - name: Upload E2E Logs
         if: ${{ always() && env.ACT != 'true' }}
         uses: actions/upload-artifact@v4

@@ -10,6 +10,8 @@ import os
 import threading
 from sqlalchemy import (
     Integer,
+    Boolean,
+    Text,
     String,
     Float,
     ForeignKey,
@@ -18,6 +20,7 @@ from sqlalchemy import (
     Index,
     UniqueConstraint,
     create_engine,
+    text,
 )
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -26,7 +29,7 @@ from sqlalchemy.orm import (
     relationship,
     sessionmaker,
 )
-from datetime import datetime
+from datetime import UTC, datetime
 from orchestrator.settings import get_database_target, resolve_database_url
 
 try:
@@ -66,7 +69,9 @@ class Run(Base):
         Integer, nullable=False
     )  # For non-PVP runs
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="PENDING")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC)
+    )
 
     # Relationships
     matchups: Mapped[list["Matchup"]] = relationship("Matchup", back_populates="run")
@@ -84,7 +89,9 @@ class Matchup(Base):
     models: Mapped[list] = mapped_column(JSON)  # ["GEMINI", "GPT"]
     num_episodes: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="PENDING")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC)
+    )
 
     run: Mapped["Run"] = relationship("Run", back_populates="matchups")
     episodes: Mapped[list["Episode"]] = relationship(
@@ -95,6 +102,10 @@ class Matchup(Base):
 # Episode model
 class Episode(Base):
     __tablename__ = "episodes"
+    __table_args__ = (
+        Index("ix_episodes_run_status", "run_id", "status"),
+        Index("ix_episodes_matchup_status", "matchup_id", "status"),
+    )
 
     episode_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     run_id: Mapped[str] = mapped_column(
@@ -116,8 +127,8 @@ class Episode(Base):
     winner: Mapped[str] = mapped_column(String(50))
     num_steps: Mapped[int] = mapped_column(Integer)
     error: Mapped[str] = mapped_column(String(255))
-    summary: Mapped[dict] = mapped_column(JSON)
-    action: Mapped[dict] = mapped_column(JSON)
+    summary: Mapped[list[str]] = mapped_column(JSON)
+    action: Mapped[list[str]] = mapped_column(JSON)
     start_time: Mapped[datetime] = mapped_column(DateTime)
     end_time: Mapped[datetime] = mapped_column(DateTime)
 
@@ -146,9 +157,81 @@ class EpisodeStep(Base):
     action: Mapped[str] = mapped_column(String(50), nullable=False)  # e.g., "x3"
     action_probs: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     entropy: Mapped[float | None] = mapped_column(Float, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC)
+    )
 
     episode: Mapped["Episode"] = relationship("Episode", back_populates="steps")
+
+
+class RunConfiguration(Base):
+    """Immutable scheduling manifest, separate from the legacy runs schema."""
+
+    __tablename__ = "run_configurations"
+    run_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("runs.run_id"), primary_key=True
+    )
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+
+
+class RunDispatch(Base):
+    """Durable outbox marker bridging database commit and Redis submission."""
+
+    __tablename__ = "run_dispatches"
+    __table_args__ = (Index("ix_run_dispatch_pending", "complete", "updated_at"),)
+    run_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("runs.run_id"), primary_key=True
+    )
+    complete: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC)
+    )
+
+
+class RunProgress(Base):
+    """Constant-time completion accounting for large runs."""
+
+    __tablename__ = "run_progress"
+    run_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("runs.run_id"), primary_key=True
+    )
+    completed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    failed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class MatchupProgress(Base):
+    __tablename__ = "matchup_progress"
+    matchup_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("matchups.matchup_id"), primary_key=True
+    )
+    completed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    failed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class EpisodeTrace(Base):
+    """Versioned result and provenance, excluding separately paginated transitions."""
+
+    __tablename__ = "episode_traces"
+    episode_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("episodes.episode_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+
+
+class EpisodeTransition(Base):
+    """One complete engine transition; player IDs are explicit, never inferred."""
+
+    __tablename__ = "episode_transitions"
+    episode_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("episodes.episode_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    step_index: Mapped[int] = mapped_column(Integer, primary_key=True)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
 
 
 class ModelRating(Base):
@@ -174,7 +257,9 @@ class ModelRating(Base):
     games_as_o: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     wins_as_x: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     wins_as_o: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC)
+    )
 
 
 class RatingEvent(Base):
@@ -213,14 +298,20 @@ class RatingEvent(Base):
     model_b_pre: Mapped[float] = mapped_column(Float, nullable=False)
     model_a_post: Mapped[float] = mapped_column(Float, nullable=False)
     model_b_post: Mapped[float] = mapped_column(Float, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC)
+    )
 
     run: Mapped["Run"] = relationship("Run")
     episode: Mapped["Episode"] = relationship("Episode")
 
 
 # Engine and session factory
-engine = create_engine(DATABASE_URL, echo=True, future=True)
+engine = create_engine(
+    DATABASE_URL,
+    echo=os.environ.get("SQL_ECHO", "false").lower() == "true",
+    future=True,
+)
 SessionLocal = sessionmaker(bind=engine, future=True)
 _SCHEMA_READY = False
 _SCHEMA_LOCK = threading.Lock()
@@ -232,7 +323,16 @@ def get_session():
 
 # Utility to create tables
 def create_tables():
-    Base.metadata.create_all(engine)
+    with engine.begin() as connection:
+        if connection.dialect.name == "postgresql":
+            # API and runner may bootstrap the same fresh database concurrently.
+            # PostgreSQL serializes DDL discovery and creation across processes.
+            connection.execute(text("SELECT pg_advisory_xact_lock(736274601)"))
+        Base.metadata.create_all(connection)
+        # create_all does not add indexes on already-existing legacy tables.
+        for model in (Episode, RunDispatch):
+            for index in model.__table__.indexes:
+                index.create(connection, checkfirst=True)
 
 
 def ensure_tables_created() -> None:

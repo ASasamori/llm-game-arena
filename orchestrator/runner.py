@@ -263,6 +263,18 @@ def report_stale_started_jobs(queue: Queue, stale_seconds: int) -> None:
         )
 
 
+def recover_pending_dispatches() -> None:
+    """Retry the durable submission outbox without stopping active workers."""
+    from orchestrator.jobs import dispatch_pending_runs
+
+    try:
+        result = dispatch_pending_runs(limit=10)
+        if result["attempted"]:
+            print(_runner_msg(f"Recovered dispatches: {result}", "cyan"))
+    except Exception:
+        logging.getLogger(__name__).exception("Pending dispatch recovery failed")
+
+
 def main():
     ensure_tables_created()
     os.makedirs(LOG_DIR, exist_ok=True)
@@ -282,6 +294,7 @@ def main():
     redis_conn = redis.Redis(host=REDIS_HOST, port=REDIS_PORT)
     queue = Queue(QUEUE_NAME, connection=redis_conn)
     requeue_orphaned_started_jobs(queue)
+    recover_pending_dispatches()
 
     workers = []
     threads = []
@@ -342,6 +355,7 @@ def main():
             if now - last_recovery_ts >= 60:
                 requeue_orphaned_started_jobs(queue)
                 report_stale_started_jobs(queue, STALE_JOB_WARN_SECONDS)
+                recover_pending_dispatches()
                 last_recovery_ts = now
     except KeyboardInterrupt:
         pass

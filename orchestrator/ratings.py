@@ -19,18 +19,22 @@ from __future__ import annotations
 
 import argparse
 import json
+import hashlib
 import math
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import and_
+from game_arena.openspiel.catalog import inspect_game
 
 from orchestrator.models import (
     Episode,
+    EpisodeTrace,
     ModelRating,
     RatingEvent,
     Run,
+    RunConfiguration,
     create_tables,
     get_session,
 )
@@ -108,7 +112,7 @@ def _get_or_create_rating(
             games_as_o=0,
             wins_as_x=0,
             wins_as_o=0,
-            updated_at=datetime.utcnow(),
+            updated_at=datetime.now(UTC),
         )
         session.add(row)
     cache[key] = row
@@ -176,6 +180,24 @@ def _update_record_counts(row: ModelRating, *, score: float, as_x: bool) -> None
         row.losses += 1
 
 
+def _rating_game_identity(game_spec: str) -> tuple[str, dict]:
+    """Separate configured games without overflowing legacy VARCHAR(50) keys."""
+    info = inspect_game(game_spec)
+    canonical = info["canonical_game"]
+    short_name = info["short_name"]
+    try:
+        default = inspect_game(short_name)
+    except ValueError:
+        default = None
+    if default is not None and canonical == default["canonical_game"]:
+        return short_name, info
+    # The full constructor specification remains in run_configuration/trace.
+    # A stable digest prevents board sizes, game transforms and utility variants
+    # from silently sharing one Elo bucket.
+    digest = hashlib.sha256(canonical.encode()).hexdigest()[:24]
+    return f"{short_name[:24]}@{digest}", info
+
+
 def _process_episodes(
     session,
     episodes: list[Episode],
@@ -202,7 +224,40 @@ def _process_episodes(
             skipped += 1
             continue
 
-        if not isinstance(ep.agent, list) or len(ep.agent) < 2:
+        if not isinstance(ep.agent, list) or len(ep.agent) != 2:
+            skipped += 1
+            continue
+
+        trace = session.get(EpisodeTrace, ep.episode_id)
+        if ep.status != "SUCCESS" or (
+            trace is not None
+            and (
+                not trace.payload.get("terminal", True)
+                or trace.payload.get("degraded", False)
+                or (trace.payload.get("fallback_count") or 0) > 0
+            )
+        ):
+            # Random fallback keeps an episode observable but cannot count as
+            # unaided model performance in the official leaderboard.
+            skipped += 1
+            continue
+        configuration = session.get(RunConfiguration, ep.run_id)
+        manifest = trace.payload.get("manifest", {}) if trace else {}
+        game_spec = (
+            configuration.payload["game"]
+            if configuration
+            else manifest.get(
+                "game", trace.payload.get("game", ep.game) if trace else ep.game
+            )
+        )
+        try:
+            rating_game, info = _rating_game_identity(game_spec)
+        except ValueError:
+            skipped += 1
+            continue
+        if info["num_players"] != 2 or info["utility"] != "ZERO_SUM":
+            # Elo's complementary win/loss scores do not describe cooperative,
+            # general-sum, or multiplayer returns. Their utilities remain in traces.
             skipped += 1
             continue
 
@@ -219,21 +274,32 @@ def _process_episodes(
             session,
             cache,
             model_name=player_x_model,
-            game=ep.game,
+            game=rating_game,
             initial_rating=config.initial_rating,
         )
         row_b = _get_or_create_rating(
             session,
             cache,
             model_name=player_o_model,
-            game=ep.game,
+            game=rating_game,
             initial_rating=config.initial_rating,
         )
 
         rating_a_pre = float(row_a.rating)
         rating_b_pre = float(row_b.rating)
         expected_a = _expected_score(rating_a_pre, rating_b_pre)
-        score_a = _winner_to_score_a(ep.winner, player_x_model, player_o_model)
+        returns = trace.payload.get("returns", []) if trace else []
+        score_a = (
+            (
+                1.0
+                if returns[0] > returns[1]
+                else 0.0
+                if returns[0] < returns[1]
+                else 0.5
+            )
+            if len(returns) == 2
+            else _winner_to_score_a(ep.winner, player_x_model, player_o_model)
+        )
         score_b = 1.0 - score_a
 
         k_a = _k_factor(int(row_a.games_played), config)
@@ -245,19 +311,23 @@ def _process_episodes(
         _update_record_counts(row_a, score=score_a, as_x=True)
         _update_record_counts(row_b, score=score_b, as_x=False)
 
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         row_a.updated_at = now
         row_b.updated_at = now
 
-        winner_model = _normalize_model_name(ep.winner)
-        if winner_model not in {player_x_model, player_o_model}:
-            winner_model = DRAW_LABEL
+        winner_model = (
+            player_x_model
+            if score_a == 1.0
+            else player_o_model
+            if score_a == 0.0
+            else DRAW_LABEL
+        )
 
         event = RatingEvent(
             event_id=str(uuid.uuid4()),
             run_id=ep.run_id,
             episode_id=ep.episode_id,
-            game=ep.game,
+            game=rating_game,
             model_a=player_x_model,
             model_b=player_o_model,
             player_x_model=player_x_model,

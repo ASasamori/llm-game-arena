@@ -31,7 +31,7 @@ import tenacity
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, Request, Security, status
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, PrivateAttr, model_validator
 from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import TimeoutError as RedisTimeoutError
@@ -40,6 +40,10 @@ from sqlalchemy import func
 from orchestrator.models import (
     Episode,
     EpisodeStep,
+    EpisodeTrace,
+    EpisodeTransition,
+    RunConfiguration,
+    RunDispatch,
     Matchup,
     ModelRating,
     Run,
@@ -141,6 +145,7 @@ def _resolve_sync_result(value: T | Awaitable[T]) -> T:
 
 
 class RunCreateRequest(BaseModel):
+    _submission_id: str = PrivateAttr(default_factory=lambda: str(uuid4()))
     run_type: Literal["INPUT", "RAND", "PVP", "PVP_RR"] = Field(
         default="PVP",
         description="Run execution mode.",
@@ -148,20 +153,19 @@ class RunCreateRequest(BaseModel):
     num_episodes: int = Field(
         default=1,
         ge=1,
-        le=1000,
-        description="Episode count. INPUT mode must be 1.",
+        description="Episodes per matchup. INPUT mode must be 1.",
     )
     num_steps: int | None = Field(
         default=None,
         ge=1,
-        le=1000,
-        description="Optional per-episode max step cap. Null means play to terminal.",
+        le=1000000,
+        description="Optional per-episode transition cap, including chance nodes; maximum 1,000,000.",
     )
     model_names: list[str] = Field(
         default_factory=list,
         min_length=1,
-        max_length=16,
-        description="Model identifiers (e.g., GEMINI, GPT, CLAUDE).",
+        max_length=1024,
+        description="Provider aliases or PROVIDER:model-version; MOCK requires no API keys.",
     )
     input_actions: list[int] | None = Field(
         default=None,
@@ -169,7 +173,18 @@ class RunCreateRequest(BaseModel):
     )
     env: str = Field(
         default="connect_four_v1",
-        description="Environment version: connect_four_v1 or chess_v1.",
+        description="OpenSpiel game specification, including parameters, or a legacy environment alias.",
+    )
+
+    seed: int = Field(default=0, ge=0, le=4294967295)
+    rotate_seats: bool = Field(
+        default=True, description="Rotate PVP seats across episodes."
+    )
+    mean_field_distribution: str | dict[str, float] | None = None
+    mean_field_population: int = Field(default=0, ge=0)
+    failure_policy: Literal["random", "raise"] = Field(
+        default="random",
+        description="Choose legal random fallback or fail the episode on invalid model output.",
     )
 
     model_config = {
@@ -195,19 +210,20 @@ class RunCreateRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_mode_constraints(self) -> "RunCreateRequest":
-        if self.run_type == "PVP" and len(self.model_names) != 2:
-            raise ValueError("PVP requires exactly 2 model_names")
-        if self.run_type == "PVP_RR" and len(self.model_names) < 2:
-            raise ValueError("PVP_RR requires at least 2 model_names")
-        if self.run_type == "INPUT":
-            if not self.input_actions:
-                raise ValueError("INPUT requires input_actions")
-            if self.num_episodes != 1:
-                raise ValueError("INPUT supports only num_episodes=1")
-        if self.run_type in {"RAND", "INPUT"} and len(self.model_names) < 1:
-            raise ValueError(f"{self.run_type} requires at least one model name")
-        if self.env not in {"connect_four_v1", "chess_v1"}:
-            raise ValueError("env must be one of: connect_four_v1, chess_v1")
+        from orchestrator.jobs import validate_run_spec
+
+        validate_run_spec(
+            run_type=self.run_type,
+            num_episodes=self.num_episodes,
+            num_steps=self.num_steps,
+            model_names=self.model_names,
+            input_actions=self.input_actions,
+            env=self.env,
+            seed=self.seed,
+            mean_field_distribution=self.mean_field_distribution,
+            mean_field_population=self.mean_field_population,
+            failure_policy=self.failure_policy,
+        )
         return self
 
 
@@ -239,6 +255,9 @@ class MatchupStatus(BaseModel):
 
 
 class RunStatusResponse(BaseModel):
+    dispatch_complete: bool | None = None
+    dispatch_error: str | None = None
+    configuration: dict[str, Any] | None = None
     run_id: str = Field(description="Run UUID.")
     run_type: str = Field(description="Run type: INPUT, RAND, PVP, or PVP_RR.")
     status: str = Field(description="Run status.")
@@ -504,6 +523,15 @@ def _build_run_status(run_id: str) -> RunStatusResponse:
             episodes_saved=int(episodes_saved or 0),
             created_at=run.created_at,
             matchups=matchup_payload,
+            dispatch_complete=dispatch.complete
+            if (dispatch := session.get(RunDispatch, run_id))
+            else None,
+            dispatch_error=dispatch.last_error if dispatch else None,
+            configuration=(
+                configuration.payload
+                if (configuration := session.get(RunConfiguration, run_id))
+                else None
+            ),
         )
     finally:
         session.close()
@@ -535,6 +563,13 @@ def _build_run_analytics(run_id: str, action_space: int) -> RunAnalyticsResponse
         if run is None:
             raise HTTPException(status_code=404, detail=f"Run not found: {run_id}")
 
+        configuration = session.get(RunConfiguration, run_id)
+        configured_game = configuration.payload.get("game", "") if configuration else ""
+        if configured_game and configured_game.split("(", 1)[0] != "connect_four":
+            raise HTTPException(
+                status_code=400,
+                detail="Column analytics applies to Connect Four; use /metrics for game-independent utility metrics",
+            )
         episode_rows = (
             session.query(Episode.status, Episode.agent, Episode.episode_id)
             .filter(Episode.run_id == run_id)
@@ -576,10 +611,10 @@ def _build_run_analytics(run_id: str, action_space: int) -> RunAnalyticsResponse
             action_col = _parse_action_column(action)
             if action_col is None or action_col < 0 or action_col >= action_space:
                 continue
-            if player == "x":
+            if player in {"x", "0"}:
                 acting_model = str(agent_list[0]).strip()
                 opponent_model = str(agent_list[1]).strip()
-            elif player == "o":
+            elif player in {"o", "1"}:
                 acting_model = str(agent_list[1]).strip()
                 opponent_model = str(agent_list[0]).strip()
             else:
@@ -716,6 +751,12 @@ def _enqueue_with_backoff(request: RunCreateRequest) -> tuple[str, list[str]]:
         model_names=request.model_names,
         input_actions=request.input_actions,
         env=request.env,
+        seed=request.seed,
+        rotate_seats=request.rotate_seats,
+        mean_field_distribution=request.mean_field_distribution,
+        mean_field_population=request.mean_field_population,
+        failure_policy=request.failure_policy,
+        run_id=request._submission_id,
     )
 
 
@@ -771,7 +812,9 @@ def _trigger_cloud_run_worker_once() -> str | None:
             body = json.dumps(resp.json())
         except ValueError:
             pass
-        raise RuntimeError(f"Cloud Run worker trigger failed: {resp.status_code} {body}")
+        raise RuntimeError(
+            f"Cloud Run worker trigger failed: {resp.status_code} {body}"
+        )
     try:
         data = resp.json()
     except ValueError:
@@ -996,7 +1039,11 @@ def create_run(request: RunCreateRequest, api_key: str = Depends(_authenticate))
         LOGGER.exception("Failed to enqueue run after retries: %s", e)
         raise HTTPException(
             status_code=503,
-            detail="Failed to submit run after retry/backoff attempts",
+            detail={
+                "message": "Dispatch is pending after submission retries; runner recovery will retry committed runs",
+                "run_id": request._submission_id,
+                "status_url": f"/v1/runs/{request._submission_id}",
+            },
         ) from e
 
     increment_counter("api.runs.create.success")
@@ -1187,7 +1234,43 @@ def get_run_step_summaries(
             actions = row.action if isinstance(row.action, list) else []
             summaries = row.summary if isinstance(row.summary, list) else []
             steps: list[StepSummaryItem] = []
-            for idx, pair in enumerate(zip_longest(actions, summaries, fillvalue="")):
+            trace = session.get(EpisodeTrace, row.episode_id)
+            if trace is not None:
+                transition_rows = (
+                    session.query(EpisodeTransition)
+                    .filter_by(episode_id=row.episode_id)
+                    .order_by(EpisodeTransition.step_index)
+                    .all()
+                )
+                for transition_row in transition_rows:
+                    transition = transition_row.payload
+                    decisions = transition.get("decisions", [])
+                    if decisions:
+                        for decision in decisions:
+                            steps.append(
+                                StepSummaryItem(
+                                    step_index=transition_row.step_index,
+                                    player=str(decision["player"]),
+                                    action=decision["action_string"],
+                                    summary=decision.get("summary", ""),
+                                )
+                            )
+                    else:
+                        steps.append(
+                            StepSummaryItem(
+                                step_index=transition_row.step_index,
+                                player=transition["kind"],
+                                action=", ".join(transition.get("action_strings", [])),
+                                summary=transition["kind"],
+                            )
+                        )
+            for idx, pair in enumerate(
+                zip_longest(
+                    actions if trace is None else [],
+                    summaries if trace is None else [],
+                    fillvalue="",
+                )
+            ):
                 action, summary = pair
                 action_value = action if isinstance(action, str) and action else None
                 summary_value = (
@@ -1396,6 +1479,177 @@ def main() -> None:
         port=int(os.environ.get("API_PORT", "8000")),
         reload=False,
     )
+
+
+@app.get("/v1/games", tags=["games"])
+def get_games(api_key: str = Depends(_authenticate)):
+    """Registry capabilities, without constructing games or calling providers."""
+    from game_arena.openspiel.catalog import list_games, registration_warnings
+
+    _enforce_rate_limit(api_key, token_cost=1)
+    return {"games": list_games(), "registration_warnings": registration_warnings()}
+
+
+@app.get("/v1/games/inspect", tags=["games"])
+def inspect_game_configuration(game: str, api_key: str = Depends(_authenticate)):
+    from game_arena.openspiel.catalog import inspect_game
+    from orchestrator.jobs import validate_api_game_spec
+
+    _enforce_rate_limit(api_key, token_cost=1)
+    try:
+        return inspect_game(validate_api_game_spec(game))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/v1/episodes/{episode_id}/trace", tags=["runs"])
+def get_episode_trace(
+    episode_id: str,
+    limit: int = 100,
+    offset: int = 0,
+    api_key: str = Depends(_authenticate),
+):
+    """Versioned provenance and paginated transitions, including raw decisions."""
+    _enforce_rate_limit(api_key, token_cost=1)
+    if not 1 <= limit <= 500 or offset < 0:
+        raise HTTPException(
+            status_code=400, detail="limit must be 1..500 and offset nonnegative"
+        )
+    session = get_session()
+    try:
+        trace = session.get(EpisodeTrace, episode_id)
+        if trace is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Trace not found (legacy episodes may not contain traces)",
+            )
+        total = (
+            session.query(EpisodeTransition).filter_by(episode_id=episode_id).count()
+        )
+        rows = (
+            session.query(EpisodeTransition)
+            .filter_by(episode_id=episode_id)
+            .order_by(EpisodeTransition.step_index)
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
+        return {
+            "episode": trace.payload,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "transitions": [row.payload for row in rows],
+        }
+    finally:
+        session.close()
+
+
+@app.get("/v1/runs/{run_id}/metrics", tags=["runs"])
+def get_run_metrics(run_id: str, api_key: str = Depends(_authenticate)):
+    """Stream aggregate returns and failure counts without ranking cooperative games."""
+    _enforce_rate_limit(api_key, token_cost=1)
+    session = get_session()
+    try:
+        run = session.get(Run, run_id)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        configuration = session.get(RunConfiguration, run_id)
+        status_counts: Counter[str] = Counter()
+        quality_counts: Counter[str] = Counter()
+        actors: dict[str, dict[str, Any]] = {}
+        traces = (
+            session.query(EpisodeTrace)
+            .join(Episode, EpisodeTrace.episode_id == Episode.episode_id)
+            .filter(Episode.run_id == run_id)
+            .yield_per(100)
+        )
+        for trace in traces:
+            payload = trace.payload
+            status_counts[payload["status"]] += 1
+            if not payload.get("terminal") or payload["status"] != "SUCCESS":
+                quality_counts["nonterminal_or_failed"] += 1
+                continue
+            degraded = bool(
+                payload.get("degraded") or (payload.get("fallback_count") or 0) > 0
+            )
+            quality_counts[
+                "fallback_assisted_terminal" if degraded else "clean_terminal"
+            ] += 1
+            for player, (agent, utility) in enumerate(
+                zip(
+                    payload.get("player_agents", payload.get("agent", [])),
+                    payload.get("returns", []),
+                )
+            ):
+                key = f"{player}:{agent}"
+                row = actors.setdefault(
+                    key,
+                    {
+                        "player": player,
+                        "agent": agent,
+                        "terminal_episodes": 0,
+                        "clean_terminal_episodes": 0,
+                        "fallback_assisted_terminal_episodes": 0,
+                        "return_sum": 0.0,
+                        "fallback_assisted_return_sum": 0.0,
+                    },
+                )
+                row["terminal_episodes"] += 1
+                if degraded:
+                    row["fallback_assisted_terminal_episodes"] += 1
+                    row["fallback_assisted_return_sum"] += utility
+                else:
+                    row["clean_terminal_episodes"] += 1
+                    row["return_sum"] += utility
+        for row in actors.values():
+            clean_sum = row.pop("return_sum")
+            fallback_sum = row.pop("fallback_assisted_return_sum")
+            row["mean_return"] = (
+                clean_sum / row["clean_terminal_episodes"]
+                if row["clean_terminal_episodes"]
+                else None
+            )
+            row["fallback_assisted_mean_return"] = (
+                fallback_sum / row["fallback_assisted_terminal_episodes"]
+                if row["fallback_assisted_terminal_episodes"]
+                else None
+            )
+        kinds: Counter[str] = Counter()
+        fallback_counts: Counter[str] = Counter()
+        decisions = 0
+        transitions = (
+            session.query(EpisodeTransition)
+            .join(Episode, EpisodeTransition.episode_id == Episode.episode_id)
+            .filter(Episode.run_id == run_id)
+            .yield_per(100)
+        )
+        for transition in transitions:
+            kinds[transition.payload["kind"]] += 1
+            for decision in transition.payload.get("decisions", []):
+                decisions += 1
+                reason = decision.get("fallback_reason")
+                if reason:
+                    key = (
+                        f"{reason.get('category', 'unknown')}:{reason.get('code', 'unknown')}"
+                        if isinstance(reason, dict)
+                        else str(reason)
+                    )
+                    fallback_counts[key] += 1
+        return {
+            "run_id": run_id,
+            "configuration": configuration.payload if configuration else None,
+            "status_counts": dict(status_counts),
+            "episode_quality_counts": dict(quality_counts),
+            "transition_counts": dict(kinds),
+            "decisions": decisions,
+            "fallback_counts": dict(fallback_counts),
+            "player_metrics": sorted(
+                actors.values(), key=lambda row: (row["player"], row["agent"])
+            ),
+        }
+    finally:
+        session.close()
 
 
 if __name__ == "__main__":

@@ -188,6 +188,9 @@ A durable dispatch marker preserves partially submitted runs through Redis
 outages. The runner retries pending dispatches at startup and every 60 seconds
 with the same job IDs. A submission `503` includes the run ID and polling URL;
 status responses report dispatch completion separately from episode completion.
+Queued runs pin their source, dependency, and OpenSpiel versions. A worker with a
+different build records a clear failure before creating a model client. Queue
+delivery is at least once; stable episode IDs deduplicate persisted results.
 
 ```bash
 docker compose up --build

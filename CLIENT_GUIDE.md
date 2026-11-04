@@ -55,6 +55,9 @@ players determines the seat count. Accepted modes are:
 use a multiple of the player count for equal seat exposure. `num_steps` is a
 transition cap. Chance, simultaneous, and mean field updates each count as one
 transition; a simultaneous transition contains one decision per acting player.
+`failure_policy` accepts `random` (the compatibility default) or `raise` for
+strict evaluation. Fallback-assisted episodes are marked degraded, reported
+separately in metrics, and excluded from Elo updates.
 
 For mean field games include `"mean_field_distribution":"uniform"` or a support
 probability mapping, plus `"mean_field_population":0`. This records an exogenous
@@ -110,3 +113,9 @@ A pending run needs a listening worker and reachable database/queue. Authenticat
 failures return 401; invalid game/player configurations are rejected before
 scheduling. Queue/DB outages return a service error. For deployment instructions,
 read [infra/gcp/README.md](infra/gcp/README.md).
+
+When submission is interrupted after its database commit, a `503` includes the
+run ID and polling URL. The runner retries pending dispatches at startup and
+every 60 seconds. Run status exposes `dispatch_complete` and `dispatch_error`.
+Workers must match the submitted build's source, dependencies, and OpenSpiel
+version; mismatches are recorded before any model client is created.

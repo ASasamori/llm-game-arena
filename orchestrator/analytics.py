@@ -128,7 +128,7 @@ def _build_step_records(run_id: str) -> list[StepRecord]:
                 EpisodeStep.action,
             )
             .join(EpisodeStep, Episode.episode_id == EpisodeStep.episode_id)
-            .filter(Episode.run_id == run_id)
+            .filter(Episode.run_id == run_id, Episode.game == "connect_four")
             .all()
         )
     finally:
@@ -142,10 +142,10 @@ def _build_step_records(run_id: str) -> list[StepRecord]:
         if action_col is None:
             continue
 
-        if player == "x":
+        if player in {"x", "0"}:
             acting_model = _normalize_model_name(str(agent_list[0]))
             opponent_model = _normalize_model_name(str(agent_list[1]))
-        elif player == "o":
+        elif player in {"o", "1"}:
             acting_model = _normalize_model_name(str(agent_list[1]))
             opponent_model = _normalize_model_name(str(agent_list[0]))
         else:
@@ -287,7 +287,7 @@ def _fetch_baseline_distributions(
                     continue
 
                 # In RAND runs, model is expected to be player x.
-                if player == "x" and _normalize_model_name(
+                if player in {"x", "0"} and _normalize_model_name(
                     str(agent_list[0])
                 ) == _normalize_model_name(model):
                     counts[action_col] += 1
@@ -477,20 +477,21 @@ def _build_generic_move_analytics(run_id: str) -> dict[str, object]:
     )
 
     for agent_list, step_index, player, action in rows:
-        if not isinstance(agent_list, list) or len(agent_list) < 2:
+        if not isinstance(agent_list, list) or not agent_list:
             continue
         if not isinstance(action, str) or not action.strip():
             continue
 
         player_normalized = (player or "").strip().lower()
-        if player_normalized in {"x", "w"}:
-            acting_model = _normalize_model_name(str(agent_list[0]))
-        elif player_normalized in {"o", "b"}:
-            acting_model = _normalize_model_name(str(agent_list[1]))
-        else:
-            acting_model = _normalize_model_name(
-                str(agent_list[0] if (step_index % 2 == 0) else agent_list[1])
-            )
+        legacy_players = {"x": 0, "w": 0, "o": 1, "b": 1}
+        player_index = (
+            int(player_normalized)
+            if player_normalized.isdigit()
+            else legacy_players.get(player_normalized)
+        )
+        if player_index is None or not 0 <= player_index < len(agent_list):
+            continue
+        acting_model = _normalize_model_name(str(agent_list[player_index]))
 
         model_action_counts[acting_model][action] += 1
         model_step_counts[acting_model][int(step_index)][action] += 1
