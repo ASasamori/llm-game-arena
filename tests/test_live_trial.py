@@ -12,6 +12,7 @@ os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from rq import Queue as RealQueue
 from game_arena.openspiel.model_generation import GenerateResponse, MockModel
 from orchestrator import models, tasks
 from orchestrator.live_trial import DEFAULT_SEATS, run_trial, submit_trial
@@ -76,5 +77,10 @@ class LiveTrialTests(unittest.TestCase):
             self.assertTrue(run_trial(trial["run_id"], str(root))["reused"])
             self.assertEqual(factory.call_count, 6)
             self.assertEqual(queue.return_value.enqueue.call_count, 1)
+            queued = queue.return_value.enqueue.call_args.args
+            self.assertEqual(queued[0], "orchestrator.live_trial.run_trial")
+            self.assertEqual(
+                RealQueue.parse_args(*queued)[0], "orchestrator.live_trial.run_trial"
+            )
             with self.assertRaises(ValueError):
                 submit_trial(root)

@@ -95,7 +95,7 @@ def submit_trial(directory: Path, *, seed: int = 123) -> dict[str, Any]:
         os.environ.get("RUNNER_QUEUE_NAME", "avalon_trial"), connection=connection
     )
     job = queue.enqueue(
-        run_trial,
+        "orchestrator.live_trial.run_trial",
         run_id,
         str(directory),
         job_id="capped-trial-" + run_id,
