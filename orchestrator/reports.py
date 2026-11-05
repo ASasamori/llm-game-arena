@@ -63,6 +63,7 @@ _PROVENANCE_KEYS = (
     "mean_field_population",
     "environment_backend",
     "stop_after_quests",
+    "recorded_features",
 )
 _TRACE_KEYS = (
     "game",
@@ -81,6 +82,9 @@ _TRACE_KEYS = (
     "seed",
     "num_steps",
     "decision_count",
+    "pending_decision_count",
+    "pending_fallback_count",
+    "failed_attempt_count",
     "fallback_count",
     "degraded",
     "error",
@@ -268,6 +272,7 @@ def _transition_index(
     """
     payload = EpisodeTransition.payload
     board = payload["public_state_before"]
+    node = payload["review_state_before"]["node"]
     rows = session.execute(
         select(
             EpisodeTransition.step_index,
@@ -277,6 +282,10 @@ def _transition_index(
             board["turn"].label("turn"),
             board["turn_number"].label("turn_number"),
             payload["action_strings"].label("actions"),
+            payload["players"].label("players"),
+            node["kind"].label("node_kind"),
+            node["move_number"].label("move_number"),
+            node["active_players"].label("actors"),
         )
         .where(EpisodeTransition.episode_id == episode_id)
         .order_by(EpisodeTransition.step_index)
@@ -330,9 +339,67 @@ def _transition_index(
                 if row["turn_number"] is not None
                 else row["turn"],
                 "label": label[:200],
+                "node_kind": row["node_kind"] or row["kind"],
+                "move_number": row["move_number"],
+                "actors": row["actors"]
+                if isinstance(row["actors"], list)
+                else [
+                    player
+                    for player in (row["players"] or [])
+                    if type(player) is int and player >= 0
+                ],
             }
         )
     return {"items": items, "total": total, "truncated": total > len(items)}
+
+
+def _pending_transition(
+    session: Session, episode_id: str, limit: int, offset: int
+) -> dict[str, Any] | None:
+    """Project a bounded page of attempts that were never applied to the game."""
+    pending = EpisodeTrace.payload["pending_transition"]
+    fields = (
+        "index",
+        "kind",
+        "applied",
+        "state_hash_before",
+        "failure",
+        "review_state_before",
+        "public_state_before",
+        "state_before",
+        "failed_attempt",
+        "decision_count",
+    )
+    row = (
+        session.execute(
+            select(
+                *[pending[key].label(key) for key in fields],
+                *[
+                    pending["decisions"][index].label(f"decision_{index}")
+                    for index in range(offset, offset + limit)
+                ],
+            )
+            .where(EpisodeTrace.episode_id == episode_id)
+            .limit(1)
+        )
+        .mappings()
+        .first()
+    )
+    if row is None or row["index"] is None:
+        return None
+    result = {key: row[key] for key in fields if row[key] is not None}
+    result["applied"] = False
+    result["decisions"] = {
+        "items": [
+            row[f"decision_{index}"]
+            for index in range(offset, offset + limit)
+            if row[f"decision_{index}"] is not None
+        ],
+        "total": int(row["decision_count"] or 0),
+        "limit": limit,
+        "offset": offset,
+    }
+    return result
 
 
 def build_run_report(
@@ -344,6 +411,8 @@ def build_run_report(
     episode_offset: int = 0,
     step_limit: int = 20,
     step_offset: int = 0,
+    pending_limit: int = 20,
+    pending_offset: int = 0,
 ) -> dict[str, Any]:
     """Read bounded pages without loading episode action/summary arrays.
 
@@ -353,6 +422,7 @@ def build_run_report(
     """
     _page(episode_limit, episode_offset, 100, "episode")
     _page(step_limit, step_offset, 200, "step")
+    _page(pending_limit, pending_offset, 200, "pending")
     if episode_id is not None and (not isinstance(episode_id, str) or not episode_id):
         raise ReportRequestError("episode_id must be a nonempty string")
     run = (
@@ -404,6 +474,7 @@ def build_run_report(
     selected: dict[str, Any] | None = None
     transitions: list[dict[str, Any]] = []
     transition_total = 0
+    pending_transition = None
     transition_index: dict[str, Any] = {"items": [], "total": 0, "truncated": False}
     notices = [
         "Model summaries and raw responses are recorded output, not access to hidden reasoning."
@@ -438,6 +509,9 @@ def build_run_report(
             arena_type=None,
         )
         if trace is not None:
+            pending_transition = _pending_transition(
+                session, selected_id, pending_limit, pending_offset
+            )
             for key in (
                 "game",
                 "agent",
@@ -454,6 +528,9 @@ def build_run_report(
                 "seed",
                 "num_steps",
                 "decision_count",
+                "pending_decision_count",
+                "pending_fallback_count",
+                "failed_attempt_count",
                 "fallback_count",
                 "degraded",
                 "error",
@@ -506,12 +583,18 @@ def build_run_report(
                         "state_after",
                         "public_state_before",
                         "public_state_after",
+                        "review_state_before",
+                        "review_state_after",
                     )
                 )
                 for item in transitions
             ):
                 notices.append(
                     "Evaluator board snapshots were not recorded on this page; player observations are shown exactly as stored."
+                )
+            if pending_transition is not None:
+                notices.append(
+                    "Interrupted attempt: recorded choices and failed attempts below were not applied to the game. Their model output and usage are retained separately from completed transitions."
                 )
         else:
             selected["game_spec"] = (configuration or {}).get("game")
@@ -568,6 +651,7 @@ def build_run_report(
             "offset": step_offset,
         },
         "transition_index": transition_index,
+        "pending_transition": pending_transition,
         "notices": notices,
     }
 
@@ -728,6 +812,15 @@ def render_text_report(
         if "public_state_before" in transition:
             text.line("Public board before:")
             text.line(transition["public_state_before"], "  ")
+        if "review_state_before" in transition:
+            review = transition["review_state_before"]
+            text.field("Game state before", review["node"])
+            text.field("Public state visibility", review["visibility"])
+            if (
+                "state_before" not in transition
+                and review["board"].get("text") is not None
+            ):
+                text.line(review["board"]["text"], "  ")
         for key in (
             "players",
             "actions",
@@ -753,6 +846,8 @@ def render_text_report(
             text.line()
             text.field("Recorded player ID", decision.get("player"))
             text.field("Recorded actor", decision.get("agent"))
+            if "selection" in decision:
+                text.field("Selection mechanism", decision["selection"])
             text.field("Chosen action ID", decision.get("action"))
             text.field("Chosen action label", decision.get("action_string"))
             text.field("Legal action IDs", decision.get("legal_actions"))
@@ -771,6 +866,8 @@ def render_text_report(
                 if decision.get("fallback_reason")
                 else "Adapter decision summary"
                 if classifier
+                else "Recorded mock policy summary"
+                if decision.get("selection", {}).get("kind") == "mock"
                 else "Reported model summary"
                 if decision.get("response") is not None
                 else "Recorded policy summary"
@@ -817,6 +914,62 @@ def render_text_report(
         if "public_state_after" in transition:
             text.line("Public board after:")
             text.line(transition["public_state_after"], "  ")
+        if "review_state_after" in transition:
+            review = transition["review_state_after"]
+            text.field("Game state after", review["node"])
+            text.field("Public state visibility", review["visibility"])
+            if (
+                "state_after" not in transition
+                and review["board"].get("text") is not None
+            ):
+                text.line(review["board"]["text"], "  ")
+    pending = report.get("pending_transition")
+    if pending is not None:
+        text.heading("INTERRUPTED ATTEMPTS - NOT APPLIED")
+        text.line(
+            "The game state did not advance. These attempts are separate from applied decisions and returns."
+        )
+        text.field("Attempted transition", pending.get("index"))
+        text.field("Node kind", pending.get("kind"))
+        text.field("Unapplied choices", _page_label(pending["decisions"]))
+        attempts = [
+            ("Selected but not applied", decision)
+            for decision in pending["decisions"]["items"]
+        ]
+        if pending.get("failed_attempt") is not None:
+            attempts.append(
+                ("Failed attempt; no action applied", pending["failed_attempt"])
+            )
+        for label, decision in attempts:
+            text.line()
+            text.line(label)
+            for key in (
+                "player",
+                "agent",
+                "action",
+                "action_string",
+                "selection",
+                "observation_type",
+                "observation",
+                "legal_actions",
+                "legal_action_strings",
+                "summary",
+                "response",
+                "response_metadata",
+                "usage",
+                "latency_ms",
+                "failure",
+            ):
+                if key in decision:
+                    text.field(key.replace("_", " ").title(), decision[key])
+            if include_prompt:
+                text.field("Raw recorded prompt", decision.get("prompt"))
+        page = pending["decisions"]
+        next_pending = page["offset"] + len(page["items"])
+        if next_pending < page["total"]:
+            text.line(
+                f"More unapplied choices: pending_offset={next_pending}&pending_limit={page['limit']}"
+            )
     if not include_prompt:
         text.line(
             "Prompts omitted from text view; the authenticated JSON page retains recorded prompts."

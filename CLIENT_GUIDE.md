@@ -147,6 +147,8 @@ curl -sS 'http://localhost:8000/v1/runs/RUN_ID/report?format=text&episode_id=EPI
 - `episode_limit`: 1–100, default 20; `episode_offset`: nonnegative, default 0.
 - `episode_id`: optional episode selection, which must belong to this run.
 - `step_limit`: 1–200, default 20; `step_offset`: nonnegative, default 0.
+- `pending_limit`: 1–200, default 20; `pending_offset`: nonnegative, default 0,
+  for choices saved from an interrupted, unapplied turn.
 - `width`: text report width from 60–160, default 100.
 - `include_prompt`: include recorded prompts in text output; default `false`.
 
@@ -165,6 +167,43 @@ fields describe the full episode. Numeric jumps still reach any later step using
 uses human-readable step numbers starting at 1 and saves `episode_id` and `step`
 in its URL. New native transition records have `public_state_before` and
 `public_state_after`; these contain spectator facts rather than hidden game state.
+
+OpenSpiel transitions also record `review_state_before` and `review_state_after`.
+Each has versioned game metadata, a `node` (kind, active seats, move number),
+`visibility`, and a `board`. A board is a source-verified `grid`, exact `text`, or
+explicitly `unavailable` for hidden information. A grid retains the complete
+original engine text, including non-board annotations. It never replaces the
+agent's recorded observation or enters another player's prompt.
+
+The website offers **Auto**, **ASCII**, and **Graphics** for grid-capable games.
+Connect Four defaults to ASCII; Chess, Go, Hex, and 2048 default to graphics.
+Choices stay in page memory per game and clear on reload/disconnect. Games with
+text-only displays remain inspectable without a fabricated graphical board.
+
+New decisions retain a `selection` annotation describing the mechanism and
+summary source. It distinguishes model, mock, classifier, forced, random,
+scripted, fallback, and inactive seats. Raw observations, prompts, responses,
+legal-action labels, metadata, and usage remain unchanged in reports and exports.
+`manifest.recorded_features` declares the required new evidence; replay rejects
+removed or altered review/selection fields. Older traces remain readable and
+replayable with the fields they originally recorded. A classifier probability or
+an arena annotation is labelled separately from a model's reported explanation.
+
+If an agent stops or fails before a joint turn completes, `pending_transition`
+retains earlier seats' responses and the failed attempt without applying any of
+their actions. Its `decisions` page is independent of completed transitions.
+The website and terminal label this evidence **not applied**. Applied decision,
+fallback, return, and step counts exclude these attempts; pending counts are
+recorded separately. Strict failures retain their valid prefix and original
+exception semantics. Replay validates recorded states, views, and choices; the
+reported external failure itself remains a recorded claim, not a replayed API call.
+Resumption preserves prior interrupted evidence in `manifest.resume_history`.
+
+Run `python scripts/viewer_conformance.py` for an isolated audit of every installed
+OpenSpiel registry entry, with explicit fixtures for games requiring parameters.
+The JSON/JSONL output records the exact build, public-display formats, observation
+sources, visited node types, and failures or unsupported requirements. Passing
+a bounded walk does not certify every rule, state, or parameter combination.
 
 ## Jev typed decision agents
 
@@ -239,6 +278,12 @@ row counts, file sizes, and SHA-256 checksums. It includes all episodes and
 transitions for the run, not only the currently selected report page. Global
 ratings are omitted from single-run exports. Empty or incomplete runs retain
 their actual stored status; exports do not manufacture results.
+
+`pending_attempts.jsonl.gz` preserves current and historical unapplied/failed
+attempts, including raw prompts, responses, usage, and metadata. These rows carry
+`applied:false` and an `attempt_status`; they remain separate from the existing
+applied `decisions.jsonl.gz` stream. Offline dataset exports provide the same
+separate pending-attempt stream and count.
 
 For the entire configured database, explicitly supply its connection URL through
 the environment. The utility does not guess a Raspberry Pi or cloud target:

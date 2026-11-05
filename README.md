@@ -266,6 +266,19 @@ votes; pending ballots and hidden roles stay out of the public board. The
 recorded actor's private view remains a separate panel. Older traces can show
 public facts extracted from their saved observations, labelled as such; an
 unrecorded after-state is not invented.
+OpenSpiel games share a review panel with the node type, active seats, engine
+move number, and public display. Connect Four and other clear ASCII boards use
+their original engine text by default; switch to **Graphics** for an available
+grid view. Chess, Go, Hex, and 2048 default to graphics. **ASCII** always retains
+the exact engine display, including annotations outside a parsed board. Public
+games without a dedicated grid use lossless text; hidden-information games show
+an explicit public-board limitation alongside each acting player's exact view.
+
+Each decision identifies how its action was selected: model response, offline
+mock, classifier, forced action, random baseline, input script, or fallback.
+Simultaneous choices stay separate by seat. The selected legal action is marked,
+and failed responses remain available when a fallback supplied the applied move.
+Grid changes compare recorded before/after cells; they do not infer a strategy.
 Summaries contain text supplied by the model and do not expose hidden reasoning.
 Mock models supply placeholder explanations. Evaluator data can contain private
 observations from several players. Failed or older episodes show available
@@ -292,6 +305,9 @@ uv run ruff format
 uv run pyright
 uv run python -m unittest discover -s tests -p 'test_*.py'
 uv run python -m unittest discover -s game_arena/openspiel -p 'test_*.py'
+
+# Model-free viewer coverage, including parameterized game fixtures.
+uv run python scripts/viewer_conformance.py --seed 123 --max-steps 96 --output analytics/viewer-coverage.json --jsonl-output analytics/viewer-coverage.jsonl
 
 # Bounded, isolated checks for all default-loadable installed games.
 uv run python -m game_arena.openspiel.conformance --max-steps 96 --timeout 20

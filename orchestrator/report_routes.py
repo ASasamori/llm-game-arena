@@ -154,6 +154,8 @@ def create_report_router(
         episode_offset: int = 0,
         step_limit: int = 20,
         step_offset: int = 0,
+        pending_limit: int = 20,
+        pending_offset: int = 0,
         width: int = 100,
         include_prompt: bool = False,
         api_key: str = Depends(authenticate),
@@ -175,6 +177,8 @@ def create_report_router(
                     episode_offset=episode_offset,
                     step_limit=step_limit,
                     step_offset=step_offset,
+                    pending_limit=pending_limit,
+                    pending_offset=pending_offset,
                 )
             except ReportNotFound as exc:
                 raise HTTPException(status_code=404, detail=str(exc)) from exc

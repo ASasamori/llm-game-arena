@@ -17,6 +17,7 @@ from sqlalchemy.orm import sessionmaker
 
 from game_arena.openspiel import harness, utils
 from game_arena.openspiel.model_generation import MockModel
+from game_arena.openspiel.harness import EpisodeStopped
 from orchestrator import tasks
 from orchestrator.models import Base, Episode, EpisodeTransition, Run, RunConfiguration
 from orchestrator.reports import (
@@ -107,7 +108,7 @@ class ReportTests(unittest.TestCase):
         text = render_text_report(report)
         self.assertIn("simultaneous", text)
         self.assertIn("MOCK OUTPUT", text)
-        self.assertIn("Reported model summary", text)
+        self.assertIn("Recorded mock policy summary", text)
         self.assertIn("Deterministic offline legal action.", text)
         self.assertIn("Raw recorded response", text)
         self.assertIn("Chosen action ID", text)
@@ -216,6 +217,42 @@ class ReportTests(unittest.TestCase):
         self.assertNotIn("prompt", json.dumps(index))
         self.assertNotIn("response", json.dumps(index))
 
+    def test_openspiel_review_and_decision_mechanisms_survive_report_pages(
+        self,
+    ) -> None:
+        for game, players in (
+            ("connect_four", 2),
+            ("kuhn_poker", 2),
+            ("matching_pennies_3p", 3),
+            ("mfg_crowd_modelling(horizon=2)", 1),
+        ):
+            with self.subTest(game=game):
+                run_id = self.create_run()
+                record = self.mock_result(game=game, players=players, steps=10)
+                self.save(run_id, record)
+                with self.sessions() as session:
+                    report = build_run_report(session, run_id, step_limit=1)
+                index = report["transition_index"]["items"]
+                self.assertEqual(
+                    index[0]["node_kind"], record.get("steps", [])[0]["kind"]
+                )
+                event = report["transitions"]["items"][0]
+                self.assertEqual(
+                    event, json.loads(json.dumps(record.get("steps", [])[0]))
+                )
+                self.assertIn("review_state_before", event)
+                self.assertIn("review_state_after", event)
+                for decision in event["decisions"]:
+                    self.assertEqual(decision["selection"]["kind"], "mock")
+                text = render_text_report(report)
+                self.assertIn("Game state before", text)
+                self.assertFalse(
+                    any(
+                        "snapshots were not recorded" in notice
+                        for notice in report["notices"]
+                    )
+                )
+
     def test_large_index_stays_bounded_but_numeric_jump_reaches_final_step(
         self,
     ) -> None:
@@ -242,6 +279,54 @@ class ReportTests(unittest.TestCase):
         self.assertTrue(report["transition_index"]["truncated"])
         self.assertEqual(report["transition_index"]["total"], 5002)
         self.assertEqual(report["transitions"]["items"][0]["index"], 5001)
+
+    def test_unapplied_joint_attempts_are_preserved_and_paginated_separately(
+        self,
+    ) -> None:
+        class StopModel(MockModel):
+            def generate_with_text_input(
+                self, prompt, system_instruction=None, mock=False
+            ):
+                raise EpisodeStopped("provider_error", "Offline test stop")
+
+        run_id = self.create_run()
+        options: Any = {
+            "type": "PVP",
+            "models": [MockModel("first"), StopModel("second")],
+            "game": "matrix_rps",
+            "num_steps": 1,
+            "input": None,
+            "seed": 31,
+            "failure_policy": "raise",
+            "permitted_stop_reasons": ["provider_error"],
+        }
+        record = harness.harness(options)
+        self.save(run_id, record)
+        with self.sessions() as session:
+            report = build_run_report(session, run_id, pending_limit=1)
+            next_page = build_run_report(
+                session, run_id, pending_limit=1, pending_offset=1
+            )
+        self.assertEqual(report["transitions"]["total"], 0)
+        pending = report["pending_transition"]
+        self.assertIs(pending["applied"], False)
+        self.assertEqual(pending["decisions"]["total"], 1)
+        stored_pending = record.get("pending_transition")
+        assert stored_pending is not None
+        self.assertEqual(
+            pending["decisions"]["items"][0]["response"],
+            stored_pending["decisions"][0]["response"],
+        )
+        self.assertEqual(pending["failed_attempt"]["player"], 1)
+        self.assertEqual(next_page["pending_transition"]["decisions"]["items"], [])
+        text = render_text_report(report)
+        self.assertIn("INTERRUPTED ATTEMPTS - NOT APPLIED", text)
+        self.assertIn("Deterministic offline legal action.", text)
+        self.assertIn("Offline test stop", text)
+        self.assertNotIn("Play this OpenSpiel game", text)
+        self.assertIn(
+            "Play this OpenSpiel game", render_text_report(report, include_prompt=True)
+        )
 
     def test_catan_index_includes_public_turn_numbers(self) -> None:
         run_id = self.create_run()

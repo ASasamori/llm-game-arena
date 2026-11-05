@@ -207,6 +207,46 @@
     .legal-list { padding:0; margin:0; list-style:none; display:grid; gap:4px; max-height:220px; overflow:auto; }
     .legal-row { display:flex; gap:12px; align-items:baseline; padding:5px 7px; background:#f6f8f6; border-radius:3px; font:11px var(--mono); overflow-wrap:anywhere; }
     .legal-id { min-width:27px; color:var(--muted); }
+    .legal-row.chosen { background:var(--accent-soft); outline:1px solid #bdd4c5; color:var(--accent); }
+    .legal-row.chosen .legal-id { color:var(--accent); font-weight:700; }
+    .decision-flow { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); border:1px solid var(--line); border-radius:8px; background:var(--paper); margin:0 0 18px; overflow:hidden; }
+    .pending-attempts { margin-bottom:20px; border-color:#d7bb85; }
+    .pending-body { padding:15px; display:grid; gap:13px; }
+    .pending-note { color:var(--amber); font-size:12px; line-height:1.7; margin:0; }
+    .pending-body > details { border:1px solid var(--line); border-radius:5px; }
+    .flow-step { padding:12px 15px; border-right:1px solid var(--line); min-width:0; }
+    .flow-step:last-child { border-right:0; }
+    .flow-step h4 { margin:0 0 5px; color:var(--muted); font:10px var(--mono); text-transform:uppercase; letter-spacing:.6px; }
+    .flow-step p { margin:0; font-size:11px; line-height:1.65; overflow-wrap:anywhere; }
+    .review-context { display:flex; flex-wrap:wrap; gap:7px; padding:14px 18px; border-bottom:1px solid var(--line); font-size:11px; color:var(--muted); }
+    .review-context .badge { text-transform:none; letter-spacing:0; }
+    .review-grid-scroll { max-width:100%; overflow:auto; padding:17px; background:#f8faf7; }
+    .review-grid { display:grid; gap:2px; width:max-content; margin:0 auto; }
+    .review-axis { display:flex; align-items:center; justify-content:center; color:var(--muted); font:10px var(--mono); padding:3px; }
+    .review-cell { display:flex; align-items:center; justify-content:center; width:38px; height:38px; border:1px solid #d6dfd8; border-radius:3px; background:#fff; color:#294438; font:600 21px/1 var(--mono); }
+    .review-cell.shaded { background:#e6ece2; }
+    .review-cell.empty { color:#b4beb7; font-size:15px; font-weight:400; }
+    .review-cell.player-zero { color:#245caa; background:#edf3fa; }
+    .review-cell.player-one { color:#a64c33; background:#fbefea; }
+    .review-cell.changed { outline:2px solid #bc8d39; outline-offset:-2px; }
+    .review-stone { display:block; width:25px; height:25px; border-radius:50%; border:1px solid #687269; box-shadow:0 1px 2px #26352433; }
+    .review-stone.black { background:#233027; }
+    .review-stone.white { background:#fcfcf3; }
+    .review-grid.hex .review-cell { border-radius:40%; }
+    .review-legend { display:flex; flex-wrap:wrap; justify-content:center; gap:7px 16px; padding:10px 18px; font-size:11px; color:var(--muted); }
+    .review-legend code { color:var(--ink); font:600 12px var(--mono); }
+    .structured-view { display:grid; gap:0; margin:0; font-size:12px; }
+    .structured-row { padding:9px 0; border-bottom:1px solid #e6ece7; min-width:0; }
+    .structured-row:last-child { border:0; }
+    .structured-key { color:var(--muted); font:10px var(--mono); margin:0 0 5px; overflow-wrap:anywhere; }
+    .structured-value { margin:0; white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.65; max-height:240px; overflow:auto; }
+    .tensor-summary { display:flex; flex-wrap:wrap; gap:7px 14px; color:var(--muted); font:10px var(--mono); margin-bottom:12px; }
+    .tensor-values { display:grid; grid-template-columns:repeat(auto-fit,minmax(72px,1fr)); gap:4px; }
+    .tensor-value { display:flex; justify-content:space-between; gap:9px; background:#f0f4ef; padding:6px; font:10px var(--mono); }
+    .tensor-value span { color:var(--muted); }
+    .tensor-value.nonzero { background:#e4eee5; }
+    .tensor-controls { display:flex; gap:10px; align-items:center; justify-content:space-between; margin-top:10px; font-size:10px; color:var(--muted); }
+    .tensor-controls button { font-size:10px; padding:5px 8px; }
     .transition-facts { padding:14px 17px; display:grid; gap:9px; font-size:11px; color:var(--muted); }
     .fact-row { display:flex; align-items:baseline; justify-content:space-between; gap:18px; }
     .fact-value { color:var(--ink); font:11px var(--mono); text-align:right; overflow-wrap:anywhere; }
@@ -239,6 +279,7 @@
     @media (max-width:1050px) { .workspace-grid { grid-template-columns:210px minmax(0,1fr); gap:18px; } .transition-layout { grid-template-columns:1fr; } .observation-panel { position:static; } .board { max-height:400px; } .auth-wrap { gap:35px; } }
     @media (max-width:700px) { main { padding:22px 16px; } .topbar-inner { padding:15px 16px; } .topbar-note { display:none; } .connection-label { display:none; } .auth-wrap { grid-template-columns:1fr; margin:28px auto 40px; gap:28px; max-width:460px; } .auth-intro h1 { font-size:37px; } .auth-intro p { font-size:14px; } .evidence-flow { margin-top:20px; } .auth-card { padding:22px; } .run-header { flex-direction:column; gap:13px; } .run-header h1 { font-size:28px; } .run-actions { padding:0; } .stats { grid-template-columns:repeat(2,minmax(0,1fr)); } .stat { padding:14px 16px; } .stat:nth-child(2) { border-right:0; } .stat:nth-child(-n+2) { border-bottom:1px solid var(--line); } .stat-value { font-size:18px; } .workspace-grid { grid-template-columns:1fr; } .episode-list { display:flex; gap:5px; max-height:none; overflow:auto; padding:7px; } .episode-button { flex:0 0 185px; margin:0; } .episode-top { gap:5px; } .episode-header { margin-top:5px; } .episode-header h2 { font-size:19px; } .timeline-top { align-items:flex-start; } .timeline-nav button { min-width:65px; } .transition-layout { gap:15px; } .footer { font-size:10px; } }
     @media (max-width:700px) { .quest-track { gap:4px; } .quest-card { padding:10px 6px; } .quest-card.current { padding:9px 5px; } .quest-card h5 { font-size:10px; } .quest-detail { font-size:9px; } .quest-symbol { font-size:17px; } .game-board-body { padding:14px; } .seat-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .phase-picker { width:100%; } .phase-picker select { flex:1; } .catan-layout { grid-template-columns:1fr; } .jump-form { gap:5px; } }
+    @media (max-width:700px) { .decision-flow { grid-template-columns:repeat(2,minmax(0,1fr)); } .flow-step:nth-child(2) { border-right:0; } .flow-step:nth-child(-n+2) { border-bottom:1px solid var(--line); } .review-grid-scroll { padding:10px; } .review-cell { width:30px; height:30px; font-size:17px; } }
     @media (prefers-reduced-motion:reduce) { .busy::before { animation:none; } }
   </style>
 </head>
@@ -283,9 +324,10 @@
         </aside>
         <div class="episode-detail">
           <div id="episodeHeader"></div>
+          <div id="pendingContent" hidden></div>
           <div class="timeline" id="timeline" hidden>
             <div class="timeline-top"><div class="timeline-label" id="transitionLabel"></div><div class="timeline-nav"><button type="button" id="previousStep">← Previous</button><button type="button" id="nextStep">Next →</button></div></div>
-            <div class="timeline-tools"><form class="jump-form" id="jumpForm"><button type="button" id="firstStep" aria-label="First transition">First</button><label for="stepJump">Go to step</label><input id="stepJump" type="number" min="1" step="1" inputmode="numeric" required><button type="submit" id="jumpButton">Go →</button><button type="button" id="lastStep" aria-label="Last recorded transition">Last</button></form><label class="phase-picker" for="phaseIndex">Find phase<select id="phaseIndex"><option value="">Choose a phase…</option></select></label></div>
+            <div class="timeline-tools"><form class="jump-form" id="jumpForm"><button type="button" id="firstStep" aria-label="First transition">First</button><label for="stepJump">Go to step</label><input id="stepJump" type="number" min="1" step="1" inputmode="numeric" required><button type="submit" id="jumpButton">Go →</button><button type="button" id="lastStep" aria-label="Last recorded transition">Last</button></form><div class="phase-picker"><label for="phaseIndex">Find event</label><select id="phaseIndex" aria-label="Find event"><option value="">Choose a phase or event…</option></select></div></div>
             <div class="index-note" id="indexNote"></div>
             <div class="step-strip" id="stepStrip" aria-label="Recorded transitions on this page"></div>
           </div>
@@ -302,7 +344,8 @@
       'use strict';
       const EPISODE_LIMIT = 20;
       const STEP_LIMIT = 20;
-      const state = { key:'', runId:'', episodeId:null, episodeOffset:0, stepOffset:0, stepPosition:0, player:null, payload:null, loading:false, controller:null, requestId:0, includePrompt:false, snapshotPhase:'before', viewSnapshot:null };
+      const PENDING_LIMIT = 20;
+      const state = { key:'', runId:'', episodeId:null, episodeOffset:0, stepOffset:0, stepPosition:0, pendingOffset:0, player:null, payload:null, loading:false, controller:null, requestId:0, includePrompt:false, snapshotPhase:'before', boardModes:{}, viewSnapshot:null };
       const $ = id => document.getElementById(id);
       const create = (tag, className, text) => { const node=document.createElement(tag); if(className) node.className=className; if(text!==undefined&&text!==null) node.textContent=String(text); return node; };
       const display = value => value===undefined||value===null ? 'Not recorded' : typeof value==='string' ? value : JSON.stringify(value,null,2);
@@ -324,15 +367,16 @@
         $('connectButton').disabled=loading;
         $('connectButton').textContent=loading?'Connecting…':'Connect & review →';
         for (const id of ['episodesPrevious','episodesNext','previousStep','nextStep','firstStep','lastStep','jumpButton','phaseIndex','stepJump']) $(id).disabled=loading||$(id).dataset.boundary==='true';
+        for(const id of ['pendingPrevious','pendingNext']) { const node=$(id);if(node)node.disabled=loading||node.dataset.boundary==='true'; }
       }
       function disconnect(message='') {
         if(state.controller) state.controller.abort();
         state.requestId++;
-        state.key=''; state.payload=null; state.episodeId=null; state.episodeOffset=0; state.stepOffset=0; state.stepPosition=0; state.player=null; state.includePrompt=false; state.viewSnapshot=null; state.snapshotPhase='before';
+        state.key=''; state.payload=null; state.episodeId=null; state.episodeOffset=0; state.stepOffset=0; state.stepPosition=0; state.pendingOffset=0; state.player=null; state.includePrompt=false; state.viewSnapshot=null; state.snapshotPhase='before'; state.boardModes={};
         $('apiKeyInput').value='';
         $('apiKeyInput').placeholder='Enter API key';
         $('workspace').hidden=true; $('authGate').hidden=false; $('connectionBar').hidden=true; $('topbarNote').hidden=false;
-        for(const id of ['runTitle','runMeta','runStats','notices','episodeList','episodeHeader','transitionContent','stepStrip','provenanceContent','asciiContent','pageScope']) $(id).replaceChildren();
+        for(const id of ['runTitle','runMeta','runStats','notices','episodeList','episodeHeader','pendingContent','transitionContent','stepStrip','provenanceContent','asciiContent','pageScope']) $(id).replaceChildren();
         if($('asciiDialog').open) $('asciiDialog').close();
         document.title='Run review · Game Arena';
         setLoading(false); clearError(); if(message) showError(message);
@@ -341,6 +385,7 @@
         const url=new URL('/v1/runs/'+encodeURIComponent(state.runId)+'/report',window.location.origin);
         url.searchParams.set('episode_limit',String(EPISODE_LIMIT)); url.searchParams.set('episode_offset',String(state.episodeOffset));
         url.searchParams.set('step_limit',String(STEP_LIMIT)); url.searchParams.set('step_offset',String(state.stepOffset));
+        url.searchParams.set('pending_limit',String(PENDING_LIMIT)); url.searchParams.set('pending_offset',String(state.pendingOffset));
         if(state.episodeId) url.searchParams.set('episode_id',state.episodeId);
         if(format==='text') { url.searchParams.set('format','text'); if(state.includePrompt) url.searchParams.set('include_prompt','true'); }
         return url;
@@ -369,6 +414,7 @@
           state.episodeId=payload.selected_episode?.episode_id??null;
           state.episodeOffset=number(payload.episodes.offset,state.episodeOffset);
           state.stepOffset=number(payload.transitions.offset,state.stepOffset);
+          state.pendingOffset=number(payload.pending_transition?.decisions?.offset,state.pendingOffset);
           const items=asArray(payload.transitions.items);
           state.stepPosition=typeof position==='number'?Math.max(0,Math.min(items.length-1,position-state.stepOffset)):position==='last'?Math.max(0,items.length-1):position==='keep'?Math.min(state.stepPosition,Math.max(0,items.length-1)):0;
           $('workspace').hidden=false; $('authGate').hidden=true; $('connectionBar').hidden=false; $('topbarNote').hidden=true;
@@ -418,7 +464,7 @@
           const button=create('button','episode-button'+(episode.episode_id===state.episodeId?' selected':'')); button.type='button'; button.setAttribute('aria-pressed',String(episode.episode_id===state.episodeId));
           const top=create('div','episode-top'); top.append(create('span','episode-number','Episode '+(state.episodeOffset+index+1)),statusBadge(episode.status));
           button.append(top,create('div','episode-title',episode.game||'Game not recorded'),create('div','episode-foot',shortId(episode.episode_id)+' · '+number(episode.num_steps)+' transitions'));
-          button.addEventListener('click',()=>{ if(state.loading||episode.episode_id===state.episodeId)return; state.episodeId=episode.episode_id; state.stepOffset=0; state.stepPosition=0; state.player=null; fetchReport(); });
+          button.addEventListener('click',()=>{ if(state.loading||episode.episode_id===state.episodeId)return; state.episodeId=episode.episode_id; state.stepOffset=0; state.stepPosition=0; state.pendingOffset=0; state.player=null; fetchReport(); });
           list.append(button);
         });
         if(!items.length) list.append(create('div','empty','No recorded episodes yet. Refresh to check for new results.'));
@@ -428,6 +474,7 @@
       function outcomeChip(label,value) { const node=create('span','outcome-chip',label); node.append(create('strong','',value)); return node; }
       function renderEpisode(episode) {
         const root=$('episodeHeader'); root.replaceChildren();
+        renderPending();
         if(!episode) { $('timeline').hidden=true; $('transitionContent').replaceChildren(emptyPanel('Waiting for an episode','Completed episodes will appear here as workers save results.')); $('provenanceDetails').hidden=true; return; }
         const header=create('div','episode-header'); const title=create('div');
         title.append(create('h2','',gameName(episode.game||'Episode')));
@@ -467,25 +514,24 @@
           const button=create('button','step-button'+(index===state.stepPosition?' selected':''),String(number(item.index)+1)); button.type='button'; button.setAttribute('aria-label','Transition '+(number(item.index)+1)+': '+pretty(item.kind)); button.setAttribute('aria-pressed',String(index===state.stepPosition)); button.append(create('span','',transitionKind(item)));
           button.addEventListener('click',()=>{if(state.loading)return;state.stepPosition=index;state.player=null;renderTransition();}); strip.append(button);
         });
-        if(!event) { $('transitionLabel').textContent='No recorded transitions'; $('transitionContent').replaceChildren(emptyPanel('No transitions on this page','Try an earlier page or refresh the run.')); boundary('previousStep',state.stepOffset===0); boundary('nextStep',true); return; }
+        if(!event) { $('transitionLabel').textContent='No recorded transitions'; $('transitionContent').replaceChildren(state.payload.pending_transition&&total===0?emptyPanel('No applied transitions','Execution stopped before the first engine transition. The recorded, unapplied attempts are preserved above.'):emptyPanel('No transitions on this page','Try an earlier page or refresh the run.')); boundary('previousStep',state.stepOffset===0); boundary('nextStep',true); rememberView(); return; }
         $('transitionLabel').replaceChildren(create('strong','','Transition '+(number(event.index)+1)),document.createTextNode(' / '+total+' · '+pretty(event.kind)));
         boundary('previousStep',state.stepOffset===0&&state.stepPosition===0); boundary('nextStep',state.stepOffset+state.stepPosition+1>=total);
         const decisions=asArray(event.decisions);
         if(!decisions.some(decision=>decision.player===state.player)) state.player=decisions.find(decision=>asArray(decision.legal_actions).length)?.player??decisions[0]?.player??null;
         const content=$('transitionContent'); content.replaceChildren();
         const publicBoard=renderPublicBoard(event); if(publicBoard) content.append(publicBoard);
+        const snapshot=renderEvaluatorState(event); if(snapshot) content.append(snapshot);
+        content.append(renderDecisionFlow(event));
         const layout=create('div','transition-layout');
-        const snapshot=renderEvaluatorState(event);
         if(event.kind==='chance'||event.kind==='mean_field') {
-          if(snapshot) { const column=create('div','decisions-column'); column.append(renderEnvironment(event),renderTransitionFacts(event)); layout.append(snapshot,column); }
-          else layout.append(renderEnvironment(event),renderTransitionFacts(event));
+          layout.append(renderEnvironment(event),renderTransitionFacts(event));
         }
         else {
           const selected=decisions.find(decision=>decision.player===state.player)||decisions[0];
-          if(snapshot) { const column=create('div','state-column'); column.append(snapshot,renderObservation(selected,decisions,true)); layout.append(column); }
-          else layout.append(renderObservation(selected,decisions));
+          layout.append(renderObservation(selected,decisions));
           const column=create('div','decisions-column');
-          if(event.kind==='simultaneous') column.append(create('div','section-kicker','Joint action · '+decisions.length+' recorded actors'));
+          if(event.kind==='simultaneous') column.append(create('div','view-note','Simultaneous turn · '+decisions.length+' seat records. Each choice used that seat’s pre-action observation. All choices were then applied together; this evaluator view can inspect them after the fact.'));
           for(const decision of decisions) column.append(renderDecision(decision));
           column.append(renderTransitionFacts(event)); layout.append(column);
         }
@@ -493,7 +539,7 @@
         rememberView();
       }
       function rememberView() {
-        state.viewSnapshot={episodeId:state.episodeId,episodeOffset:state.episodeOffset,stepOffset:state.stepOffset,stepPosition:state.stepPosition,player:state.player};
+        state.viewSnapshot={episodeId:state.episodeId,episodeOffset:state.episodeOffset,stepOffset:state.stepOffset,stepPosition:state.stepPosition,pendingOffset:state.pendingOffset,player:state.player};
         if(state.key&&state.runId) window.history.replaceState(null,'',viewUrl());
       }
       function viewUrl() { const url=new URL('/runs/'+encodeURIComponent(state.runId),window.location.origin); if(state.episodeId) url.searchParams.set('episode_id',state.episodeId); if(state.payload?.transitions?.total) url.searchParams.set('step',String(state.stepOffset+state.stepPosition+1)); return url; }
@@ -501,17 +547,17 @@
         const current=number(event?.index,state.stepOffset+state.stepPosition);
         $('stepJump').max=String(total||1); $('stepJump').value=String(current+1);
         boundary('firstStep',current===0||!total); boundary('lastStep',current>=total-1||!total); boundary('jumpButton',!total); boundary('stepJump',!total);
-        const index=state.payload.transition_index, items=asArray(index?.items).length?index.items:asArray(state.payload.transitions.items).map(item=>({index:item.index,kind:item.kind,phase:item.public_state_before?.phase,quest:item.public_state_before?.quest_number,turn:item.public_state_before?.turn_number}));
-        const picker=$('phaseIndex'); picker.replaceChildren(create('option','','Choose a phase…')); picker.firstChild.value='';
+        const index=state.payload.transition_index, items=asArray(index?.items).length?index.items:asArray(state.payload.transitions.items).map(item=>({index:item.index,kind:item.kind,phase:item.public_state_before?.phase,quest:item.public_state_before?.quest_number,turn:item.public_state_before?.turn_number,move_number:item.review_state_before?.node?.move_number,actors:item.review_state_before?.node?.active_players}));
+        const picker=$('phaseIndex'); picker.replaceChildren(create('option','','Choose a phase or event…')); picker.firstChild.value='';
         let previous='', count=0;
         for(const item of items) {
-          if(!item.phase) continue;
-          const key=[item.phase,item.quest??'',item.turn??''].join('|'); if(key===previous) continue; previous=key;
-          const parts=['#'+(number(item.index)+1)]; if(item.quest) parts.push('Quest '+item.quest); if(item.turn!==undefined&&item.turn!==null) parts.push('Turn '+item.turn); parts.push(phaseName(item.phase));
+          const generic=!item.phase, kind=item.node_kind||item.kind; if(generic&&!kind) continue;
+          const key=[item.phase||kind,item.quest??'',item.turn??'',generic?item.move_number??item.index:''].join('|'); if(key===previous) continue; previous=key;
+          const parts=['#'+(number(item.index)+1)]; if(item.quest) parts.push('Quest '+item.quest); if(item.turn!==undefined&&item.turn!==null) parts.push('Turn '+item.turn); if(generic&&item.move_number!==undefined&&item.move_number!==null) parts.push('Move '+item.move_number); parts.push(item.phase?phaseName(item.phase):nodeKindName(kind)); if(generic&&asArray(item.actors).length) parts.push(item.actors.map(p=>'P'+p).join(' + '));
           const option=create('option','',parts.join(' · ')); option.value=String(item.index); picker.append(option); count++; if(count>=700) break;
         }
         boundary('phaseIndex',count===0);
-        $('indexNote').textContent='← / → to step · The link keeps this episode and step'+(index?.truncated?' · Phase index covers the first '+items.length+' transitions; Go to step reaches the full episode.':count?'':' · Phase markers are unavailable in this older trace.');
+        $('indexNote').textContent='← / → to step · The link keeps this episode and step'+(index?.truncated?' · Index covers the first '+items.length+' transitions; Go to step reaches the full episode.':count>=700&&items.length>count?' · Event menu shows at most 700 markers; Go to step reaches the full episode.':count?'':' · Event markers are unavailable in this older trace.');
       }
       async function jumpToStep(index) {
         if(state.loading||!state.payload||!Number.isInteger(index)) return;
@@ -618,7 +664,63 @@
         const trade=create('div','trade-card'); trade.append(create('h5','','Player trading')); if(board.trade?.status==='offered') { const offer=board.trade; trade.append(create('div','trade-note','P'+offer.proposer+' offers P'+offer.recipient),resourceBundle(offer.give),create('div','trade-arrow','in exchange for'),resourceBundle(offer.receive),create('div','trade-note','Awaiting P'+offer.recipient+' · accept, reject, or counter.')); } else trade.append(create('div','trade-note','No public offer is open. A player can prepare a resource bundle on their turn, choose a partner, and propose a trade.')); aside.append(trade);
         const seats=create('div','seat-grid'); for(const player of asArray(board.players)) { const card=playerCard(player,board); card.append(create('div','quest-detail',number(player.public_points)+' public points · '+number(player.resource_count)+' resource cards'),create('div','quest-detail',number(player.roads)+' roads · '+number(player.settlements)+' settlements · '+number(player.cities)+' cities'),create('div','quest-detail',number(player.development_count)+' development cards · '+number(player.knights)+' knights')); const ports=[...new Set(vertices.filter(vertex=>vertex.owner===player.seat&&number(vertex.level)>0&&vertex.port).map(vertex=>vertex.port))]; card.append(create('div','quest-detail',ports.length?'Ports: '+ports.map(port=>port==='any'?'any resource 3:1':pretty(port)+' 2:1').join(' · '):'Bank trade 4:1 · no owned port')); if(board.longest_road_owner===player.seat) card.append(create('span','seat-tag approved','Longest road')); if(board.largest_army_owner===player.seat) card.append(create('span','seat-tag approved','Largest army')); seats.append(card); } aside.append(seats); layout.append(mapColumn,aside); root.append(layout); if(board.last_event) root.append(create('div','board-footer',typeof board.last_event==='string'?board.last_event:display(board.last_event))); appendPublicLog(root,board.public_history);
       }
+      function nodeKindName(kind) { const names={decision:'Player decision',chance:'Chance outcome',simultaneous:'Simultaneous decisions',mean_field:'Population update',terminal:'Terminal state'}; return names[kind]||pretty(kind); }
+      function selectionInfo(decision) {
+        if(decision.selection&&typeof decision.selection==='object') return decision.selection;
+        const meta=decision.response_metadata||{};
+        const kind=decision.fallback_reason?'fallback':!asArray(decision.legal_actions).length?'inactive':decision.agent==='RAND'?'random':decision.agent==='INPUT'?'scripted':meta.decision_source==='forced_legal_action'?'forced':meta.mock===true?'mock':meta.summary_source==='adapter'?'classifier':'unknown';
+        return {kind,summary_source:kind==='fallback'?'fallback':kind==='mock'?'mock':kind==='random'||kind==='scripted'?'baseline':kind==='classifier'||kind==='forced'?'adapter':'unknown',explanation:'Selection provenance was not recorded for this attempt.'};
+      }
+      function selectionName(selection) { const labels={model:'Model selected',mock:'Mock policy',classifier:'Classifier selected',forced:'Forced legal action',random:'Random baseline',scripted:'Scripted input',fallback:'Random fallback',inactive:'Inactive seat',unknown:'Recorded choice'}; return labels[selection.kind]||'Recorded choice'; }
+      function renderDecisionFlow(event) {
+        const panel=create('section','decision-flow'); panel.setAttribute('aria-label','How this transition was produced');
+        const decisions=asArray(event.decisions), selected=decisions.find(d=>d.player===state.player)||decisions[0];
+        let steps;
+        if(event.kind==='chance') steps=[['1 · Source','Environment randomness'],['2 · Possibilities',asArray(event.chance_outcomes).length+' recorded outcomes'],['3 · Selected',event.review_state_before?.visibility?.public===false?'Evaluator-only outcome · shown in the chance evidence below.':asArray(event.action_strings).map(display).join(' · ')||'Outcome not recorded'],['4 · Applied',event.terminal?'The game ended.':'The environment advanced; no agent was called.']];
+        else if(event.kind==='mean_field') steps=[['1 · Source','Recorded population assumption'],['2 · Input',asArray(event.distribution_support).length+' support states'],['3 · Update','The distribution was supplied to the environment.'],['4 · Applied',event.terminal?'The game ended.':'No agent choice or equilibrium result is implied.']];
+        else { const info=selected?selectionInfo(selected):{kind:'unknown'}; steps=[['1 · Observe',selected?'P'+selected.player+' · '+(selected.observation_type||'Observation unavailable'):'No acting player recorded'],['2 · Choose',selected?asArray(selected.legal_actions).length+' legal actions · '+selectionName(info):'No choice recorded'],['3 · Explain',info.kind==='fallback'?'The policy applied a fallback; the original response remains below.':info.summary_source==='model'?'Read the model’s reported summary below.':info.summary_source==='mock'?'The mock explanation is a placeholder.':info.kind==='classifier'?'Inspect typed output and classifier probabilities below.':'The recorded output and its source remain below.'],['4 · Apply',event.terminal?'Terminal outcome · utilities recorded below':event.kind==='simultaneous'?decisions.length+' seat records were applied jointly.':'One engine transition · rewards recorded below']]; }
+        for(const [label,value] of steps) { const step=create('div','flow-step'); step.append(create('h4','',label),create('p','',value)); panel.append(step); } return panel;
+      }
+      function renderReviewState(event) {
+        const snapshots=[['before',event.review_state_before],['after',event.review_state_after]].filter(([,value])=>value&&typeof value==='object'&&value.schema_version===1);
+        if(!snapshots.length) return null;
+        if(!snapshots.some(([phase])=>phase===state.snapshotPhase)) state.snapshotPhase=snapshots[0][0];
+        const panel=create('section','panel universal-board'); panel.setAttribute('aria-label','OpenSpiel game state');
+        const heading=create('div','panel-heading'); heading.append(create('h3','','Game state · '+gameName(snapshots[0][1].game?.name)));
+        const controls=create('div','snapshot-controls'); controls.setAttribute('role','group'); controls.setAttribute('aria-label','Recorded game state before or after transition');
+        const body=create('div','review-body'), buttons=[];
+        const defaultGraphics=new Set(['chess','antichess','go','hex','2048']);
+        const update=()=>{
+          const snapshot=snapshots.find(([phase])=>phase===state.snapshotPhase)[1], game=snapshot.game||{}, node=snapshot.node||{}, board=snapshot.board||{}; body.replaceChildren();
+          const context=create('div','review-context'); context.append(badge(nodeKindName(node.kind),node.kind==='terminal'?'good':'blue'));
+          const actors=asArray(node.active_players); if(actors.length) context.append(create('span','','Acting: '+actors.map(p=>'P'+p).join(' + '))); if(node.move_number!==null&&node.move_number!==undefined) context.append(create('span','','Engine move '+node.move_number)); if(game.num_players!==undefined) context.append(create('span','',game.num_players+' players')); if(game.dynamics) context.append(create('span','',pretty(game.dynamics).toLowerCase())); body.append(context);
+          if(board.format==='unavailable'||snapshot.visibility?.public===false) { const empty=create('div','empty'); empty.append(create('h3','','No public board is exposed'),create('div','',snapshot.visibility?.reason||'The environment contains hidden information. Consult the recorded view for each acting seat below.')); body.append(empty); }
+          else {
+            const preference=state.boardModes[game.name]||'auto', defaultMode=defaultGraphics.has(game.name)?'graphics':'ascii', mode=preference==='auto'?defaultMode:preference;
+            if(board.format==='grid') { const modes=create('div','review-context snapshot-controls');modes.setAttribute('role','group');modes.setAttribute('aria-label','Board presentation');for(const [value,label] of [['auto','Auto · '+(defaultMode==='ascii'?'ASCII':'Graphics')],['ascii','ASCII'],['graphics','Graphics']]){const button=create('button',preference===value?'selected':'',label);button.type='button';button.setAttribute('aria-pressed',String(preference===value));button.addEventListener('click',()=>{state.boardModes[game.name]=value;update();});modes.append(button);}body.append(modes); }
+            const rendered=board.format==='grid'&&mode==='graphics'&&renderReviewGrid(body,board,snapshots.find(([phase])=>phase!==state.snapshotPhase)?.[1]?.board);
+            if(rendered) body.append(evidenceDetails('Exact evaluator snapshot',board.text,'The exact evaluator snapshot was not recorded.'));
+            else { const region=create('div','snapshot-body'); region.append(create('pre','snapshot-board',typeof board.text==='string'?board.text:'No evaluator snapshot was recorded.')); body.append(region);if(board.format==='grid'&&mode==='graphics')body.append(create('div','view-note','This snapshot exceeds the graphical display limits. Its complete ASCII representation is shown instead.')); }
+          }
+          const visibility=snapshot.visibility?.reason||'This spectator state is separate from the exact input supplied to each agent.'; body.append(create('div','view-note',visibility+' Source: '+(board.source||'not recorded')+'.'));
+          for(const [phase,button] of buttons) { button.className=phase===state.snapshotPhase?'selected':'';button.setAttribute('aria-pressed',String(phase===state.snapshotPhase)); }
+        };
+        for(const [phase] of snapshots) { const button=create('button','',phase==='before'?'Before action':'After action');button.type='button';button.addEventListener('click',()=>{state.snapshotPhase=phase;update();});controls.append(button);buttons.push([phase,button]); }
+        heading.append(controls);panel.append(heading,body);update();return panel;
+      }
+      function renderReviewGrid(root,board,otherBoard=null) {
+        const rows=asArray(board.rows), width=asArray(rows[0]).length;
+        if(!rows.length||!width||rows.length>128||width>128||rows.length*width>4096||rows.some(row=>!Array.isArray(row)||row.length!==width)) return false;
+        const scroll=create('div','review-grid-scroll'), grid=create('div','review-grid'+(board.layout==='hex'?' hex':'')); grid.style.gridTemplateColumns='24px repeat('+width+', auto)';grid.setAttribute('role','group');grid.setAttribute('aria-label','Recorded board coordinates');
+        const comparable=asArray(otherBoard?.rows).length===rows.length&&asArray(otherBoard?.rows).every(row=>Array.isArray(row)&&row.length===width), changes=[];
+        const rowLabels=asArray(board.row_labels), columnLabels=asArray(board.column_labels), legend=board.legend&&typeof board.legend==='object'?board.legend:{}, emptySymbols=asArray(board.empty_symbols);
+        grid.append(create('span','review-axis',''));for(let col=0;col<width;col++)grid.append(create('span','review-axis',columnLabels[col]??'c'+col));
+        const chessPieces={K:'♔',Q:'♕',R:'♖',B:'♗',N:'♘',P:'♙',k:'♚',q:'♛',r:'♜',b:'♝',n:'♞',p:'♟'};
+        let changedCount=0;rows.forEach((row,r)=>{grid.append(create('span','review-axis',rowLabels[r]??'r'+r));row.forEach((value,c)=>{const symbol=String(value),meaning=legend[symbol],empty=emptySymbols.includes(value),player=typeof meaning==='string'?meaning.match(/^Player ([01])\b/i):null,changed=comparable&&otherBoard.rows[r][c]!==value;if(changed){changedCount++;changes.push({row:rowLabels[r]??r,column:columnLabels[c]??c,before:state.snapshotPhase==='after'?otherBoard.rows[r][c]:value,after:state.snapshotPhase==='after'?value:otherBoard.rows[r][c]});}const cell=create('span','review-cell'+((r+c)%2?' shaded':'')+(empty?' empty':'')+(player?(player[1]==='0'?' player-zero':' player-one'):'')+(changed?' changed':''),board.layout==='chess'?(chessPieces[symbol]||(empty?'':symbol)):symbol);const coordinate='Row '+(rowLabels[r]??r)+', column '+(columnLabels[c]??c);cell.title=coordinate+' · '+(meaning||symbol)+(changed?' · Changed in this transition':'');cell.setAttribute('aria-label',cell.title);if(['go_coordinates','othello_coordinates'].includes(board.renderer)&&!empty&&typeof meaning==='string'&&/^(Black|White)\b/.test(meaning)){cell.textContent='';const stone=create('i','review-stone '+(meaning.startsWith('Black')?'black':'white'));stone.setAttribute('aria-hidden','true');cell.append(stone);}grid.append(cell);});});scroll.append(grid);root.append(scroll);
+        const key=create('div','review-legend');for(const [symbol,meaning] of Object.entries(legend)){const entry=create('span');entry.append(create('code','',symbol),document.createTextNode(' '+display(meaning)));key.append(entry);}if(changedCount)key.append(create('span','',changedCount+' changed cells outlined in gold.'));if(!rowLabels.length||!columnLabels.length)key.append(create('span','','Unlabelled axes use zero-based r/c indices.'));if(board.layout==='hex')key.append(create('span','','Hex board shown in row/column coordinates.'));if(key.childElementCount)root.append(key);if(changes.length)root.append(evidenceDetails('Changed board cells ('+changes.length+') · before → after',changes));return true;
+      }
       function renderEvaluatorState(event) {
+        const review=renderReviewState(event); if(review) return review;
         const snapshots=[['before',event.state_before],['after',event.state_after]].filter(([,value])=>typeof value==='string');
         if(!snapshots.length) return null;
         if(!snapshots.some(([phase])=>phase===state.snapshotPhase)) state.snapshotPhase=snapshots[0][0];
@@ -633,6 +735,8 @@
       }
       function roleLabel(decision) {
         if(decision.role) return display(decision.role);
+        if(decision.selection) return selectionName(selectionInfo(decision));
+        if(decision.fallback_reason) return 'Random fallback after an agent failure';
         if(decision.agent==='RAND') return 'Random baseline';
         if(decision.agent==='INPUT') return 'Scripted input';
         if(!asArray(decision.legal_actions).length) return 'Inactive player';
@@ -641,7 +745,7 @@
       function renderObservation(decision,decisions,compact=false) {
         const panel=create('section','panel observation-panel'+(compact?' compact':''));
         const parsed=parseObservation(decision), native=['avalon','coup','one_night_werewolf','catan'].includes(parsed?.game);
-        const heading=create('div','panel-heading'); heading.append(create('h3','',native?'Private player view':'Player observation'),create('span','section-kicker',decision?'Player '+decision.player:'No actor')); panel.append(heading);
+        const heading=create('div','panel-heading'); heading.append(create('h3','',native?'Private player view':'Recorded agent input'),create('span','section-kicker',decision?'Player '+decision.player:'No actor')); panel.append(heading);
         if(!decision) { panel.append(create('div','empty','No player observation was recorded.')); return panel; }
         const meta=create('div','observation-meta'); meta.append(badge(decision.observation_type||'Observation unavailable')); panel.append(meta);
         const body=create('div','observation-body');
@@ -654,29 +758,67 @@
           if(parsed.trade?.status==='draft') { const row=create('div','private-fact'); row.append(create('span','','Private trade draft'),create('strong','',display(parsed.trade))); facts.append(row); }
           if(!facts.childElementCount) facts.append(create('div','trade-note','No additional private fields were recorded at this step.')); panel.append(facts,evidenceDetails('Exact player observation',observation));
         }
-        else if(observation!==undefined&&observation!==null&&observation!=='') { const pre=create('pre','board'+(String(decision.observation_type).endsWith('tensor')?' wrap':''),display(observation)); pre.setAttribute('aria-label','Recorded observation for player '+decision.player); body.append(pre); }
+        else if(observation!==undefined&&observation!==null&&observation!=='') {
+          body.append(create('div','tensor-summary','Exact source: '+(decision.observation_type||'not recorded')+' · Seat P'+decision.player));
+          let value=observation; if(typeof observation==='string') { try { value=JSON.parse(observation); } catch {} }
+          if(String(decision.observation_type).endsWith('tensor')&&Array.isArray(value)) body.append(renderTensorView(value,decision));
+          else if(value&&typeof value==='object'&&!Array.isArray(value)) { const structured=create('dl','structured-view'), entries=Object.entries(value);for(const [key,item] of entries.slice(0,32)){const row=create('div','structured-row');row.append(create('dt','structured-key',key),create('dd','structured-value',display(item)));structured.append(row);}body.append(structured);if(entries.length>32)body.append(create('div','view-note',(entries.length-32)+' additional fields remain in the exact observation below.')); }
+          else { const pre=create('pre','board'+(typeof value==='object'?' wrap':''),display(observation));pre.setAttribute('aria-label','Recorded observation for player '+decision.player);body.append(pre); }
+          if(typeof value==='object') body.append(evidenceDetails('Exact player observation',observation));
+        }
         else body.append(create('div','empty',observation===''?'The recorded observation is empty at this state.':'No observation was recorded for this actor.'));
         if(!native) panel.append(body);
         if(decisions.length>1) { const tabs=create('div','actor-tabs'); for(const actor of decisions) { const button=create('button',actor.player===state.player?'selected':'','Player '+actor.player); button.type='button'; button.setAttribute('aria-pressed',String(actor.player===state.player)); button.addEventListener('click',()=>{state.player=actor.player;renderTransition();}); tabs.append(button); } panel.append(tabs); }
-        panel.append(create('div','view-note','This is the recorded view supplied for this player, before the selected transition.'));
+        panel.append(create('div','view-note','This is exactly the recorded observation supplied to P'+decision.player+' before the action. An information state may describe their history or hidden information rather than a board. No other seat’s view is substituted.'));
         return panel;
       }
+      function renderTensorView(values,decision) {
+        const panel=create('div'), summary=create('div','tensor-summary'), numeric=values.every(value=>typeof value==='number'&&Number.isFinite(value));
+        summary.append(create('span','',values.length+' indexed values'));
+        if(numeric&&values.length) { let min=Infinity,max=-Infinity,nonzero=0;for(const value of values){min=Math.min(min,value);max=Math.max(max,value);if(value!==0)nonzero++;}summary.append(create('span','','Range '+formatNumber(min)+' … '+formatNumber(max)),create('span','',nonzero+' nonzero')); }
+        const shape=asArray(decision.observation_shape), validShape=shape.length&&shape.every(value=>Number.isInteger(value)&&value>0)&&shape.reduce((a,b)=>a*b,1)===values.length;
+        panel.append(summary,create('div','view-note',validShape?'Recorded tensor shape: '+shape.join(' × ')+'. Values below retain their zero-based flat indices.':'No tensor shape or axis meanings were recorded. Values are shown by zero-based index; board positions are not inferred.'));
+        const content=create('div','tensor-values'), controls=create('div','tensor-controls'), previous=create('button','','← Values'), next=create('button','','Values →'), range=create('span');previous.type='button';next.type='button';let offset=0;
+        const update=()=>{content.replaceChildren();for(let i=offset;i<Math.min(offset+96,values.length);i++){const cell=create('div','tensor-value'+(typeof values[i]==='number'&&values[i]!==0?' nonzero':''));cell.append(create('span','','['+i+']'),create('strong','',formatNumber(values[i])));content.append(cell);}range.textContent=values.length?(offset+'–'+(Math.min(offset+96,values.length)-1)+' of '+values.length):'No values';previous.disabled=offset===0;next.disabled=offset+96>=values.length;};
+        previous.addEventListener('click',()=>{offset=Math.max(0,offset-96);update();});next.addEventListener('click',()=>{offset+=96;update();});controls.append(previous,range,next);panel.append(content,controls);update();return panel;
+      }
       function evidenceDetails(label,value,placeholder='Not recorded') { const details=create('details'); details.append(create('summary','',label)); const body=create('div','evidence-body'); body.append(create('pre','evidence-pre',value===undefined||value===null?placeholder:display(value))); details.append(body); return details; }
-      function renderDecision(decision) {
-        const classifier=decision.response_metadata?.summary_source==='adapter';
+      function renderPending() {
+        const root=$('pendingContent');root.replaceChildren();const pending=state.payload?.pending_transition;root.hidden=!pending||pending.applied!==false;if(root.hidden)return;
+        const panel=create('section','panel pending-attempts');panel.setAttribute('aria-label','Interrupted attempts not applied');const heading=create('div','panel-heading');heading.append(create('h3','','Interrupted attempts — not applied'),badge('State unchanged','warn'));panel.append(heading);
+        const body=create('div','pending-body'), totalApplied=number(state.payload?.transitions?.total);body.append(create('p','pending-note','Execution stopped after '+totalApplied+' applied transitions. The attempts below were recorded, but none of their choices was applied to the game. They have no transition outcome and are not part of the step index.'));
+        const page=pending.decisions, records=Array.isArray(page)?page:asArray(page?.items), total=Array.isArray(page)?page.length:number(page?.total), offset=Array.isArray(page)?0:number(page?.offset), limit=Array.isArray(page)?PENDING_LIMIT:number(page?.limit,PENDING_LIMIT), failed=pending.failed_attempt, failure=failed?.failure||pending.failure;
+        if(failure)body.append(create('p','pending-note','Reported failure'+(failure.stage?' during '+display(failure.stage):'')+': '+[failure.type,failure.message].filter(Boolean).map(display).join(' · ')));
+        if(total)body.append(create('div','trade-note','Completed but unapplied choices: '+(offset+1)+'–'+Math.min(offset+records.length,total)+' of '+total+(pending.kind==='simultaneous'?'. The joint action was never committed.':'.')));
+        else body.append(create('div','trade-note','No completed choice preceded this interrupted attempt.'));
+        for(const decision of records)body.append(renderDecision(decision,{applied:false}));
+        if(total>limit){const pagination=create('div','pagination'),previous=create('button','','← Earlier attempts'),next=create('button','','Later attempts →');previous.type='button';next.type='button';previous.id='pendingPrevious';next.id='pendingNext';previous.dataset.boundary=String(offset===0);next.dataset.boundary=String(offset+records.length>=total);previous.disabled=offset===0;next.disabled=offset+records.length>=total;previous.addEventListener('click',()=>{if(state.loading)return;state.pendingOffset=Math.max(0,offset-limit);fetchReport('keep');});next.addEventListener('click',()=>{if(state.loading)return;state.pendingOffset=offset+limit;fetchReport('keep');});pagination.append(previous,create('small','',total+' completed attempts · '+limit+' per page'),next);body.append(pagination);}
+        if(failed){body.append(create('h4','section-kicker','Failed or interrupted agent attempt'));body.append(renderDecision(failed,{applied:false,failed:true}));}
+        const review=pending.review_state_before;if(pending.public_state_before)body.append(evidenceDetails('Unchanged public state at interruption',pending.public_state_before));else if(review?.visibility?.public===true&&typeof review.board?.text==='string')body.append(evidenceDetails('Unchanged evaluator state at interruption',review.board.text));else if(review?.visibility?.public===false)body.append(create('div','view-note',review.visibility.reason||'No public board is exposed. Each recorded player observation remains separate.'));else if(typeof pending.state_before==='string')body.append(evidenceDetails('Unchanged evaluator state at interruption',pending.state_before));
+        body.append(evidenceDetails('Interrupted attempt provenance',{index:pending.index,kind:pending.kind,applied:false,players:pending.players,state_hash_before:pending.state_hash_before}));panel.append(body);root.append(panel);
+      }
+      function renderDecision(decision,options={}) {
+        const pending=options.applied===false, failed=pending&&options.failed===true;
+        const selection=selectionInfo(decision), classifier=selection.kind==='classifier'||decision.response_metadata?.summary_source==='adapter'&&selection.kind!=='mock';
         const responseMeta=decision.response_metadata||{};
         const card=create('article','decision-card'+(decision.player===state.player?' active':''));
         const heading=create('div','decision-heading'); const identity=create('div'), actorName=create('div','actor-name','Player '+decision.player+' · '+modelName(decision.agent)); actorName.title=display(decision.agent); identity.append(actorName,create('div','actor-subtitle',roleLabel(decision))); heading.append(identity);
-        if(decision.player===state.player) heading.append(badge('Viewing','good'));
+        if(pending) heading.append(badge(failed?'Failed · not applied':'Not applied','warn'));
+        else if(decision.player===state.player) heading.append(badge('Viewing','good'));
+        else { const inspect=create('button','small','View P'+decision.player+' input');inspect.type='button';inspect.addEventListener('click',()=>{state.player=decision.player;renderTransition();});heading.append(inspect); }
         card.append(heading);
-        const block=create('div','action-block'); block.append(create('div','action-caption','Chosen action'));
-        const action=create('div','chosen-action'); action.append(create('span','chosen-label',decision.action_string??'Not recorded'),create('span','action-id','ID '+display(decision.action))); block.append(action,create('div','summary-label',classifier?'Adapter decision summary':'Recorded summary'),create('p','recorded-summary',decision.summary||'No summary was recorded.'));
+        const block=create('div','action-block'); block.append(create('div','action-caption',failed?'No action applied':pending?(selection.kind==='fallback'?'Proposed random fallback · not applied':'Proposed choice · not applied'):selection.kind==='fallback'?'Applied random fallback action':selection.kind==='inactive'?'No action required':'Chosen action'));
+        const summaryLabel=selection.summary_source==='fallback'?'Fallback policy summary':selection.summary_source==='mock'?'Mock policy summary':selection.summary_source==='baseline'?'Baseline policy summary':classifier?'Adapter decision summary':selection.summary_source==='model'?'Reported model summary':'Recorded summary · source not recorded';
+        const action=create('div','chosen-action'); action.append(create('span','chosen-label',decision.action_string??(pending?'No completed choice':'Not recorded')));if(decision.action!==null&&decision.action!==undefined)action.append(create('span','action-id','ID '+display(decision.action)));block.append(action,create('div','summary-label',pending&&selection.kind==='fallback'?'Unapplied fallback':summaryLabel),create('p','recorded-summary',pending&&selection.kind==='fallback'?'A seeded random legal choice was selected after the agent response failed. Execution stopped before this choice was applied.':decision.summary||'No summary was recorded.'));
         const facts=create('div','decision-facts'); if(typeof decision.latency_ms==='number') facts.append(create('span','',formatNumber(decision.latency_ms)+' ms')); if(Array.isArray(decision.legal_actions)) facts.append(create('span','',decision.legal_actions.length+' legal actions')); if(decision.usage&&Object.keys(decision.usage).length) facts.append(create('span','',Object.entries(decision.usage).map(([key,value])=>pretty(key)+': '+display(value)).join(' · '))); block.append(facts); card.append(block);
-        if(decision.fallback_reason) { const reason=decision.fallback_reason; card.append(create('div','fallback','Fallback applied · '+(typeof reason==='object'?[reason.category,reason.code,reason.message].filter(Boolean).map(display).join(' / '):display(reason)))); }
+        if(decision.fallback_reason) { const reason=decision.fallback_reason; card.append(create('div','fallback',(pending?'Fallback proposed, not applied · ':'Fallback applied · ')+(typeof reason==='object'?[reason.category,reason.code,reason.message].filter(Boolean).map(display).join(' / '):display(reason)))); }
+        if(pending) { card.append(create('div','private-banner','Unapplied evaluator evidence. This attempt did not change the game state and has no transition outcome.'));if(decision.failure)card.append(evidenceDetails('Reported attempt failure',decision.failure));card.append(evidenceDetails('Observation supplied to P'+decision.player,decision.observation,'No observation was captured for this attempt.')); }
+        if(pending&&selection.kind==='fallback') card.append(evidenceDetails('Original recorded fallback summary',decision.summary));
+        if(selection.explanation) card.append(create('div','view-note',pending&&selection.kind==='fallback'?'The arena selected this seeded random fallback after the agent failed. The choice was not applied.':pending&&selection.kind==='forced'?'The adapter selected the only legal action without a classifier call. The choice was not applied.':selection.explanation));
         if(classifier) { card.append(create('div','view-note',responseMeta.decision_source==='forced_legal_action'?'Only one legal action; no classifier call was needed.':'Typed classifier output. The adapter summary is not generated reasoning.')); if(typeof responseMeta.confidence==='number') card.append(create('div','view-note','Classifier confidence: '+formatNumber(responseMeta.confidence))); card.append(evidenceDetails('Classifier probabilities',responseMeta.probabilities)); }
-        card.append(evidenceDetails(classifier?'Raw classifier response':'Raw response',classifier?responseMeta.provider_response:decision.response,classifier?'No classifier response was needed or recorded.':'No model response was recorded for this action.'),evidenceDetails('Exact prompt',decision.prompt,'No model prompt was recorded for this action.'));
+        const rawResponse=evidenceDetails(classifier?'Raw classifier response':selection.kind==='fallback'?'Original agent response before fallback':'Raw response',classifier?responseMeta.provider_response:decision.response,classifier?'No classifier response was needed or recorded.':'No model response was recorded for this action.');if(failed&&(decision.response||responseMeta.provider_response))rawResponse.open=true;card.append(rawResponse,evidenceDetails('Exact prompt',decision.prompt,'No model prompt was recorded for this action.'));
         const legal=create('details'); legal.append(create('summary','','Legal actions ('+asArray(decision.legal_actions).length+')')); const legalBody=create('div','evidence-body'); const list=create('ul','legal-list');
-        asArray(decision.legal_actions).forEach((id,index)=>{ const row=create('li','legal-row'); row.append(create('span','legal-id',display(id)),create('span','',asArray(decision.legal_action_strings)[index]??'Label not recorded')); list.append(row); });
+        asArray(decision.legal_actions).forEach((id,index)=>{ const chosen=id===decision.action,row=create('li','legal-row'+(chosen?' chosen':''));row.setAttribute('aria-label',(chosen?(pending?'Proposed action · ':'Applied action · '):'')+'ID '+display(id)+' · '+(asArray(decision.legal_action_strings)[index]??'Label not recorded'));row.append(create('span','legal-id',display(id)),create('span','',asArray(decision.legal_action_strings)[index]??'Label not recorded'));if(chosen)row.append(create('span','seat-tag active',pending?'Proposed':'Applied'));list.append(row); });
         if(!list.childElementCount) legalBody.append(create('div','actor-subtitle','No legal actions recorded.')); else legalBody.append(list); legal.append(legalBody); card.append(legal);
         if(decision.response_metadata&&Object.keys(decision.response_metadata).length) card.append(evidenceDetails('Response metadata',decision.response_metadata));
         return card;
@@ -684,13 +826,16 @@
       function fact(label,value) { const row=create('div','fact-row'); row.append(create('span','',label),create('span','fact-value',value)); return row; }
       function renderTransitionFacts(event) {
         const panel=create('section','panel'); const heading=create('div','panel-heading'); heading.append(create('h3','','After this transition'),event.terminal?badge('Terminal','good'):badge('In progress')); panel.append(heading);
-        const rows=create('div','transition-facts'); rows.append(fact('Rewards',Array.isArray(event.rewards)?'['+event.rewards.map(formatNumber).join(', ')+']':'Not recorded'),fact('Cumulative returns',Array.isArray(event.returns)?'['+event.returns.map(formatNumber).join(', ')+']':'Not recorded'));
+        const rows=create('div','transition-facts'); rows.append(fact('Rewards',Array.isArray(event.rewards)?'['+event.rewards.map(formatNumber).join(', ')+']':'Not recorded'),fact('Engine returns',Array.isArray(event.returns)?'['+event.returns.map(formatNumber).join(', ')+']':'Not recorded'));
+        const actors=asArray(state.payload.selected_episode?.player_agents), returns=asArray(event.returns), rewards=asArray(event.rewards);for(let player=0;player<Math.max(returns.length,rewards.length);player++)rows.append(fact('P'+player+(actors[player]?' · '+modelName(actors[player]):''),'reward '+formatNumber(rewards[player])+' · return '+formatNumber(returns[player])));
+        rows.append(create('div','trade-note','These are the environment’s utilities in seat order. Intermediate returns are not a final winner or a two-player ranking.'));
         panel.append(rows,evidenceDetails('State fingerprints',{before:event.state_hash_before??null,after:event.state_hash??null}));
         return panel;
       }
       function renderEnvironment(event) {
         const panel=create('section','panel'); const body=create('div','event-card');
         if(event.kind==='chance') {
+          if(event.review_state_before?.visibility?.public===false) body.append(create('div','private-banner','Evaluator evidence: a chance outcome can reveal hidden deals or draws. It is not a public board or another player’s observation.'));
           body.append(badge('Environment · chance','blue'),create('h3','','Chance outcome'),create('p','','The environment selected an outcome from its recorded chance distribution. This transition contains no model decision.'),create('div','event-value',asArray(event.action_strings).map(display).join(' · ')||'Outcome not recorded'));
           const action=asArray(event.actions)[0]; body.append(create('div','actor-subtitle','Action ID '+display(action)));
           panel.append(body);
@@ -740,7 +885,7 @@
         if(!key) { showError('Enter your arena API key.'); $('apiKeyInput').focus(); return; }
         const currentUrl=new URL(window.location.href), linkedEpisode=currentUrl.searchParams.get('episode_id'), linkedStep=Number(currentUrl.searchParams.get('step'));
         const useLink=currentUrl.pathname==='/runs/'+runId, validEpisode=linkedEpisode&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(linkedEpisode), step=useLink&&Number.isSafeInteger(linkedStep)&&linkedStep>=1?linkedStep-1:0;
-        state.runId=runId; state.key=key; state.episodeId=useLink&&validEpisode?linkedEpisode:null; state.episodeOffset=0; state.stepOffset=Math.floor(step/STEP_LIMIT)*STEP_LIMIT; state.stepPosition=0; state.player=null; $('apiKeyInput').value=''; $('apiKeyInput').placeholder='Key held in this tab · enter to replace'; $('connectionLabel').textContent='Key held in this tab'; $('connectionBar').hidden=false; $('topbarNote').hidden=true; fetchReport(step);
+        state.runId=runId; state.key=key; state.episodeId=useLink&&validEpisode?linkedEpisode:null; state.episodeOffset=0; state.stepOffset=Math.floor(step/STEP_LIMIT)*STEP_LIMIT; state.stepPosition=0; state.pendingOffset=0; state.player=null; $('apiKeyInput').value=''; $('apiKeyInput').placeholder='Key held in this tab · enter to replace'; $('connectionLabel').textContent='Key held in this tab'; $('connectionBar').hidden=false; $('topbarNote').hidden=true; fetchReport(step);
       });
       $('disconnectButton').addEventListener('click',()=>disconnect());
       $('refreshButton').addEventListener('click',()=>fetchReport('keep'));
