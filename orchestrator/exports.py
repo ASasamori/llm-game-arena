@@ -1,7 +1,8 @@
 """Consistent, streaming database exports for private collection and migration.
 
-Each ZIP contains one gzip JSONL file per table, normalized decisions, and a
-checksum manifest. No database URL, environment credentials or API keys are added.
+Each ZIP contains one gzip JSONL file per table, normalized applied decisions,
+separate pending attempts, and a checksum manifest. No database URL, environment
+credentials or API keys are added.
 """
 
 from __future__ import annotations
@@ -21,6 +22,8 @@ import zipfile
 
 from sqlalchemy import MetaData, create_engine, select, text
 from sqlalchemy.orm import Session
+
+from game_arena.openspiel.datasets import episode_pending_attempt_rows
 
 ARENA_TABLES = (
     "runs",
@@ -185,6 +188,45 @@ def export_database(
                     )
                     count += 1
         manifest["decisions"] = count
+        traces = metadata.tables["episode_traces"]
+        query = (
+            select(
+                traces.c.episode_id,
+                episodes.c.run_id,
+                traces.c.payload["pending_transition"].label("pending_transition"),
+                traces.c.payload["manifest"]["resume_history"].label("resume_history"),
+            )
+            .join(episodes, episodes.c.episode_id == traces.c.episode_id)
+            .order_by(traces.c.episode_id)
+        )
+        if run_id is not None:
+            query = query.where(episodes.c.run_id == run_id)
+        count = 0
+        with gzip.open(
+            root / "pending_attempts.jsonl.gz", "wt", encoding="utf-8"
+        ) as stream:
+            for trace in session.execute(
+                query.execution_options(yield_per=250)
+            ).mappings():
+                for attempt in episode_pending_attempt_rows(
+                    {
+                        "pending_transition": trace["pending_transition"],
+                        "manifest": {"resume_history": trace["resume_history"]},
+                    },
+                    episode_id=trace["episode_id"],
+                    run_id=trace["run_id"],
+                ):
+                    stream.write(
+                        json.dumps(
+                            attempt,
+                            default=_encode,
+                            ensure_ascii=False,
+                            allow_nan=False,
+                        )
+                        + "\n"
+                    )
+                    count += 1
+        manifest["pending_attempts"] = count
         if postgres_dump:
             engine = session.get_bind()
             _, connection_parameters = engine.dialect.create_connect_args(engine.url)
@@ -297,6 +339,7 @@ def main(argv: list[str] | None = None) -> int:
                     "output": str(args.output),
                     "tables": manifest["tables"],
                     "decisions": manifest["decisions"],
+                    "pending_attempts": manifest["pending_attempts"],
                 }
             )
         )

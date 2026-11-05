@@ -210,14 +210,88 @@ class DatasetStore:
 
 def _export_stream(path: Path, compressed: bool) -> TextIO:
     if compressed:
-        return gzip.open(path, "wt", encoding="utf-8")
-    return path.open("w", encoding="utf-8")
+        stream = gzip.open(path, "wt", encoding="utf-8")
+    else:
+        stream = path.open("w", encoding="utf-8")
+    # Staging directories are already private; retain that protection when
+    # individual files are atomically published into the export directory.
+    path.chmod(0o600)
+    return stream
+
+
+def pending_attempt_rows(
+    pending: Any, *, episode_id: str, run_id: str | None = None
+) -> Iterator[dict[str, Any]]:
+    """Normalize unapplied evidence without adding it to applied decisions.
+
+    The original decision record remains nested and unchanged, including any
+    response, usage, prompt, fallback, or failure metadata. A pending transition
+    is a separate, explicitly unapplied record; malformed flags fail export
+    rather than silently classifying evidence as an applied action.
+    """
+    if pending is None:
+        return
+    if (
+        not isinstance(pending, dict)
+        or pending.get("applied") is not False
+        or type(pending.get("index")) is not int
+        or pending["index"] < 0
+    ):
+        raise ValueError("Invalid pending transition evidence")
+    selected = pending.get("decisions", [])
+    failed = pending.get("failed_attempt")
+    if (
+        not isinstance(selected, list)
+        or any(not isinstance(decision, dict) for decision in selected)
+        or (failed is not None and not isinstance(failed, dict))
+    ):
+        raise ValueError("Invalid pending attempt evidence")
+    source = {
+        "run_id": run_id,
+        "episode_id": episode_id,
+        "step_index": pending["index"],
+        "applied": False,
+    }
+    for index, decision in enumerate(selected):
+        yield {
+            **source,
+            "decision_index": index,
+            "attempt_status": "selected_unapplied",
+            "decision": decision,
+        }
+    if failed is not None:
+        yield {
+            **source,
+            "decision_index": len(selected),
+            "attempt_status": "failed",
+            "decision": failed,
+        }
+
+
+def episode_pending_attempt_rows(
+    record: dict[str, Any], *, episode_id: str, run_id: str | None = None
+) -> Iterator[dict[str, Any]]:
+    """Keep earlier resume attempts distinct from the currently pending turn."""
+    manifest = record.get("manifest")
+    history = manifest.get("resume_history", []) if isinstance(manifest, dict) else []
+    if isinstance(history, list):
+        for resume_index, entry in enumerate(history):
+            if not isinstance(entry, dict):
+                continue
+            for attempt in pending_attempt_rows(
+                entry.get("pending_transition"), episode_id=episode_id, run_id=run_id
+            ):
+                yield {**attempt, "historical": True, "resume_index": resume_index}
+    for attempt in pending_attempt_rows(
+        record.get("pending_transition"), episode_id=episode_id, run_id=run_id
+    ):
+        yield {**attempt, "historical": False, "resume_index": None}
 
 
 def export_dataset(
     source: str | Path, destination: str | Path, *, compressed: bool = True
 ) -> dict[str, int]:
-    """Stream validated artifacts into episode, transition, and decision datasets.
+    """Stream validated applied datasets and a separate pending-attempt dataset.
 
     Export files are replaced only when all records validate. Decision records
     can contain hidden player observations and model responses; treat exports as
@@ -233,6 +307,7 @@ def export_dataset(
     destination.mkdir(parents=True, exist_ok=True)
     suffix = ".jsonl.gz" if compressed else ".jsonl"
     counts = {"episodes": 0, "steps": 0, "decisions": 0}
+    pending_count = 0
     with tempfile.TemporaryDirectory(prefix=".export-", dir=destination) as temporary:
         temporary_path = Path(temporary)
         with ExitStack() as stack:
@@ -240,12 +315,24 @@ def export_dataset(
                 kind: stack.enter_context(
                     _export_stream(temporary_path / f"{kind}{suffix}", compressed)
                 )
-                for kind in counts
+                for kind in (*counts, "pending_attempts")
             }
             for episode_id in store.iter_episode_ids():
                 record = store.read_episode(episode_id, include_steps=False)
                 streams["episodes"].write(canonical_json(record) + "\n")
                 counts["episodes"] += 1
+                for attempt in episode_pending_attempt_rows(
+                    record,
+                    episode_id=episode_id,
+                    run_id=record.get("run_id"),
+                ):
+                    streams["pending_attempts"].write(
+                        canonical_json(
+                            {"experiment_id": manifest.get("experiment_id"), **attempt}
+                        )
+                        + "\n"
+                    )
+                    pending_count += 1
                 for step in store.iter_steps(episode_id):
                     transition = {"episode_id": episode_id, **step}
                     decisions = transition.pop("decisions", [])
@@ -264,7 +351,7 @@ def export_dataset(
                             + "\n"
                         )
                         counts["decisions"] += 1
-        for kind in counts:
+        for kind in (*counts, "pending_attempts"):
             os.replace(
                 temporary_path / f"{kind}{suffix}", destination / f"{kind}{suffix}"
             )
@@ -275,11 +362,13 @@ def export_dataset(
                     {
                         "dataset_schema_version": SCHEMA_VERSION,
                         "source_manifest": manifest,
-                        "counts": counts,
+                        "counts": {**counts, "pending_attempts": pending_count},
                         "compressed": compressed,
                     }
                 )
                 + "\n"
             ],
         )
-    return counts
+    # Existing callers compare the original three counters for old datasets.
+    # New pending evidence adds its counter without changing their meanings.
+    return {**counts, "pending_attempts": pending_count} if pending_count else counts
