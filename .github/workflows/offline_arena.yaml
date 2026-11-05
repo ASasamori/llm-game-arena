@@ -36,3 +36,5 @@ jobs:
           uv run python -m game_arena plan --games tic_tac_toe kuhn_poker matrix_rps matching_pennies_3p catch one_night_werewolf avalon coup --episodes 2 --max-steps 10000 --seed 123 --output analytics/ci-mock --execute-mock --workers 2
           uv run python -m game_arena plan --games tic_tac_toe kuhn_poker matrix_rps matching_pennies_3p catch one_night_werewolf avalon coup --episodes 2 --max-steps 10000 --seed 123 --output analytics/ci-mock --execute-mock --workers 2
           uv run python -m game_arena.openspiel export --dataset analytics/ci-mock --output analytics/ci-export
+      - name: Audit the installed OpenSpiel viewer without model calls
+        run: uv run python scripts/viewer_conformance.py --max-steps 96 --timeout 20 --workers 4 --seed 123 --output analytics/ci-viewer-coverage.json --jsonl-output analytics/ci-viewer-coverage.jsonl
