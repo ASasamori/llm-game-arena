@@ -372,15 +372,27 @@ def _execute_episode(
             "episode_execution_failed",
             extra={"run_id": run_id, "episode_num": episode_num},
         )
-        result = _failed_episode_result(
-            run_type=run_type,
-            game=game,
-            models=model_names,
-            error=f"{failure.compact()} {exc}",
-            episode_id=identity,
-            seed=seed,
-            metadata=metadata,
-        )
+        partial = getattr(exc, "arena_partial_result", None)
+        if (
+            isinstance(partial, dict)
+            and partial.get("episode_id") == identity
+            and partial.get("arena_type") == run_type
+            and partial.get("status") == "FAILED"
+            and isinstance(partial.get("manifest"), dict)
+            and partial["manifest"].get("episode_id") == identity
+        ):
+            result = cast(utils.EpisodeResult, partial)
+            result["error"] = f"{failure.compact()} {exc}"
+        else:
+            result = _failed_episode_result(
+                run_type=run_type,
+                game=game,
+                models=model_names,
+                error=f"{failure.compact()} {exc}",
+                episode_id=identity,
+                seed=seed,
+                metadata=metadata,
+            )
     _persist_result(result, run_id, matchup_id)
     increment_counter(
         "worker.episode.completed",

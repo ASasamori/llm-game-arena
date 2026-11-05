@@ -167,16 +167,36 @@ def resume_episode(previous: dict[str, Any], models: list[LLMModel]) -> EpisodeR
     if order.players or len(steps) < len(prefix):
         raise ResumeError("Resume ended before the saved prefix was reconstructed")
     for old, regenerated in zip(prefix, steps, strict=False):
-        comparable = dict(regenerated)
+        comparable = deepcopy(regenerated)
         # Public boards are additive audit evidence. Earlier saved prefixes
         # lack them; retain those records verbatim while validating every field
         # that was originally recorded before continuing with new decisions.
-        for key in ("public_state_before", "public_state_after"):
+        for key in (
+            "public_state_before",
+            "public_state_after",
+            "review_state_before",
+            "review_state_after",
+        ):
             if key not in old:
                 comparable.pop(key, None)
+        for saved_decision, new_decision in zip(
+            old["decisions"], comparable["decisions"], strict=True
+        ):
+            if "selection" not in saved_decision:
+                new_decision.pop("selection", None)
         if _without_latency(old) != _without_latency(comparable):
             raise ResumeError("Saved transition changed during prefix reconstruction")
     steps[: len(prefix)] = deepcopy(prefix)
+    if any(
+        "selection" not in decision
+        for event in steps
+        for decision in event["decisions"]
+    ):
+        resumed_manifest = result.setdefault("manifest", {})
+        features = resumed_manifest.get("recorded_features", [])
+        resumed_manifest["recorded_features"] = [
+            feature for feature in features if feature != "decision_selection_v1"
+        ]
     original_start = previous["start_time"]
     result["start_time"] = (
         datetime.fromisoformat(original_start)
@@ -191,6 +211,11 @@ def resume_episode(previous: dict[str, Any], models: list[LLMModel]) -> EpisodeR
             "prefix_transitions": len(prefix),
             "prefix_decisions": previous.get("decision_count", 0),
             "replayed_provider_requests": 0,
+            **(
+                {"pending_transition": deepcopy(previous["pending_transition"])}
+                if previous.get("pending_transition") is not None
+                else {}
+            ),
         }
     )
     result.setdefault("manifest", {})["resume_history"] = history

@@ -35,6 +35,10 @@ class EpisodeResult(TypedDict):
     stop_reason: NotRequired[str | None]
     stop_message: NotRequired[str | None]
     game_progress: NotRequired[dict[str, Any] | None]
+    pending_transition: NotRequired[dict[str, Any] | None]
+    pending_decision_count: NotRequired[int]
+    pending_fallback_count: NotRequired[int]
+    failed_attempt_count: NotRequired[int]
 
 
 class HarnessOptions(TypedDict):

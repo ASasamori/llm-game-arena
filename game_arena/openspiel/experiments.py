@@ -247,31 +247,42 @@ def _execute_mock_job(job: EpisodeJob, directory: str) -> str:
     except Exception as error:
         # Keep execution failures as evidence, without inventing an outcome.
         # Resume retries FAILED records; a process crash publishes no summary.
-        result = {
-            "episode_id": job.episode_id,
-            "game": job.game,
-            "env": "OPENSPIEL",
-            "arena_type": "PVP",
-            "status": "FAILED",
-            "error": str(error),
-            "failure_type": type(error).__name__,
-            "seed": job.seed,
-            "returns": [],
-            "terminal": False,
-            "num_steps": 0,
-            "steps": [],
-            "action": [],
-            "summary": [],
-            "player_agents": list(job.models),
-            "start_time": started,
-            "end_time": datetime.now(timezone.utc),
-            "manifest": {
-                **expected_runtime,
+        partial = getattr(error, "arena_partial_result", None)
+        if (
+            isinstance(partial, dict)
+            and partial.get("episode_id") == job.episode_id
+            and partial.get("status") == "FAILED"
+            and isinstance(partial.get("manifest"), dict)
+            and partial["manifest"].get("episode_id") == job.episode_id
+        ):
+            result = dict(partial)
+            result["failure_type"] = type(error).__name__
+        else:
+            result = {
+                "episode_id": job.episode_id,
                 "game": job.game,
+                "env": "OPENSPIEL",
+                "arena_type": "PVP",
+                "status": "FAILED",
+                "error": str(error),
+                "failure_type": type(error).__name__,
                 "seed": job.seed,
-                "game_sources": expected_sources,
-            },
-        }
+                "returns": [],
+                "terminal": False,
+                "num_steps": 0,
+                "steps": [],
+                "action": [],
+                "summary": [],
+                "player_agents": list(job.models),
+                "start_time": started,
+                "end_time": datetime.now(timezone.utc),
+                "manifest": {
+                    **expected_runtime,
+                    "game": job.game,
+                    "seed": job.seed,
+                    "game_sources": expected_sources,
+                },
+            }
     actual_manifest = result.get("manifest", {})
     if any(
         actual_manifest.get(key) != value for key, value in expected_runtime.items()

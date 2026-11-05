@@ -10,6 +10,8 @@ from typing import Any
 import pyspiel
 
 from game_arena.openspiel import catalog, parsers
+from game_arena.openspiel.decision_audit import describe_selection
+from game_arena.openspiel.presentation import describe_state
 from game_arena.openspiel.harness import (
     CONTROLLED_STOP_REASONS,
     _distribution,
@@ -44,6 +46,286 @@ def _same_values(expected: Any, actual: Any) -> bool:
     )
 
 
+def _verify_pending_transition(
+    record: dict[str, Any],
+    state: Any,
+    manifest: dict[str, Any],
+    own_history: list[list[dict[str, Any]]],
+    player_rngs: list[random.Random],
+    fallback_rngs: list[random.Random],
+    scripted: deque,
+) -> None:
+    """Check unapplied request evidence without advancing the engine state.
+
+    The remote exception, token usage and provider metadata are recorded claims.
+    Replay can validate the request context and any completed local choices; it
+    deliberately cannot certify that an external provider produced an error.
+    """
+    pending = record.get("pending_transition")
+    features = manifest.get("recorded_features", [])
+    if "pending_attempts_v1" in features:
+        _require(isinstance(pending, dict), "Missing required pending transition")
+        _require(
+            all(
+                key in record
+                for key in (
+                    "pending_decision_count",
+                    "pending_fallback_count",
+                    "failed_attempt_count",
+                )
+            ),
+            "Missing required pending attempt counts",
+        )
+    if pending is None:
+        _require(
+            all(
+                record.get(key, 0) == 0
+                for key in (
+                    "pending_decision_count",
+                    "pending_fallback_count",
+                    "failed_attempt_count",
+                )
+            ),
+            "Episode claims pending attempts without pending evidence",
+        )
+        return
+    _require(isinstance(pending, dict), "Invalid pending transition")
+    _require(
+        not state.is_terminal()
+        and not state.is_chance_node()
+        and not state.is_mean_field_node(),
+        "Pending agent request is not at an acting-player node",
+    )
+    simultaneous = state.is_simultaneous_node()
+    players = (
+        list(range(state.get_game().num_players()))
+        if simultaneous
+        else [state.current_player()]
+    )
+    _require(
+        pending.get("index") == len(record["steps"])
+        and pending.get("applied") is False
+        and pending.get("kind") == ("simultaneous" if simultaneous else "decision")
+        and pending.get("players") == players,
+        "Pending transition position or application flag mismatch",
+    )
+    _require(
+        pending.get("state_hash_before") == state_hash(state),
+        "Pending transition state hash mismatch",
+    )
+    for key, snapshot in (
+        ("state_before", evaluator_state(state)),
+        ("public_state_before", public_state(state)),
+        ("review_state_before", describe_state(state)),
+    ):
+        if key in pending:
+            _require(
+                snapshot is not None and pending[key] == snapshot,
+                "Pending transition board mismatch",
+            )
+        elif key == "review_state_before" and "openspiel_review_v1" in features:
+            raise ReplayError("Pending transition is missing its required review state")
+    decisions = pending.get("decisions")
+    _require(
+        isinstance(decisions, list) and len(decisions) < len(players),
+        "Pending decision batch is not an incomplete actor prefix",
+    )
+    _require(
+        pending.get("decision_count") == len(decisions),
+        "Pending transition decision count mismatch",
+    )
+    failure = pending.get("failed_attempt")
+    _require(isinstance(failure, dict), "Pending transition has no failed attempt")
+    for offset, decision in enumerate([*decisions, failure]):
+        prefix = f"Pending attempt {offset}"
+        actor = players[offset]
+        _require(isinstance(decision, dict), f"{prefix} is invalid")
+        _require(
+            decision.get("player") == actor
+            and decision.get("agent") == manifest["player_agents"][actor],
+            f"{prefix} assigned actor mismatch",
+        )
+        legal = list(state.legal_actions(actor))
+        _require(
+            decision.get("legal_actions") == legal, f"{prefix} legal actions mismatch"
+        )
+        failed = offset == len(decisions)
+        if not legal and not failed:
+            _require(
+                simultaneous
+                and decision.get("action") == pyspiel.INVALID_ACTION
+                and decision.get("action_string") == "<inactive>",
+                f"{prefix} inactive action mismatch",
+            )
+        else:
+            detail = decision.get("failure", {}) if failed else {}
+            stage = detail.get("stage") if isinstance(detail, dict) else None
+            if not failed or stage not in {"legal_actions", "observation"}:
+                prompt, view_type, observation, labels = build_prompt(
+                    state, actor, legal, own_history[actor], manifest.get("rules", "")
+                )
+                expects_model = manifest["run_type"] == "PVP" or actor == 0
+                _require(
+                    decision.get("observation_type") == view_type
+                    and decision.get("observation") == observation,
+                    f"{prefix} observation mismatch",
+                )
+                _require(
+                    decision.get("legal_action_strings") == list(labels.values()),
+                    f"{prefix} legal labels mismatch",
+                )
+                _require(
+                    decision.get("prompt") == (prompt if expects_model else None),
+                    f"{prefix} prompt mismatch",
+                )
+                if failed:
+                    if stage == "parse":
+                        response = decision.get("response")
+                        invalid = (
+                            not isinstance(response, str)
+                            or not response
+                            or len(response) > 8000
+                        )
+                        if not invalid:
+                            try:
+                                parsers.parse_legal_action(
+                                    response, labels, game=record["game"], player=actor
+                                )
+                            except (ValueError, TypeError):
+                                invalid = True
+                        _require(
+                            invalid,
+                            f"{prefix} claims a parse failure for a valid response",
+                        )
+                    elif (
+                        stage == "policy"
+                        and not expects_model
+                        and manifest["run_type"] == "INPUT"
+                    ):
+                        if "requested_action" in decision:
+                            _require(
+                                bool(scripted)
+                                and decision["requested_action"] == scripted.popleft(),
+                                f"{prefix} input script mismatch",
+                            )
+                            _require(
+                                type(decision["requested_action"]) is not int
+                                or decision["requested_action"] not in legal,
+                                f"{prefix} claims a failure for a legal scripted action",
+                            )
+                        else:
+                            _require(
+                                not scripted,
+                                f"{prefix} claims an exhausted input script",
+                            )
+                else:
+                    action = decision.get("action")
+                    _require(
+                        type(action) is int
+                        and action in legal
+                        and decision.get("action_string") == labels[action],
+                        f"{prefix} action mismatch",
+                    )
+                    if decision.get("fallback_reason") is not None:
+                        _require(
+                            manifest["failure_policy"] == "random"
+                            and action == fallback_rngs[actor].choice(legal),
+                            f"{prefix} fallback mismatch",
+                        )
+                    elif manifest["run_type"] == "RAND" and actor != 0:
+                        _require(
+                            action == player_rngs[actor].choice(legal),
+                            f"{prefix} random policy mismatch",
+                        )
+                    elif manifest["run_type"] == "INPUT" and actor != 0:
+                        _require(
+                            bool(scripted) and action == scripted.popleft(),
+                            f"{prefix} scripted policy mismatch",
+                        )
+                    else:
+                        try:
+                            selected = parsers.parse_legal_action(
+                                decision["response"],
+                                labels,
+                                game=record["game"],
+                                player=actor,
+                            )
+                        except (ValueError, TypeError) as exc:
+                            raise ReplayError(
+                                f"{prefix} response cannot be parsed"
+                            ) from exc
+                        _require(
+                            selected.action == action
+                            and selected.summary == decision.get("summary"),
+                            f"{prefix} response/action mismatch",
+                        )
+        if failed:
+            detail = decision.get("failure")
+            _require(
+                decision.get("action") is None
+                and decision.get("action_string") is None
+                and isinstance(detail, dict)
+                and isinstance(detail.get("type"), str)
+                and isinstance(detail.get("message"), str)
+                and detail.get("stage")
+                in {"legal_actions", "observation", "policy", "model_call", "parse"}
+                and type(detail.get("controlled")) is bool,
+                f"{prefix} failed request metadata is invalid",
+            )
+            if record["status"] == "TRUNCATED":
+                _require(
+                    detail["controlled"]
+                    and detail.get("code") == record.get("stop_reason"),
+                    f"{prefix} controlled stop mismatch",
+                )
+            else:
+                _require(
+                    record["status"] == "FAILED"
+                    and record.get("stop_reason") == "execution_error",
+                    f"{prefix} failed episode status mismatch",
+                )
+                _require(
+                    (
+                        detail["controlled"]
+                        and detail.get("code") in CONTROLLED_STOP_REASONS
+                        and detail.get("code")
+                        not in manifest.get("permitted_stop_reasons", [])
+                    )
+                    or (
+                        not detail["controlled"]
+                        and detail.get("code") == "execution_error"
+                    ),
+                    f"{prefix} failure policy mismatch",
+                )
+            _require(
+                record.get("stop_message") == (detail["message"] or detail["type"]),
+                f"{prefix} failure message mismatch",
+            )
+        else:
+            if "decision_selection_v1" in features:
+                _require(
+                    "selection" in decision, f"{prefix} missing selection mechanism"
+                )
+            if "selection" in decision:
+                _require(
+                    decision["selection"] == describe_selection(decision, manifest),
+                    f"{prefix} selection mechanism mismatch",
+                )
+    _require(
+        record.get("pending_decision_count", 0) == len(decisions),
+        "Episode pending decision accounting mismatch",
+    )
+    _require(
+        record.get("pending_fallback_count", 0)
+        == sum(decision.get("fallback_reason") is not None for decision in decisions),
+        "Episode pending fallback accounting mismatch",
+    )
+    _require(
+        record.get("failed_attempt_count", 0) == 1,
+        "Episode failed attempt accounting mismatch",
+    )
+
+
 def replay_episode(record: dict[str, Any]) -> dict[str, Any]:
     """Recreate and check every transition, player view, prompt and utility.
 
@@ -51,6 +333,17 @@ def replay_episode(record: dict[str, Any]) -> dict[str, Any]:
     reproduce the game even when a provider cannot reproduce its own outputs.
     """
     manifest = record.get("manifest", {})
+    features = manifest.get("recorded_features", [])
+    _require(
+        isinstance(features, list)
+        and all(
+            isinstance(feature, str)
+            and feature
+            in {"decision_selection_v1", "openspiel_review_v1", "pending_attempts_v1"}
+            for feature in features
+        ),
+        "Unsupported recorded evidence features",
+    )
     runtime = runtime_manifest()
     _require(
         manifest.get("schema_version") == runtime["schema_version"],
@@ -138,6 +431,11 @@ def replay_episode(record: dict[str, Any]) -> dict[str, Any]:
         raise ReplayError("Trace is missing transitions")
     for index, event in enumerate(events):
         prefix = f"Transition {index}"
+        if "openspiel_review_v1" in features:
+            _require(
+                "review_state_before" in event and "review_state_after" in event,
+                f"{prefix} missing required review state",
+            )
         _require(not state.is_terminal(), f"{prefix} occurs after terminal state")
         _require(
             not _quest_limit_reached(state, quest_limit),
@@ -159,6 +457,11 @@ def replay_episode(record: dict[str, Any]) -> dict[str, Any]:
             _require(
                 board is not None and event["public_state_before"] == board,
                 f"{prefix} input public board mismatch",
+            )
+        if "review_state_before" in event:
+            _require(
+                event["review_state_before"] == describe_state(state),
+                f"{prefix} input review state mismatch",
             )
         players, actions = event["players"], event["actions"]
         kind = event["kind"]
@@ -273,6 +576,16 @@ def replay_episode(record: dict[str, Any]) -> dict[str, Any]:
                     decision["legal_actions"] == legal,
                     f"{prefix} legal actions mismatch",
                 )
+                if "decision_selection_v1" in features:
+                    _require(
+                        "selection" in decision,
+                        f"{prefix} missing required selection mechanism",
+                    )
+                if "selection" in decision:
+                    _require(
+                        decision["selection"] == describe_selection(decision, manifest),
+                        f"{prefix} selection mechanism mismatch",
+                    )
                 if not legal and simultaneous:
                     _require(
                         action == pyspiel.INVALID_ACTION,
@@ -374,6 +687,11 @@ def replay_episode(record: dict[str, Any]) -> dict[str, Any]:
                 board is not None and event["public_state_after"] == board,
                 f"{prefix} output public board mismatch",
             )
+        if "review_state_after" in event:
+            _require(
+                event["review_state_after"] == describe_state(state),
+                f"{prefix} output review state mismatch",
+            )
         _require(
             _same_values(event["rewards"], state.rewards()), f"{prefix} reward mismatch"
         )
@@ -384,6 +702,9 @@ def replay_episode(record: dict[str, Any]) -> dict[str, Any]:
         _require(
             event["terminal"] == state.is_terminal(), f"{prefix} terminal flag mismatch"
         )
+    _verify_pending_transition(
+        record, state, manifest, own_history, player_rngs, fallback_rngs, scripted
+    )
     _require(len(events) == record["num_steps"], "Episode transition count mismatch")
     _require(
         record["terminal"] == state.is_terminal(), "Episode terminal flag mismatch"
@@ -395,7 +716,15 @@ def replay_episode(record: dict[str, Any]) -> dict[str, Any]:
         record["final_state_hash"] == state_hash(state), "Final state hash mismatch"
     )
     _require(
-        record["status"] == ("SUCCESS" if state.is_terminal() else "TRUNCATED"),
+        record["status"]
+        == (
+            "FAILED"
+            if isinstance(record.get("pending_transition"), dict)
+            and record.get("stop_reason") == "execution_error"
+            else "SUCCESS"
+            if state.is_terminal()
+            else "TRUNCATED"
+        ),
         "Episode status mismatch",
     )
     stop_reason = record.get("stop_reason")
@@ -407,7 +736,16 @@ def replay_episode(record: dict[str, Any]) -> dict[str, Any]:
         len(events) <= manifest["max_steps"],
         "Trace exceeds its configured transition limit",
     )
-    if state.is_terminal():
+    if record["status"] == "FAILED":
+        _require(
+            not state.is_terminal()
+            and isinstance(record.get("pending_transition"), dict)
+            and stop_reason == "execution_error"
+            and len(events) < manifest["max_steps"]
+            and not _quest_limit_reached(state, quest_limit),
+            "Failed partial trace has no consistent unapplied request",
+        )
+    elif state.is_terminal():
         _require(
             stop_reason is None, "A terminal episode cannot claim a controlled stop"
         )
@@ -493,4 +831,8 @@ def replay_episode(record: dict[str, Any]) -> dict[str, Any]:
         "state_hash": state_hash(state),
         "source_matches": manifest.get("source_sha256") == runtime["source_sha256"],
         "verified": True,
+        "pending_transition_verified": record.get("pending_transition") is not None,
+        "failure_claim_verification": "recorded_only"
+        if record.get("pending_transition") is not None
+        else None,
     }

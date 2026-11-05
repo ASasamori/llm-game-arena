@@ -79,6 +79,11 @@ class ResumptionTests(unittest.TestCase):
         self.assertEqual(
             result["manifest"]["resume_history"][-1]["replayed_provider_requests"], 0
         )
+        if prefix.get("pending_transition") is not None:
+            self.assertEqual(
+                result["manifest"]["resume_history"][-1]["pending_transition"],
+                prefix["pending_transition"],
+            )
 
     def test_json_saved_prefix_retains_original_start_and_latency_records(self):
         prefix = _prefix()
@@ -89,9 +94,12 @@ class ResumptionTests(unittest.TestCase):
 
     def test_older_prefix_without_public_boards_resumes_without_repeating_calls(self):
         prefix = _prefix()
+        prefix["manifest"].pop("recorded_features", None)
         for event in prefix["steps"]:
             event.pop("public_state_before", None)
             event.pop("public_state_after", None)
+            for decision in event["decisions"]:
+                decision.pop("selection", None)
         live = _models()
         result = resume_episode(prefix, list(live))
         self.assertEqual(

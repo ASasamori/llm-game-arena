@@ -21,6 +21,8 @@ import uuid
 import pyspiel
 
 from game_arena.openspiel import catalog, parsers, utils
+from game_arena.openspiel.decision_audit import describe_selection
+from game_arena.openspiel.presentation import describe_state
 from game_arena.openspiel.provenance import derive_seed, runtime_manifest
 from game_arena.openspiel.views import (
     build_prompt,
@@ -239,6 +241,10 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
     fallback_count = 0
     stop_reason: str | None = None
     stop_message: str | None = None
+    pending_transition: dict[str, Any] | None = None
+    failed_error: Exception | None = None
+    last_attempt: dict[str, Any] | None = None
+    attempt_stage = "policy"
     manifest = {
         **runtime_manifest(),
         "episode_id": episode_id,
@@ -263,6 +269,8 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
         "failure_policy": failure_policy,
         "rules": effective_rules,
         "environment_backend": backend,
+        "recorded_features": ["decision_selection_v1"]
+        + (["openspiel_review_v1"] if backend != "native" else []),
         "input_actions": list(scripted_actions) if mode == "INPUT" else None,
         "mean_field_distribution": mean_field,
         "mean_field_population": population,
@@ -272,8 +280,11 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
     increment_counter("harness.episode.started", tags={"run_type": mode})
 
     def choose(player: int) -> dict[str, Any]:
-        nonlocal fallback_count
+        nonlocal fallback_count, last_attempt, attempt_stage
+        last_attempt = {"player": player, "agent": player_agents[player]}
+        attempt_stage = "legal_actions"
         legal_actions = list(state.legal_actions(player))
+        last_attempt["legal_actions"] = legal_actions
         if not legal_actions:
             # OpenSpiel's simultaneous API uses INVALID_ACTION for inactive seats.
             return {
@@ -285,6 +296,7 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
                 "summary": "Inactive player",
                 "fallback_reason": None,
             }
+        attempt_stage = "observation"
         prompt, view_type, observation, legal = build_prompt(
             state, player, legal_actions, own_history[player], effective_rules
         )
@@ -301,6 +313,8 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
             "response_metadata": {},
             "fallback_reason": None,
         }
+        last_attempt = record
+        attempt_stage = "policy"
         if mode != "PVP" and player != 0:
             if mode == "RAND":
                 action = rngs[player].choice(legal_actions)
@@ -311,6 +325,7 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
                         "INPUT action sequence exhausted before episode completion"
                     )
                 action = scripted_actions.popleft()
+                record["requested_action"] = action
                 if type(action) is not int or action not in legal:
                     raise ValueError(
                         f"The input action {action} is not in legal actions"
@@ -321,12 +336,14 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
             record["prompt"] = prompt
             call_started = time.monotonic()
             stage = "model_call"
+            attempt_stage = stage
             try:
                 response = model.generate_with_text_input(prompt)
                 record["response"] = response.main_response
                 record["usage"] = getattr(response, "usage", {})
                 record["response_metadata"] = getattr(response, "metadata", {})
                 stage = "parse"
+                attempt_stage = stage
                 if not response.main_response or len(response.main_response) > 8000:
                     raise ValueError("Model response must contain 1 to 8000 characters")
                 parsed = parsers.parse_legal_action(
@@ -373,6 +390,46 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
         record.update(action=action, action_string=legal[action], summary=summary)
         return record
 
+    def preserve_attempt(
+        event: dict[str, Any], decisions: list[dict[str, Any]], exc: Exception
+    ) -> dict[str, Any]:
+        """Keep requested decisions separate from state transitions and metrics."""
+        completed = deepcopy(decisions)
+        for decision in completed:
+            decision["selection"] = describe_selection(decision, manifest)
+        attempt = deepcopy(last_attempt or {})
+        attempt.update(
+            action=None,
+            action_string=None,
+            failure={
+                "type": type(exc).__name__,
+                "message": str(exc),
+                "stage": attempt_stage,
+                "controlled": isinstance(exc, EpisodeStopped),
+                "code": exc.code
+                if isinstance(exc, EpisodeStopped)
+                else "execution_error",
+            },
+        )
+        pending = {
+            "index": event["index"],
+            "kind": "simultaneous" if state.is_simultaneous_node() else "decision",
+            "applied": False,
+            "state_hash_before": event["state_hash_before"],
+            "players": list(range(player_count))
+            if state.is_simultaneous_node()
+            else [state.current_player()],
+            "decisions": completed,
+            "decision_count": len(completed),
+            "failed_attempt": attempt,
+        }
+        for key in ("state_before", "public_state_before", "review_state_before"):
+            if key in event:
+                pending[key] = deepcopy(event[key])
+        if "pending_attempts_v1" not in manifest["recorded_features"]:
+            manifest["recorded_features"].append("pending_attempts_v1")
+        return pending
+
     for index in range(max_steps):
         if state.is_terminal():
             break
@@ -390,6 +447,8 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
             event["state_before"] = snapshot
         if (board := public_state(state)) is not None:
             event["public_state_before"] = board
+        if (review := describe_state(state)) is not None:
+            event["review_state_before"] = review
         if state.is_chance_node():
             outcomes = list(state.chance_outcomes())
             if (
@@ -424,12 +483,20 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
             )
             state.update_distribution(probabilities)
         elif state.is_simultaneous_node():
+            decisions = []
             try:
-                decisions = [choose(player) for player in range(player_count)]
-            except EpisodeStopped as exc:
-                if exc.code not in permitted_stops:
-                    raise
-                stop_reason, stop_message = exc.code, str(exc)
+                for player in range(player_count):
+                    decisions.append(choose(player))
+            except Exception as exc:
+                pending_transition = preserve_attempt(event, decisions, exc)
+                if isinstance(exc, EpisodeStopped) and exc.code in permitted_stops:
+                    stop_reason, stop_message = exc.code, str(exc)
+                else:
+                    failed_error = exc
+                    stop_reason, stop_message = (
+                        "execution_error",
+                        str(exc) or type(exc).__name__,
+                    )
                 break
             event.update(
                 kind="simultaneous",
@@ -445,10 +512,16 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
                 raise ValueError(f"Unsupported player node {player}")
             try:
                 decision = choose(player)
-            except EpisodeStopped as exc:
-                if exc.code not in permitted_stops:
-                    raise
-                stop_reason, stop_message = exc.code, str(exc)
+            except Exception as exc:
+                pending_transition = preserve_attempt(event, [], exc)
+                if isinstance(exc, EpisodeStopped) and exc.code in permitted_stops:
+                    stop_reason, stop_message = exc.code, str(exc)
+                else:
+                    failed_error = exc
+                    stop_reason, stop_message = (
+                        "execution_error",
+                        str(exc) or type(exc).__name__,
+                    )
                 break
             if decision["action"] == pyspiel.INVALID_ACTION:
                 raise ValueError("Non-terminal decision node has no legal actions")
@@ -461,6 +534,7 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
             )
             state.apply_action(decision["action"])
         for decision in event["decisions"]:
+            decision["selection"] = describe_selection(decision, manifest)
             own_history[decision["player"]].append(
                 {"action": decision["action"], "label": decision["action_string"]}
             )
@@ -474,6 +548,8 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
             event["state_after"] = snapshot
         if (board := public_state(state)) is not None:
             event["public_state_after"] = board
+        if (review := describe_state(state)) is not None:
+            event["review_state_after"] = review
         steps.append(event)
 
     terminal = state.is_terminal()
@@ -495,8 +571,16 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
         else "UNDETERMINED/TIE"
     )
     action_list, summary_list = _legacy_fields(steps)
+    # A legal fallback can have been selected in an interrupted joint batch.
+    # It belongs to pending evidence rather than applied-game quality metrics.
+    fallback_count = sum(
+        decision.get("fallback_reason") is not None
+        for event in steps
+        for decision in event["decisions"]
+    )
+    pending_decisions = pending_transition["decisions"] if pending_transition else []
     increment_counter("harness.episode.completed", tags={"run_type": mode})
-    return utils.EpisodeResult(
+    result = utils.EpisodeResult(
         episode_id=episode_id,
         env="NATIVE" if backend == "native" else ENV,
         agent=[str(model) for model in models],
@@ -504,7 +588,11 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
         game=game.get_type().short_name,
         game_spec=manifest["game"],
         seed=seed,
-        status="SUCCESS" if terminal else "TRUNCATED",
+        status="FAILED"
+        if failed_error is not None
+        else "SUCCESS"
+        if terminal
+        else "TRUNCATED",
         winner=winner,
         winner_players=winners,
         terminal=terminal,
@@ -528,4 +616,17 @@ def harness(options: utils.HarnessOptions) -> utils.EpisodeResult:
         steps=steps,
         manifest=manifest,
         final_state_hash=state_hash(state),
+        pending_transition=pending_transition,
+        pending_decision_count=len(pending_decisions),
+        pending_fallback_count=sum(
+            decision.get("fallback_reason") is not None
+            for decision in pending_decisions
+        ),
+        failed_attempt_count=int(pending_transition is not None),
     )
+    if failed_error is not None:
+        # Keep callers' strict exception semantics while giving the worker the
+        # complete prefix and unsuccessful request to persist before returning.
+        setattr(failed_error, "arena_partial_result", result)
+        raise failed_error.with_traceback(failed_error.__traceback__)
+    return result
