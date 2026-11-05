@@ -331,7 +331,7 @@ def create_tables():
         Base.metadata.create_all(connection)
         # create_all does not add indexes on already-existing legacy tables.
         for model in (Episode, RunDispatch):
-            for index in model.__table__.indexes:
+            for index in Base.metadata.tables[model.__tablename__].indexes:
                 index.create(connection, checkfirst=True)
 
 

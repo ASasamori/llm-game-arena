@@ -257,9 +257,9 @@ class JevIntegrationTests(unittest.TestCase):
                     0,
                 )
             with sessions() as session:
-                self.assertEqual(
-                    session.get(models.Run, trial["run_id"]).status, "PENDING"
-                )
+                run = session.get(models.Run, trial["run_id"])
+                assert run is not None
+                self.assertEqual(run.status, "PENDING")
             factory.reset_mock()
             factory.side_effect = lambda name, **kwargs: _ApprovingJev(name)
             result = run_trial(trial["run_id"], str(root))

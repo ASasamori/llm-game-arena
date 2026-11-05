@@ -168,11 +168,21 @@ class OrchestrationTests(unittest.TestCase):
             self.assertEqual(
                 {row.player for row in session.query(EpisodeStep)}, {"0", "1", "2"}
             )
-            self.assertEqual(session.get(Run, run_id).status, "COMPLETED")
-            self.assertEqual(session.get(RunProgress, run_id).completed, 1)
-            self.assertEqual(session.get(MatchupProgress, matchup_id).completed, 1)
-            self.assertEqual(session.get(Matchup, matchup_id).status, "COMPLETED")
-            payload = session.get(EpisodeTrace, result["episode_id"]).payload
+            run = session.get(Run, run_id)
+            run_progress = session.get(RunProgress, run_id)
+            matchup_progress = session.get(MatchupProgress, matchup_id)
+            matchup = session.get(Matchup, matchup_id)
+            trace = session.get(EpisodeTrace, result["episode_id"])
+            assert run is not None
+            assert run_progress is not None
+            assert matchup_progress is not None
+            assert matchup is not None
+            assert trace is not None
+            self.assertEqual(run.status, "COMPLETED")
+            self.assertEqual(run_progress.completed, 1)
+            self.assertEqual(matchup_progress.completed, 1)
+            self.assertEqual(matchup.status, "COMPLETED")
+            payload = trace.payload
             self.assertNotIn("steps", payload)
             self.assertEqual(payload["returns"], [1.0, 0.0, -1.0])
 
@@ -180,15 +190,23 @@ class OrchestrationTests(unittest.TestCase):
         run_id, matchup_id = self.create_run(2)
         tasks._persist_result(_result(str(uuid.uuid4())), run_id, matchup_id)
         with self.sessions() as session:
-            self.assertEqual(session.get(Run, run_id).status, "PENDING")
+            run = session.get(Run, run_id)
+            assert run is not None
+            self.assertEqual(run.status, "PENDING")
         tasks._persist_result(
             _result(str(uuid.uuid4()), status="TRUNCATED"), run_id, matchup_id
         )
         with self.sessions() as session:
-            self.assertEqual(session.get(Run, run_id).status, "FAILED")
-            self.assertEqual(session.get(RunProgress, run_id).completed, 2)
-            self.assertEqual(session.get(RunProgress, run_id).failed, 1)
-            self.assertEqual(session.get(Matchup, matchup_id).status, "FAILED")
+            run = session.get(Run, run_id)
+            run_progress = session.get(RunProgress, run_id)
+            matchup = session.get(Matchup, matchup_id)
+            assert run is not None
+            assert run_progress is not None
+            assert matchup is not None
+            self.assertEqual(run.status, "FAILED")
+            self.assertEqual(run_progress.completed, 2)
+            self.assertEqual(run_progress.failed, 1)
+            self.assertEqual(matchup.status, "FAILED")
 
     def test_model_initialization_failure_is_persisted(self) -> None:
         run_id, matchup_id = self.create_run()
@@ -202,9 +220,14 @@ class OrchestrationTests(unittest.TestCase):
         self.assertEqual(response["result"]["status"], "FAILED")
         with self.sessions() as session:
             row = session.get(Episode, identity)
+            trace = session.get(EpisodeTrace, identity)
+            run = session.get(Run, run_id)
+            assert row is not None
+            assert trace is not None
+            assert run is not None
             self.assertEqual(row.num_steps, 0)
-            self.assertEqual(session.get(EpisodeTrace, identity).payload["seed"], 99)
-            self.assertEqual(session.get(Run, run_id).status, "FAILED")
+            self.assertEqual(trace.payload["seed"], 99)
+            self.assertEqual(run.status, "FAILED")
 
     def test_seat_rotation_and_retry_reuse(self) -> None:
         run_id, matchup_id = self.create_run(2)
@@ -257,8 +280,12 @@ class OrchestrationTests(unittest.TestCase):
         with self.sessions() as session:
             self.assertEqual(session.query(Run).count(), 1)
             self.assertEqual(session.query(Matchup).count(), 4)
-            self.assertEqual(session.get(Run, run_id).num_episodes, 8)
-            self.assertEqual(session.get(RunConfiguration, run_id).payload["seed"], 71)
+            run = session.get(Run, run_id)
+            configuration = session.get(RunConfiguration, run_id)
+            assert run is not None
+            assert configuration is not None
+            self.assertEqual(run.num_episodes, 8)
+            self.assertEqual(configuration.payload["seed"], 71)
 
     def test_admission_rejects_before_database_and_queue(self) -> None:
         with (
@@ -296,7 +323,9 @@ class OrchestrationTests(unittest.TestCase):
                     for decision in payload["decisions"]
                 )
             )
-            self.assertEqual(session.get(Run, run_id).status, "COMPLETED")
+            run = session.get(Run, run_id)
+            assert run is not None
+            self.assertEqual(run.status, "COMPLETED")
 
     def test_submission_batches_are_bounded_and_retries_skip_existing_jobs(
         self,
@@ -423,6 +452,7 @@ class OrchestrationTests(unittest.TestCase):
         self.assertIn("runtime does not match", response["result"]["error"])
         with self.sessions() as session:
             trace = session.get(EpisodeTrace, identity)
+            assert trace is not None
             self.assertEqual(
                 trace.payload["manifest"]["metadata"]["expected_runtime"][
                     "source_sha256"
@@ -449,9 +479,13 @@ class OrchestrationTests(unittest.TestCase):
                 )
         with self.sessions() as session:
             dispatch = session.get(RunDispatch, run_id)
+            configuration = session.get(RunConfiguration, run_id)
+            assert dispatch is not None
+            assert dispatch.last_error is not None
+            assert configuration is not None
             self.assertFalse(dispatch.complete)
             self.assertIn("injected Redis outage", dispatch.last_error)
-            self.assertEqual(session.get(RunConfiguration, run_id).payload["seed"], 17)
+            self.assertEqual(configuration.payload["seed"], 17)
         batches: list[list[Any]] = []
         with (
             patch.object(
@@ -470,10 +504,14 @@ class OrchestrationTests(unittest.TestCase):
             all(item.kwargs["run_id"] == run_id for batch in batches for item in batch)
         )
         with self.sessions() as session:
-            self.assertTrue(session.get(RunDispatch, run_id).complete)
-            self.assertIsNone(session.get(RunDispatch, run_id).last_error)
+            dispatch = session.get(RunDispatch, run_id)
+            configuration = session.get(RunConfiguration, run_id)
+            assert dispatch is not None
+            assert configuration is not None
+            self.assertTrue(dispatch.complete)
+            self.assertIsNone(dispatch.last_error)
             self.assertEqual(session.query(Run).count(), 1)
-            pinned_runtime = session.get(RunConfiguration, run_id).payload["runtime"]
+            pinned_runtime = configuration.payload["runtime"]
             self.assertTrue(
                 all(
                     item.kwargs["metadata"]["expected_runtime"] == pinned_runtime
@@ -553,7 +591,9 @@ class OrchestrationTests(unittest.TestCase):
 
         run_id, matchup_id = self.create_run()
         with self.sessions() as session:
-            session.get(Matchup, matchup_id).models = ["MOCK:a", "MOCK:b"]
+            matchup = session.get(Matchup, matchup_id)
+            assert matchup is not None
+            matchup.models = ["MOCK:a", "MOCK:b"]
             session.commit()
         with (
             patch.object(tasks, "_get_model", side_effect=BrokenModel),

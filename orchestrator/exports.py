@@ -228,7 +228,7 @@ def export_database(
                     count += 1
         manifest["pending_attempts"] = count
         if postgres_dump:
-            engine = session.get_bind()
+            engine = session.get_bind().engine
             _, connection_parameters = engine.dialect.create_connect_args(engine.url)
             environment_parameters = {
                 "host": "PGHOST",

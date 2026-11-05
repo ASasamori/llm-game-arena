@@ -66,9 +66,9 @@ class LiveTrialTests(unittest.TestCase):
             self.assertEqual(episode["game_progress"]["phase"], "assassinate")
             self.assertFalse(episode["terminal"])
             with sessions() as session:
-                self.assertEqual(
-                    session.get(models.Run, trial["run_id"]).status, "STOPPED"
-                )
+                run = session.get(models.Run, trial["run_id"])
+                assert run is not None
+                self.assertEqual(run.status, "STOPPED")
                 report = build_run_report(session, trial["run_id"])
             selected = report["selected_episode"]
             self.assertEqual(selected["stop_reason"], "quest_limit")
