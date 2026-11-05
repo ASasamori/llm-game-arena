@@ -214,6 +214,8 @@
     .pending-body { padding:15px; display:grid; gap:13px; }
     .pending-note { color:var(--amber); font-size:12px; line-height:1.7; margin:0; }
     .pending-body > details { border:1px solid var(--line); border-radius:5px; }
+    .upstream-status { display:flex; align-items:center; flex-wrap:wrap; gap:7px 10px; margin:0 0 16px; color:var(--muted); font-size:11px; line-height:1.7; }
+    .upstream-status a { color:var(--accent); text-decoration:underline; text-underline-offset:2px; }
     .flow-step { padding:12px 15px; border-right:1px solid var(--line); min-width:0; }
     .flow-step:last-child { border-right:0; }
     .flow-step h4 { margin:0 0 5px; color:var(--muted); font:10px var(--mono); text-transform:uppercase; letter-spacing:.6px; }
@@ -358,6 +360,14 @@
       function modelName(identity) { const name=display(identity); const claude=name.match(/(?:claude[-_: ]*)?(haiku|sonnet|opus)[-_ ](\d+)(?:[-_. ](\d+))?/i); if(claude) return claude[1][0].toUpperCase()+claude[1].slice(1).toLowerCase()+' '+claude[2]+(claude[3]?'.'+claude[3]:''); if(/^MOCK:/i.test(name)) return 'Mock '+name.slice(5); return name.replace(/^(?:ClaudeModel|MockModel|JevModel|GPTModel|GeminiModel)\((.*)\)$/,'$1').replace(/^model(?:_name)?\s*=\s*['"]?(.*?)['"]?$/,'$1'); }
       function badge(text, tone='') { return create('span','badge'+(tone?' '+tone:''),text); }
       function statusBadge(status) { const tones={COMPLETED:'good',SUCCESS:'good',PENDING:'blue',RUNNING:'blue',FAILED:'bad',TRUNCATED:'warn'}; return badge(pretty(status),tones[status]||''); }
+      function renderUpstreamStatus(status) {
+        if(!status||typeof status!=='object')return null;
+        const statuses={thoroughly_tested:['Thoroughly tested upstream','good'],lightly_tested:['Implemented · lightly tested','warn'],known_issues:['Historical trace · known upstream issues','bad'],unlisted:['Not individually rated upstream','blue']}, entry=statuses[status.status]||['Upstream status not recorded','blue'];
+        const line=create('div','upstream-status');line.append(create('span','','Current OpenSpiel status'),badge(entry[0],entry[1]));
+        let source='https://github.com/google-deepmind/open_spiel/blob/master/docs/games.md';try{const candidate=new URL(status.source_url);if(candidate.protocol==='https:'&&!candidate.username&&!candidate.password&&(!candidate.port||candidate.port==='443')&&['github.com','raw.githubusercontent.com'].includes(candidate.hostname)&&candidate.pathname.startsWith('/google-deepmind/open_spiel/'))source=candidate.href;}catch{}
+        const link=create('a','','Upstream source');link.href=source;link.target='_blank';link.rel='noopener noreferrer';line.append(link);
+        const revision=status.source_revision||status.source_commit||status.revision, date=status.source_date||status.retrieved_at||status.checked_at;if(typeof revision==='string')line.append(create('code','','Source '+revision.slice(0,12)));if(typeof date==='string')line.append(create('span','',date));return line;
+      }
       function clearError() { $('errorMessage').textContent=''; $('errorMessage').hidden=true; }
       function showError(message) { $('errorMessage').textContent=message; $('errorMessage').hidden=false; }
       function setLoading(loading) {
@@ -491,6 +501,7 @@
         const side=create('div'); if(episode.mock===true) side.append(badge('Includes mock','warn')); else if(episode.mock===false) side.append(badge('Provider models','blue')); else side.append(badge('Model mode unrecorded'));
         if(episode.degraded) { side.append(document.createElement('br'),badge('Fallback assisted','warn')); }
         header.append(side); root.append(header);
+        const upstream=renderUpstreamStatus(episode.upstream_status);if(upstream)root.append(upstream);
         const exportBar=create('div','run-actions'); exportBar.style.paddingTop='0'; exportBar.style.marginBottom='17px';
         const ascii=create('button','small','View ASCII'); ascii.type='button'; ascii.addEventListener('click',()=>fetchText(false));
         const download=create('button','small','Download text'); download.type='button'; download.addEventListener('click',()=>fetchText(true));
@@ -498,7 +509,7 @@
         exportBar.append(ascii,download,include); root.append(exportBar);
         if(episode.status==='FAILED'&&episode.error) root.append(create('div','message',episode.error));
         if(episode.stop_message) root.append(create('div','message',episode.stop_message));
-        $('provenanceDetails').hidden=false; $('provenanceContent').textContent=display({...episode.provenance,recorded_game_spec:episode.game_spec||episode.game,recorded_actors:asArray(episode.player_agents).length?episode.player_agents:episode.agent});
+        $('provenanceDetails').hidden=false; $('provenanceContent').textContent=display({...episode.provenance,recorded_game_spec:episode.game_spec||episode.game,recorded_actors:asArray(episode.player_agents).length?episode.player_agents:episode.agent,current_upstream_status:episode.upstream_status??null});
         if(episode.trace_available===false) { $('timeline').hidden=true; $('transitionContent').replaceChildren(emptyPanel('No transition trace','This episode does not contain recorded transition evidence.')); return; }
         renderTransition();
       }

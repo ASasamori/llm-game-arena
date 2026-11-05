@@ -32,6 +32,16 @@ required game parameters. Mean field games need an explicit distribution and
 population; sampled stochastic environments need a reproducible underlying seed.
 Some games require optional upstream dependencies absent from the installation.
 
+`upstream_status` preserves the official game's maturity label and pinned source:
+🟢 thoroughly tested, 🔶 implemented but lightly tested, ❌ known issues, or
+unlisted for utility/test registrations not individually rated upstream. Green
+and orange games remain eligible subject to this installation's requirements.
+Known-issue games are excluded from new runs, including nested transformations;
+viewing and verifying historical traces does not admit a new run. The website
+labels the current upstream status separately from recorded episode evidence.
+The bundled status table is pinned to official OpenSpiel sources, and its SHA-256
+is included in build provenance. No game rules are reimplemented by this viewer.
+
 ## Submit and poll
 
 ```bash

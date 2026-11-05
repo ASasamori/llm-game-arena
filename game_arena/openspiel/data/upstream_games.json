@@ -1,0 +1,1907 @@
+{
+  "attribution": "Game status facts from the OpenSpiel Authors official documentation (Apache-2.0).",
+  "checked_at": "2026-11-05T00:11:25.525904+00:00",
+  "documentation": {
+    "2048": {
+      "current": {
+        "issue_urls": [],
+        "line": 11,
+        "status": "lightly_tested"
+      },
+      "display_name": "2048",
+      "release": {
+        "issue_urls": [],
+        "line": 11,
+        "status": "lightly_tested"
+      }
+    },
+    "amazons": {
+      "current": {
+        "issue_urls": [],
+        "line": 12,
+        "status": "lightly_tested"
+      },
+      "display_name": "Amazons",
+      "release": {
+        "issue_urls": [],
+        "line": 12,
+        "status": "lightly_tested"
+      }
+    },
+    "ant_foraging": {
+      "current": {
+        "issue_urls": [],
+        "line": 13,
+        "status": "lightly_tested"
+      },
+      "display_name": "Ant Foraging"
+    },
+    "antichess": {
+      "current": {
+        "issue_urls": [],
+        "line": 14,
+        "status": "lightly_tested"
+      },
+      "display_name": "Antichess",
+      "release": {
+        "issue_urls": [],
+        "line": 13,
+        "status": "lightly_tested"
+      }
+    },
+    "atari": {
+      "current": {
+        "issue_urls": [],
+        "line": 15,
+        "status": "lightly_tested"
+      },
+      "display_name": "Atari",
+      "release": {
+        "issue_urls": [],
+        "line": 14,
+        "status": "lightly_tested"
+      }
+    },
+    "backgammon": {
+      "current": {
+        "issue_urls": [],
+        "line": 16,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Backgammon",
+      "release": {
+        "issue_urls": [],
+        "line": 15,
+        "status": "thoroughly_tested"
+      }
+    },
+    "banqi": {
+      "current": {
+        "issue_urls": [],
+        "line": 18,
+        "status": "lightly_tested"
+      },
+      "display_name": "Banqi"
+    },
+    "bargaining": {
+      "current": {
+        "issue_urls": [],
+        "line": 17,
+        "status": "lightly_tested"
+      },
+      "display_name": "Bargaining",
+      "release": {
+        "issue_urls": [],
+        "line": 16,
+        "status": "lightly_tested"
+      }
+    },
+    "battleship": {
+      "current": {
+        "issue_urls": [],
+        "line": 19,
+        "status": "lightly_tested"
+      },
+      "display_name": "Battleship",
+      "release": {
+        "issue_urls": [],
+        "line": 17,
+        "status": "lightly_tested"
+      }
+    },
+    "blackjack": {
+      "current": {
+        "issue_urls": [],
+        "line": 20,
+        "status": "lightly_tested"
+      },
+      "display_name": "Blackjack",
+      "release": {
+        "issue_urls": [],
+        "line": 18,
+        "status": "lightly_tested"
+      }
+    },
+    "block_dominoes": {
+      "current": {
+        "issue_urls": [],
+        "line": 21,
+        "status": "lightly_tested"
+      },
+      "display_name": "Block Dominoes",
+      "release": {
+        "issue_urls": [],
+        "line": 19,
+        "status": "lightly_tested"
+      }
+    },
+    "breakthrough": {
+      "current": {
+        "issue_urls": [],
+        "line": 22,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Breakthrough",
+      "release": {
+        "issue_urls": [],
+        "line": 20,
+        "status": "thoroughly_tested"
+      }
+    },
+    "bridge": {
+      "current": {
+        "issue_urls": [],
+        "line": 23,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Bridge",
+      "release": {
+        "issue_urls": [],
+        "line": 21,
+        "status": "thoroughly_tested"
+      }
+    },
+    "capture_the_flag": {
+      "current": {
+        "issue_urls": [],
+        "line": 25,
+        "status": "lightly_tested"
+      },
+      "display_name": "Capture the Flag"
+    },
+    "catch": {
+      "current": {
+        "issue_urls": [],
+        "line": 26,
+        "status": "lightly_tested"
+      },
+      "display_name": "Catch",
+      "release": {
+        "issue_urls": [],
+        "line": 23,
+        "status": "lightly_tested"
+      }
+    },
+    "checkers": {
+      "current": {
+        "issue_urls": [],
+        "line": 27,
+        "status": "lightly_tested"
+      },
+      "display_name": "Checkers",
+      "release": {
+        "issue_urls": [],
+        "line": 24,
+        "status": "lightly_tested"
+      }
+    },
+    "chess": {
+      "current": {
+        "issue_urls": [],
+        "line": 35,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Chess",
+      "release": {
+        "issue_urls": [],
+        "line": 31,
+        "status": "thoroughly_tested"
+      }
+    },
+    "chinese_checkers": {
+      "current": {
+        "issue_urls": [],
+        "line": 28,
+        "status": "lightly_tested"
+      },
+      "display_name": "Chinese Checkers"
+    },
+    "cliff_walking": {
+      "current": {
+        "issue_urls": [],
+        "line": 29,
+        "status": "lightly_tested"
+      },
+      "display_name": "Cliff Walking",
+      "release": {
+        "issue_urls": [],
+        "line": 25,
+        "status": "lightly_tested"
+      }
+    },
+    "clobber": {
+      "current": {
+        "issue_urls": [],
+        "line": 30,
+        "status": "lightly_tested"
+      },
+      "display_name": "Clobber",
+      "release": {
+        "issue_urls": [],
+        "line": 26,
+        "status": "lightly_tested"
+      }
+    },
+    "coin_game": {
+      "current": {
+        "issue_urls": [],
+        "line": 31,
+        "status": "lightly_tested"
+      },
+      "display_name": "Coin Game",
+      "release": {
+        "issue_urls": [],
+        "line": 27,
+        "status": "lightly_tested"
+      }
+    },
+    "colored_trails": {
+      "current": {
+        "issue_urls": [],
+        "line": 32,
+        "status": "lightly_tested"
+      },
+      "display_name": "Colored Trails",
+      "release": {
+        "issue_urls": [],
+        "line": 28,
+        "status": "lightly_tested"
+      }
+    },
+    "connect_four": {
+      "current": {
+        "issue_urls": [],
+        "line": 33,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Connect Four",
+      "release": {
+        "issue_urls": [],
+        "line": 29,
+        "status": "thoroughly_tested"
+      }
+    },
+    "cooperative_box_pushing": {
+      "current": {
+        "issue_urls": [],
+        "line": 34,
+        "status": "lightly_tested"
+      },
+      "display_name": "Cooperative Box-Pushing",
+      "release": {
+        "issue_urls": [],
+        "line": 30,
+        "status": "lightly_tested"
+      }
+    },
+    "crazy_eights": {
+      "current": {
+        "issue_urls": [],
+        "line": 36,
+        "status": "lightly_tested"
+      },
+      "display_name": "Crazy Eights",
+      "release": {
+        "issue_urls": [],
+        "line": 32,
+        "status": "lightly_tested"
+      }
+    },
+    "crazyhouse": {
+      "current": {
+        "issue_urls": [],
+        "line": 37,
+        "status": "lightly_tested"
+      },
+      "display_name": "Crazyhouse"
+    },
+    "cribbage": {
+      "current": {
+        "issue_urls": [],
+        "line": 38,
+        "status": "lightly_tested"
+      },
+      "display_name": "Cribbage",
+      "release": {
+        "issue_urls": [],
+        "line": 33,
+        "status": "lightly_tested"
+      }
+    },
+    "crossword": {
+      "current": {
+        "issue_urls": [],
+        "line": 39,
+        "status": "lightly_tested"
+      },
+      "display_name": "Crossword"
+    },
+    "dark_hex": {
+      "current": {
+        "issue_urls": [],
+        "line": 40,
+        "status": "lightly_tested"
+      },
+      "display_name": "Dark Hex",
+      "release": {
+        "issue_urls": [],
+        "line": 34,
+        "status": "lightly_tested"
+      }
+    },
+    "deep_sea": {
+      "current": {
+        "issue_urls": [],
+        "line": 41,
+        "status": "lightly_tested"
+      },
+      "display_name": "Deep Sea",
+      "release": {
+        "issue_urls": [],
+        "line": 35,
+        "status": "lightly_tested"
+      }
+    },
+    "dots_and_boxes": {
+      "current": {
+        "issue_urls": [],
+        "line": 42,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Dots and Boxes",
+      "release": {
+        "issue_urls": [],
+        "line": 36,
+        "status": "thoroughly_tested"
+      }
+    },
+    "dou_dizhu": {
+      "current": {
+        "issue_urls": [],
+        "line": 43,
+        "status": "lightly_tested"
+      },
+      "display_name": "Dou Dizhu",
+      "release": {
+        "issue_urls": [],
+        "line": 37,
+        "status": "lightly_tested"
+      }
+    },
+    "einstein_wurfelt_nicht": {
+      "current": {
+        "issue_urls": [],
+        "line": 45,
+        "status": "lightly_tested"
+      },
+      "display_name": "EinStein würfelt nicht!",
+      "release": {
+        "issue_urls": [],
+        "line": 39,
+        "status": "lightly_tested"
+      }
+    },
+    "euchre": {
+      "current": {
+        "issue_urls": [],
+        "line": 44,
+        "status": "lightly_tested"
+      },
+      "display_name": "Euchre",
+      "release": {
+        "issue_urls": [],
+        "line": 38,
+        "status": "lightly_tested"
+      }
+    },
+    "first_price_sealed_bid_auction": {
+      "current": {
+        "issue_urls": [],
+        "line": 46,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "First-price Sealed-Bid Auction",
+      "release": {
+        "issue_urls": [],
+        "line": 40,
+        "status": "thoroughly_tested"
+      }
+    },
+    "gin_rummy": {
+      "current": {
+        "issue_urls": [],
+        "line": 47,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Gin Rummy",
+      "release": {
+        "issue_urls": [],
+        "line": 41,
+        "status": "thoroughly_tested"
+      }
+    },
+    "go": {
+      "current": {
+        "issue_urls": [],
+        "line": 48,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Go",
+      "release": {
+        "issue_urls": [],
+        "line": 42,
+        "status": "thoroughly_tested"
+      }
+    },
+    "go_fish": {
+      "current": {
+        "issue_urls": [],
+        "line": 49,
+        "status": "lightly_tested"
+      },
+      "display_name": "Go Fish"
+    },
+    "gomoku": {
+      "current": {
+        "issue_urls": [],
+        "line": 50,
+        "status": "lightly_tested"
+      },
+      "display_name": "Gomoku"
+    },
+    "goofspiel": {
+      "current": {
+        "issue_urls": [],
+        "line": 51,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Goofspiel",
+      "release": {
+        "issue_urls": [],
+        "line": 43,
+        "status": "thoroughly_tested"
+      }
+    },
+    "hanabi": {
+      "current": {
+        "issue_urls": [],
+        "line": 52,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Hanabi",
+      "release": {
+        "issue_urls": [],
+        "line": 44,
+        "status": "thoroughly_tested"
+      }
+    },
+    "havannah": {
+      "current": {
+        "issue_urls": [],
+        "line": 53,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Havannah",
+      "release": {
+        "issue_urls": [],
+        "line": 45,
+        "status": "thoroughly_tested"
+      }
+    },
+    "hearts": {
+      "current": {
+        "issue_urls": [],
+        "line": 54,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Hearts",
+      "release": {
+        "issue_urls": [],
+        "line": 46,
+        "status": "thoroughly_tested"
+      }
+    },
+    "hex": {
+      "current": {
+        "issue_urls": [],
+        "line": 55,
+        "status": "lightly_tested"
+      },
+      "display_name": "Hex",
+      "release": {
+        "issue_urls": [],
+        "line": 47,
+        "status": "lightly_tested"
+      }
+    },
+    "hive": {
+      "current": {
+        "issue_urls": [],
+        "line": 56,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Hive",
+      "release": {
+        "issue_urls": [],
+        "line": 48,
+        "status": "thoroughly_tested"
+      }
+    },
+    "kriegspiel": {
+      "current": {
+        "issue_urls": [],
+        "line": 57,
+        "status": "lightly_tested"
+      },
+      "display_name": "Kriegspiel",
+      "release": {
+        "issue_urls": [],
+        "line": 49,
+        "status": "lightly_tested"
+      }
+    },
+    "kuhn_poker": {
+      "current": {
+        "issue_urls": [],
+        "line": 58,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Kuhn poker",
+      "release": {
+        "issue_urls": [],
+        "line": 50,
+        "status": "thoroughly_tested"
+      }
+    },
+    "laser_tag": {
+      "current": {
+        "issue_urls": [],
+        "line": 59,
+        "status": "lightly_tested"
+      },
+      "display_name": "Laser Tag",
+      "release": {
+        "issue_urls": [],
+        "line": 51,
+        "status": "lightly_tested"
+      }
+    },
+    "latent_tic_tac_toe": {
+      "current": {
+        "issue_urls": [],
+        "line": 60,
+        "status": "lightly_tested"
+      },
+      "display_name": "Latent Tic-Tac-Toe",
+      "release": {
+        "issue_urls": [],
+        "line": 52,
+        "status": "lightly_tested"
+      }
+    },
+    "leduc_poker": {
+      "current": {
+        "issue_urls": [],
+        "line": 61,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Leduc poker",
+      "release": {
+        "issue_urls": [],
+        "line": 53,
+        "status": "thoroughly_tested"
+      }
+    },
+    "lewis_signaling": {
+      "current": {
+        "issue_urls": [],
+        "line": 62,
+        "status": "lightly_tested"
+      },
+      "display_name": "Lewis Signaling",
+      "release": {
+        "issue_urls": [],
+        "line": 54,
+        "status": "lightly_tested"
+      }
+    },
+    "liar_s_dice": {
+      "current": {
+        "issue_urls": [],
+        "line": 63,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Liar's Dice",
+      "release": {
+        "issue_urls": [],
+        "line": 55,
+        "status": "thoroughly_tested"
+      }
+    },
+    "liar_s_poker": {
+      "current": {
+        "issue_urls": [],
+        "line": 64,
+        "status": "lightly_tested"
+      },
+      "display_name": "Liar's Poker",
+      "release": {
+        "issue_urls": [],
+        "line": 56,
+        "status": "lightly_tested"
+      }
+    },
+    "lines_of_action": {
+      "current": {
+        "issue_urls": [],
+        "line": 65,
+        "status": "lightly_tested"
+      },
+      "display_name": "Lines of Action",
+      "release": {
+        "issue_urls": [],
+        "line": 57,
+        "status": "lightly_tested"
+      }
+    },
+    "m_n_k_game": {
+      "current": {
+        "issue_urls": [],
+        "line": 75,
+        "status": "lightly_tested"
+      },
+      "display_name": "m,n,k-game",
+      "release": {
+        "issue_urls": [],
+        "line": 67,
+        "status": "lightly_tested"
+      }
+    },
+    "mancala": {
+      "current": {
+        "issue_urls": [],
+        "line": 67,
+        "status": "lightly_tested"
+      },
+      "display_name": "Mancala",
+      "release": {
+        "issue_urls": [],
+        "line": 59,
+        "status": "lightly_tested"
+      }
+    },
+    "markov_soccer": {
+      "current": {
+        "issue_urls": [],
+        "line": 68,
+        "status": "lightly_tested"
+      },
+      "display_name": "Markov Soccer",
+      "release": {
+        "issue_urls": [],
+        "line": 60,
+        "status": "lightly_tested"
+      }
+    },
+    "matching_pennies_3_player": {
+      "current": {
+        "issue_urls": [],
+        "line": 69,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Matching Pennies (3-player)",
+      "release": {
+        "issue_urls": [],
+        "line": 61,
+        "status": "thoroughly_tested"
+      }
+    },
+    "mean_field_game_crowd_modelling": {
+      "current": {
+        "issue_urls": [],
+        "line": 70,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Mean Field Game: crowd modelling",
+      "release": {
+        "issue_urls": [],
+        "line": 62,
+        "status": "thoroughly_tested"
+      }
+    },
+    "mean_field_game_crowd_modelling_2d": {
+      "current": {
+        "issue_urls": [],
+        "line": 71,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Mean Field Game: crowd modelling 2d",
+      "release": {
+        "issue_urls": [],
+        "line": 63,
+        "status": "thoroughly_tested"
+      }
+    },
+    "mean_field_game_linear_quadratic": {
+      "current": {
+        "issue_urls": [],
+        "line": 72,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Mean Field Game: linear-quadratic",
+      "release": {
+        "issue_urls": [],
+        "line": 64,
+        "status": "thoroughly_tested"
+      }
+    },
+    "mean_field_game_predator_prey": {
+      "current": {
+        "issue_urls": [],
+        "line": 73,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Mean Field Game: predator prey",
+      "release": {
+        "issue_urls": [],
+        "line": 65,
+        "status": "thoroughly_tested"
+      }
+    },
+    "mean_field_game_routing": {
+      "current": {
+        "issue_urls": [],
+        "line": 74,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Mean Field Game: routing",
+      "release": {
+        "issue_urls": [],
+        "line": 66,
+        "status": "thoroughly_tested"
+      }
+    },
+    "mensch_argere_dich_nicht": {
+      "current": {
+        "issue_urls": [],
+        "line": 66,
+        "status": "lightly_tested"
+      },
+      "display_name": "Mensch ärgere Dich nicht",
+      "release": {
+        "issue_urls": [],
+        "line": 58,
+        "status": "lightly_tested"
+      }
+    },
+    "morpion_solitaire_4d": {
+      "current": {
+        "issue_urls": [],
+        "line": 76,
+        "status": "lightly_tested"
+      },
+      "display_name": "Morpion Solitaire (4D)",
+      "release": {
+        "issue_urls": [],
+        "line": 68,
+        "status": "lightly_tested"
+      }
+    },
+    "negotiation": {
+      "current": {
+        "issue_urls": [],
+        "line": 77,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Negotiation",
+      "release": {
+        "issue_urls": [],
+        "line": 69,
+        "status": "thoroughly_tested"
+      }
+    },
+    "nim": {
+      "current": {
+        "issue_urls": [],
+        "line": 78,
+        "status": "lightly_tested"
+      },
+      "display_name": "Nim",
+      "release": {
+        "issue_urls": [],
+        "line": 70,
+        "status": "lightly_tested"
+      }
+    },
+    "nine_men_s_morris": {
+      "current": {
+        "issue_urls": [],
+        "line": 79,
+        "status": "lightly_tested"
+      },
+      "display_name": "Nine men's morris",
+      "release": {
+        "issue_urls": [],
+        "line": 71,
+        "status": "lightly_tested"
+      }
+    },
+    "oh_hell": {
+      "current": {
+        "issue_urls": [],
+        "line": 80,
+        "status": "lightly_tested"
+      },
+      "display_name": "Oh Hell",
+      "release": {
+        "issue_urls": [],
+        "line": 72,
+        "status": "lightly_tested"
+      }
+    },
+    "oshi_zumo": {
+      "current": {
+        "issue_urls": [],
+        "line": 81,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Oshi-Zumo",
+      "release": {
+        "issue_urls": [],
+        "line": 73,
+        "status": "thoroughly_tested"
+      }
+    },
+    "oware": {
+      "current": {
+        "issue_urls": [],
+        "line": 82,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Oware",
+      "release": {
+        "issue_urls": [],
+        "line": 74,
+        "status": "thoroughly_tested"
+      }
+    },
+    "pathfinding": {
+      "current": {
+        "issue_urls": [],
+        "line": 83,
+        "status": "lightly_tested"
+      },
+      "display_name": "Pathfinding",
+      "release": {
+        "issue_urls": [],
+        "line": 75,
+        "status": "lightly_tested"
+      }
+    },
+    "pentago": {
+      "current": {
+        "issue_urls": [],
+        "line": 84,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Pentago",
+      "release": {
+        "issue_urls": [],
+        "line": 76,
+        "status": "thoroughly_tested"
+      }
+    },
+    "phantom_go": {
+      "current": {
+        "issue_urls": [],
+        "line": 85,
+        "status": "lightly_tested"
+      },
+      "display_name": "Phantom Go",
+      "release": {
+        "issue_urls": [],
+        "line": 77,
+        "status": "lightly_tested"
+      }
+    },
+    "phantom_tic_tac_toe": {
+      "current": {
+        "issue_urls": [],
+        "line": 86,
+        "status": "lightly_tested"
+      },
+      "display_name": "Phantom Tic-Tac-Toe",
+      "release": {
+        "issue_urls": [],
+        "line": 78,
+        "status": "lightly_tested"
+      }
+    },
+    "pig": {
+      "current": {
+        "issue_urls": [],
+        "line": 87,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Pig",
+      "release": {
+        "issue_urls": [],
+        "line": 79,
+        "status": "thoroughly_tested"
+      }
+    },
+    "poker_hold_em": {
+      "current": {
+        "issue_urls": [],
+        "line": 89,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Poker (Hold 'em)",
+      "release": {
+        "issue_urls": [],
+        "line": 81,
+        "status": "thoroughly_tested"
+      }
+    },
+    "prisoner_s_dilemma": {
+      "current": {
+        "issue_urls": [],
+        "line": 88,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Prisoner's Dilemma",
+      "release": {
+        "issue_urls": [],
+        "line": 80,
+        "status": "thoroughly_tested"
+      }
+    },
+    "pursuit_evasion": {
+      "current": {
+        "issue_urls": [],
+        "line": 90,
+        "status": "lightly_tested"
+      },
+      "display_name": "Pursuit-Evasion"
+    },
+    "quoridor": {
+      "current": {
+        "issue_urls": [
+          "https://github.com/google-deepmind/open_spiel/issues/1158"
+        ],
+        "line": 91,
+        "status": "known_issues"
+      },
+      "display_name": "Quoridor",
+      "release": {
+        "issue_urls": [
+          "https://github.com/google-deepmind/open_spiel/issues/1158"
+        ],
+        "line": 82,
+        "status": "known_issues"
+      }
+    },
+    "reconnaissance_blind_chess": {
+      "current": {
+        "issue_urls": [
+          "https://github.com/google-deepmind/open_spiel/issues/811"
+        ],
+        "line": 92,
+        "status": "known_issues"
+      },
+      "display_name": "Reconnaissance Blind Chess",
+      "release": {
+        "issue_urls": [
+          "https://github.com/google-deepmind/open_spiel/issues/811"
+        ],
+        "line": 83,
+        "status": "known_issues"
+      }
+    },
+    "routing_game": {
+      "current": {
+        "issue_urls": [],
+        "line": 93,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Routing game",
+      "release": {
+        "issue_urls": [],
+        "line": 84,
+        "status": "thoroughly_tested"
+      }
+    },
+    "sheriff": {
+      "current": {
+        "issue_urls": [],
+        "line": 94,
+        "status": "lightly_tested"
+      },
+      "display_name": "Sheriff",
+      "release": {
+        "issue_urls": [],
+        "line": 85,
+        "status": "lightly_tested"
+      }
+    },
+    "shogi": {
+      "current": {
+        "issue_urls": [],
+        "line": 95,
+        "status": "lightly_tested"
+      },
+      "display_name": "Shogi"
+    },
+    "skat_simplified_bidding": {
+      "current": {
+        "issue_urls": [],
+        "line": 97,
+        "status": "lightly_tested"
+      },
+      "display_name": "Skat (simplified bidding)",
+      "release": {
+        "issue_urls": [],
+        "line": 87,
+        "status": "lightly_tested"
+      }
+    },
+    "slovenian_tarok": {
+      "current": {
+        "issue_urls": [],
+        "line": 96,
+        "status": "lightly_tested"
+      },
+      "display_name": "Slovenian Tarok",
+      "release": {
+        "issue_urls": [],
+        "line": 86,
+        "status": "lightly_tested"
+      }
+    },
+    "snake": {
+      "current": {
+        "issue_urls": [],
+        "line": 98,
+        "status": "lightly_tested"
+      },
+      "display_name": "Snake"
+    },
+    "social_deduction": {
+      "current": {
+        "issue_urls": [],
+        "line": 99,
+        "status": "lightly_tested"
+      },
+      "display_name": "Social Deduction"
+    },
+    "solitaire_k": {
+      "current": {
+        "issue_urls": [],
+        "line": 100,
+        "status": "lightly_tested"
+      },
+      "display_name": "Solitaire (K+)",
+      "release": {
+        "issue_urls": [],
+        "line": 88,
+        "status": "lightly_tested"
+      }
+    },
+    "spades": {
+      "current": {
+        "issue_urls": [],
+        "line": 101,
+        "status": "lightly_tested"
+      },
+      "display_name": "Spades",
+      "release": {
+        "issue_urls": [],
+        "line": 89,
+        "status": "lightly_tested"
+      }
+    },
+    "team_dominoes": {
+      "current": {
+        "issue_urls": [],
+        "line": 102,
+        "status": "lightly_tested"
+      },
+      "display_name": "Team Dominoes",
+      "release": {
+        "issue_urls": [],
+        "line": 90,
+        "status": "lightly_tested"
+      }
+    },
+    "tic_tac_toe": {
+      "current": {
+        "issue_urls": [],
+        "line": 103,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Tic-Tac-Toe",
+      "release": {
+        "issue_urls": [],
+        "line": 91,
+        "status": "thoroughly_tested"
+      }
+    },
+    "tiny_bridge": {
+      "current": {
+        "issue_urls": [],
+        "line": 104,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Tiny Bridge",
+      "release": {
+        "issue_urls": [],
+        "line": 92,
+        "status": "thoroughly_tested"
+      }
+    },
+    "tiny_hanabi": {
+      "current": {
+        "issue_urls": [],
+        "line": 105,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Tiny Hanabi",
+      "release": {
+        "issue_urls": [],
+        "line": 93,
+        "status": "thoroughly_tested"
+      }
+    },
+    "trade_comm": {
+      "current": {
+        "issue_urls": [],
+        "line": 106,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Trade Comm",
+      "release": {
+        "issue_urls": [],
+        "line": 94,
+        "status": "thoroughly_tested"
+      }
+    },
+    "twixt": {
+      "current": {
+        "issue_urls": [],
+        "line": 107,
+        "status": "lightly_tested"
+      },
+      "display_name": "TwixT",
+      "release": {
+        "issue_urls": [],
+        "line": 95,
+        "status": "lightly_tested"
+      }
+    },
+    "ultimate_tic_tac_toe": {
+      "current": {
+        "issue_urls": [],
+        "line": 108,
+        "status": "lightly_tested"
+      },
+      "display_name": "Ultimate Tic-Tac-Toe",
+      "release": {
+        "issue_urls": [],
+        "line": 96,
+        "status": "lightly_tested"
+      }
+    },
+    "uncontested_bridge_bidding": {
+      "current": {
+        "issue_urls": [],
+        "line": 24,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "(Uncontested) Bridge bidding",
+      "release": {
+        "issue_urls": [],
+        "line": 22,
+        "status": "thoroughly_tested"
+      }
+    },
+    "weighted_voting_games": {
+      "current": {
+        "issue_urls": [],
+        "line": 109,
+        "status": "lightly_tested"
+      },
+      "display_name": "Weighted Voting Games",
+      "release": {
+        "issue_urls": [],
+        "line": 97,
+        "status": "lightly_tested"
+      }
+    },
+    "xiangqi": {
+      "current": {
+        "issue_urls": [],
+        "line": 110,
+        "status": "lightly_tested"
+      },
+      "display_name": "Xiangqi"
+    },
+    "y": {
+      "current": {
+        "issue_urls": [],
+        "line": 111,
+        "status": "thoroughly_tested"
+      },
+      "display_name": "Y",
+      "release": {
+        "issue_urls": [],
+        "line": 98,
+        "status": "thoroughly_tested"
+      }
+    },
+    "yacht": {
+      "current": {
+        "issue_urls": [],
+        "line": 112,
+        "status": "lightly_tested"
+      },
+      "display_name": "Yacht"
+    }
+  },
+  "games": {
+    "2048": {
+      "documentation_key": "2048",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "bbeda118825ab76ed5e1320568173151d643ba8f",
+      "registration_source_path": "open_spiel/games/twenty_forty_eight/2048.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/twenty_forty_eight/2048.cc"
+    },
+    "amazons": {
+      "documentation_key": "amazons",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "8b642414ee2a8973a30429bb51525e25eec0cbf2",
+      "registration_source_path": "open_spiel/games/amazons/amazons.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/amazons/amazons.cc"
+    },
+    "antichess": {
+      "documentation_key": "antichess",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "67c0f2b54f924050dae78a33704311cfbbafa434",
+      "registration_source_path": "open_spiel/games/antichess/antichess.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/antichess/antichess.cc"
+    },
+    "backgammon": {
+      "documentation_key": "backgammon",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "a16d9e241f541ecf3d8cae874356cd7e6957aa8d",
+      "registration_source_path": "open_spiel/games/backgammon/backgammon.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/backgammon/backgammon.cc"
+    },
+    "bargaining": {
+      "documentation_key": "bargaining",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "23433e5cdf630eba706026aaa0e8a57795b0e4ef",
+      "registration_source_path": "open_spiel/games/bargaining/bargaining.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/bargaining/bargaining.cc"
+    },
+    "battleship": {
+      "documentation_key": "battleship",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "0e7fc7c2d3d99da65229ff032981817c99648663",
+      "registration_source_path": "open_spiel/games/battleship/battleship.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/battleship/battleship.cc"
+    },
+    "blackjack": {
+      "documentation_key": "blackjack",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "a46cd02564bb683e02bcf4083e77a8873ad2b65e",
+      "registration_source_path": "open_spiel/games/blackjack/blackjack.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/blackjack/blackjack.cc"
+    },
+    "breakthrough": {
+      "documentation_key": "breakthrough",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "ad6166108c0fa6e466d84a4c52c38273ae47840f",
+      "registration_source_path": "open_spiel/games/breakthrough/breakthrough.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/breakthrough/breakthrough.cc"
+    },
+    "bridge": {
+      "documentation_key": "bridge",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "1aa0023e01db6703356b3b3f6ff8a101d5465df2",
+      "registration_source_path": "open_spiel/games/bridge/bridge.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/bridge/bridge.cc"
+    },
+    "bridge_uncontested_bidding": {
+      "documentation_key": "uncontested_bridge_bidding",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "42400034f92e57416c462dfa579aaafc331b8767",
+      "registration_source_path": "open_spiel/games/bridge/bridge_uncontested_bidding.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/bridge/bridge_uncontested_bidding.cc"
+    },
+    "catch": {
+      "documentation_key": "catch",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "4af42f3149e39011dbe8579cd8d7229dbfd62625",
+      "registration_source_path": "open_spiel/games/catch/catch.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/catch/catch.cc"
+    },
+    "checkers": {
+      "documentation_key": "checkers",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "c19a9c2f2e5647a64e30b39a5a17a4612f4536d3",
+      "registration_source_path": "open_spiel/games/checkers/checkers.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/checkers/checkers.cc"
+    },
+    "chess": {
+      "documentation_key": "chess",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "68b94234e748388e4d5c0d7e29fe1d274b2725ae",
+      "registration_source_path": "open_spiel/games/chess/chess.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/chess/chess.cc"
+    },
+    "cliff_walking": {
+      "documentation_key": "cliff_walking",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "5f46f09c289f45fb0311bfc3441dcd50a66220ec",
+      "registration_source_path": "open_spiel/games/cliff_walking/cliff_walking.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/cliff_walking/cliff_walking.cc"
+    },
+    "clobber": {
+      "documentation_key": "clobber",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "520358273b6b8c6cfd42a5216f1d42b5621b142c",
+      "registration_source_path": "open_spiel/games/clobber/clobber.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/clobber/clobber.cc"
+    },
+    "coin_game": {
+      "documentation_key": "coin_game",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "543f19a248e7b85fc0013b197f858bf91f2acf11",
+      "registration_source_path": "open_spiel/games/coin_game/coin_game.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/coin_game/coin_game.cc"
+    },
+    "colored_trails": {
+      "documentation_key": "colored_trails",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "593440a35a2a3430c525fb22fb514ab24856d3e3",
+      "registration_source_path": "open_spiel/games/colored_trails/colored_trails.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/colored_trails/colored_trails.cc"
+    },
+    "connect_four": {
+      "documentation_key": "connect_four",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "8dc4c311ca4b9287f01cde10adcfc7789ddefb13",
+      "registration_source_path": "open_spiel/games/connect_four/connect_four.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/connect_four/connect_four.cc"
+    },
+    "coop_box_pushing": {
+      "documentation_key": "cooperative_box_pushing",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "3ebb069d8d369987f1f143cdce23135397ad3b14",
+      "registration_source_path": "open_spiel/games/coop_box_pushing/coop_box_pushing.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/coop_box_pushing/coop_box_pushing.cc"
+    },
+    "crazy_eights": {
+      "documentation_key": "crazy_eights",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "02623362ce7c1d41268068f9d23af61878daa8ab",
+      "registration_source_path": "open_spiel/games/crazy_eights/crazy_eights.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/crazy_eights/crazy_eights.cc"
+    },
+    "cribbage": {
+      "documentation_key": "cribbage",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "58e2b4b0204f9ca6d443049d3fdf90c96d7fc186",
+      "registration_source_path": "open_spiel/games/cribbage/cribbage.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/cribbage/cribbage.cc"
+    },
+    "dark_hex": {
+      "documentation_key": "dark_hex",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "e078d7f52e48ce4a43c66643288be925fb509c5f",
+      "registration_source_path": "open_spiel/games/dark_hex/dark_hex.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/dark_hex/dark_hex.cc"
+    },
+    "deep_sea": {
+      "documentation_key": "deep_sea",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "6aac4805af66fce0fb4a75adfc6b7afd34447b13",
+      "registration_source_path": "open_spiel/games/deep_sea/deep_sea.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/deep_sea/deep_sea.cc"
+    },
+    "dots_and_boxes": {
+      "documentation_key": "dots_and_boxes",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "5873bbbe0cf90321b952ff7ee6d149f18c293fdc",
+      "registration_source_path": "open_spiel/games/dots_and_boxes/dots_and_boxes.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/dots_and_boxes/dots_and_boxes.cc"
+    },
+    "dou_dizhu": {
+      "documentation_key": "dou_dizhu",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "03ebb0f54c5900de459c872a4d5fbfcd4097a8ce",
+      "registration_source_path": "open_spiel/games/dou_dizhu/dou_dizhu.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/dou_dizhu/dou_dizhu.cc"
+    },
+    "einstein_wurfelt_nicht": {
+      "documentation_key": "einstein_wurfelt_nicht",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "777e9534999ef546d2901cc7727871d3e8d0cc7c",
+      "registration_source_path": "open_spiel/games/einstein_wurfelt_nicht/einstein_wurfelt_nicht.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/einstein_wurfelt_nicht/einstein_wurfelt_nicht.cc"
+    },
+    "euchre": {
+      "documentation_key": "euchre",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "c7562b8d535bc93c54dac50982f09e6e89e44535",
+      "registration_source_path": "open_spiel/games/euchre/euchre.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/euchre/euchre.cc"
+    },
+    "first_sealed_auction": {
+      "documentation_key": "first_price_sealed_bid_auction",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "432212448d2b552ad8c9c1d0e17667ad84656ba5",
+      "registration_source_path": "open_spiel/games/first_sealed_auction/first_sealed_auction.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/first_sealed_auction/first_sealed_auction.cc"
+    },
+    "gin_rummy": {
+      "documentation_key": "gin_rummy",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "06d23b44747f5f53134b11376c4aebcd2b4592ed",
+      "registration_source_path": "open_spiel/games/gin_rummy/gin_rummy.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/gin_rummy/gin_rummy.cc"
+    },
+    "go": {
+      "documentation_key": "go",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "8c75af185e76e5fb46e32fbdfc9cf5cc8c126edb",
+      "registration_source_path": "open_spiel/games/go/go.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/go/go.cc"
+    },
+    "goofspiel": {
+      "documentation_key": "goofspiel",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "87e6e811e8a0e431eb238c132c598d10b5c541eb",
+      "registration_source_path": "open_spiel/games/goofspiel/goofspiel.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/goofspiel/goofspiel.cc"
+    },
+    "hanabi": {
+      "documentation_key": "hanabi",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "af4687add3e7f110817013657ce097f376928b9e",
+      "registration_source_path": "open_spiel/games/hanabi/hanabi.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/hanabi/hanabi.cc"
+    },
+    "havannah": {
+      "documentation_key": "havannah",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "d43736ffe3998611c32cba4d65d2b1c65ca36350",
+      "registration_source_path": "open_spiel/games/havannah/havannah.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/havannah/havannah.cc"
+    },
+    "hearts": {
+      "documentation_key": "hearts",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "8d6dbd612f27073f16df2062efcb4ce3044c76bc",
+      "registration_source_path": "open_spiel/games/hearts/hearts.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/hearts/hearts.cc"
+    },
+    "hex": {
+      "documentation_key": "hex",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "86ae04f12bcb7be73b7ff13bb16e76be6611b817",
+      "registration_source_path": "open_spiel/games/hex/hex.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/hex/hex.cc"
+    },
+    "hive": {
+      "documentation_key": "hive",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "7a8d15c2d8dc7b9e45659fc664223deef05da292",
+      "registration_source_path": "open_spiel/games/hive/hive.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/hive/hive.cc"
+    },
+    "kriegspiel": {
+      "documentation_key": "kriegspiel",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "03c980d00374c9968f1a7c8b05931a84c219467f",
+      "registration_source_path": "open_spiel/games/kriegspiel/kriegspiel.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/kriegspiel/kriegspiel.cc"
+    },
+    "kuhn_poker": {
+      "documentation_key": "kuhn_poker",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "566268d08ae057108c14d10ffd20c223674758b4",
+      "registration_source_path": "open_spiel/games/kuhn_poker/kuhn_poker.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/kuhn_poker/kuhn_poker.cc"
+    },
+    "laser_tag": {
+      "documentation_key": "laser_tag",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "357854fd6e36aa3f9289bbb493f0321b05da0a6b",
+      "registration_source_path": "open_spiel/games/laser_tag/laser_tag.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/laser_tag/laser_tag.cc"
+    },
+    "latent_ttt": {
+      "documentation_key": "latent_tic_tac_toe",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "a65a64a485e7fcc5351aceda3f99837169dc6647",
+      "registration_source_path": "open_spiel/games/latent_ttt/latent_ttt.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/latent_ttt/latent_ttt.cc"
+    },
+    "leduc_poker": {
+      "documentation_key": "leduc_poker",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "6798701d1551eb488c6752ad76e4bad47f18c1ec",
+      "registration_source_path": "open_spiel/games/leduc_poker/leduc_poker.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/leduc_poker/leduc_poker.cc"
+    },
+    "lewis_signaling": {
+      "documentation_key": "lewis_signaling",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "72a76c080fa3dbbd85bfd0dc1d734bd7a465e56f",
+      "registration_source_path": "open_spiel/games/lewis_signaling/lewis_signaling.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/lewis_signaling/lewis_signaling.cc"
+    },
+    "liars_dice": {
+      "documentation_key": "liar_s_dice",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "0818f183b5dc414e6c62dbc4d26966af171f207b",
+      "registration_source_path": "open_spiel/games/liars_dice/liars_dice.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/liars_dice/liars_dice.cc"
+    },
+    "lines_of_action": {
+      "documentation_key": "lines_of_action",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "b7ff0aeffa264da0fbb9e00a598c9ca955851433",
+      "registration_source_path": "open_spiel/games/lines_of_action/lines_of_action.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/lines_of_action/lines_of_action.cc"
+    },
+    "maedn": {
+      "documentation_key": "mensch_argere_dich_nicht",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "65a71f6c1e87de73cb0db8f88c1231a0ad059d0b",
+      "registration_source_path": "open_spiel/games/maedn/maedn.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/maedn/maedn.cc"
+    },
+    "mancala": {
+      "documentation_key": "mancala",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "55399bbcda6db56b5b73b927995ec7c979452d13",
+      "registration_source_path": "open_spiel/games/mancala/mancala.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/mancala/mancala.cc"
+    },
+    "markov_soccer": {
+      "documentation_key": "markov_soccer",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "9711efc9e16242b5eafa2f5348a5c42b2ff0854f",
+      "registration_source_path": "open_spiel/games/markov_soccer/markov_soccer.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/markov_soccer/markov_soccer.cc"
+    },
+    "matching_pennies_3p": {
+      "documentation_key": "matching_pennies_3_player",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "e2ca6f229627037bc0aba6048e264bc9dcf21948",
+      "registration_source_path": "open_spiel/games/matching_pennies_3p/matching_pennies_3p.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/matching_pennies_3p/matching_pennies_3p.cc"
+    },
+    "matrix_pd": {
+      "documentation_key": "prisoner_s_dilemma",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "1acd98fcec9cb14e8450c20b1a19adb07b854e55",
+      "registration_source_path": "open_spiel/games/matrix_games/matrix_games.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/matrix_games/matrix_games.cc"
+    },
+    "mean_field_lin_quad": {
+      "documentation_key": "mean_field_game_linear_quadratic",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "a97939fe95add79eca217f16b0fefd930bb8485a",
+      "registration_source_path": "open_spiel/python/mfg/games/linear_quadratic.py",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/python/mfg/games/linear_quadratic.py"
+    },
+    "mfg_crowd_modelling": {
+      "documentation_key": "mean_field_game_crowd_modelling",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "bccb3840b8890d868ce312481fc479b48092d8ef",
+      "registration_source_path": "open_spiel/games/mfg/crowd_modelling.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/mfg/crowd_modelling.cc"
+    },
+    "mfg_crowd_modelling_2d": {
+      "documentation_key": "mean_field_game_crowd_modelling_2d",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "f1579023227ac2f44555088770a707369b55cce9",
+      "registration_source_path": "open_spiel/games/mfg/crowd_modelling_2d.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/mfg/crowd_modelling_2d.cc"
+    },
+    "mfg_dynamic_routing": {
+      "documentation_key": "mean_field_game_routing",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "41192b4d492bae59f16a2bd59cde4cb7c51a59bf",
+      "registration_source_path": "open_spiel/games/mfg/dynamic_routing.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/mfg/dynamic_routing.cc"
+    },
+    "mnk": {
+      "documentation_key": "m_n_k_game",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "06e455defebcc9b525858cbeb8a18c3b435ca756",
+      "registration_source_path": "open_spiel/games/mnk/mnk.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/mnk/mnk.cc"
+    },
+    "morpion_solitaire": {
+      "documentation_key": "morpion_solitaire_4d",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "e36b2f5505d6343751a80ffacf0c9bbdfef601c5",
+      "registration_source_path": "open_spiel/games/morpion_solitaire/morpion_solitaire.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/morpion_solitaire/morpion_solitaire.cc"
+    },
+    "negotiation": {
+      "documentation_key": "negotiation",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "c5086bf84072b903ff469e8cdb4f73f5a5b94c14",
+      "registration_source_path": "open_spiel/games/negotiation/negotiation.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/negotiation/negotiation.cc"
+    },
+    "nim": {
+      "documentation_key": "nim",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "d115bb7e00070ec038302f4447db2d359813992b",
+      "registration_source_path": "open_spiel/games/nim/nim.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/nim/nim.cc"
+    },
+    "nine_mens_morris": {
+      "documentation_key": "nine_men_s_morris",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "5d7519199c4482991a22038e7742a71ccf25498b",
+      "registration_source_path": "open_spiel/games/nine_mens_morris/nine_mens_morris.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/nine_mens_morris/nine_mens_morris.cc"
+    },
+    "oh_hell": {
+      "documentation_key": "oh_hell",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "9fd68c15becb043abce48318e55b5ef549656c31",
+      "registration_source_path": "open_spiel/games/oh_hell/oh_hell.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/oh_hell/oh_hell.cc"
+    },
+    "oshi_zumo": {
+      "documentation_key": "oshi_zumo",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "778f1a0b10e037a1ada5c31ec0a5ebea71c26243",
+      "registration_source_path": "open_spiel/games/oshi_zumo/oshi_zumo.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/oshi_zumo/oshi_zumo.cc"
+    },
+    "oware": {
+      "documentation_key": "oware",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "0edf19f59d0866ace3688d9d855498f1443567f0",
+      "registration_source_path": "open_spiel/games/oware/oware.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/oware/oware.cc"
+    },
+    "pathfinding": {
+      "documentation_key": "pathfinding",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "ae6457eb16a66b676b9250a4a4fb24729fbc3534",
+      "registration_source_path": "open_spiel/games/pathfinding/pathfinding.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/pathfinding/pathfinding.cc"
+    },
+    "pentago": {
+      "documentation_key": "pentago",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "5b9be5e7acdcd70c12cc3792cf9390f2412bf9e3",
+      "registration_source_path": "open_spiel/games/pentago/pentago.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/pentago/pentago.cc"
+    },
+    "phantom_go": {
+      "documentation_key": "phantom_go",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "1a5ead01d0c87acae51cbea81858f66df846da16",
+      "registration_source_path": "open_spiel/games/phantom_go/phantom_go.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/phantom_go/phantom_go.cc"
+    },
+    "phantom_ttt": {
+      "documentation_key": "phantom_tic_tac_toe",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "d4f4112e716a505f438da2afe94800706c2b4e8a",
+      "registration_source_path": "open_spiel/games/phantom_ttt/phantom_ttt.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/phantom_ttt/phantom_ttt.cc"
+    },
+    "pig": {
+      "documentation_key": "pig",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "80da42683c6d12322f7b75853dc493e97898b613",
+      "registration_source_path": "open_spiel/games/pig/pig.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/pig/pig.cc"
+    },
+    "python_block_dominoes": {
+      "documentation_key": "block_dominoes",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "1b2462bf65db6aeee843475eaf473eec78679f94",
+      "registration_source_path": "open_spiel/python/games/block_dominoes.py",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/python/games/block_dominoes.py"
+    },
+    "python_dynamic_routing": {
+      "documentation_key": "routing_game",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "4633a9431274aa2bab2f21424b5dd27afa16723f",
+      "registration_source_path": "open_spiel/python/games/dynamic_routing.py",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/python/games/dynamic_routing.py"
+    },
+    "python_liars_poker": {
+      "documentation_key": "liar_s_poker",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "b3d2e22ed51506d5519545565babdefaee9abba0",
+      "registration_source_path": "open_spiel/python/games/liars_poker.py",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/python/games/liars_poker.py"
+    },
+    "python_mfg_predator_prey": {
+      "documentation_key": "mean_field_game_predator_prey",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "81527da2c411936e07348162cb6baf0bb3db038b",
+      "registration_source_path": "open_spiel/python/mfg/games/predator_prey.py",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/python/mfg/games/predator_prey.py"
+    },
+    "python_team_dominoes": {
+      "documentation_key": "team_dominoes",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "12badc8819404992415b9f9f1177515c453b6d7d",
+      "registration_source_path": "open_spiel/python/games/team_dominoes.py",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/python/games/team_dominoes.py"
+    },
+    "quoridor": {
+      "documentation_key": "quoridor",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "1c43cc69fedd7ebc9a4f4e0bb7d9fc4f2dd02f70",
+      "registration_source_path": "open_spiel/games/quoridor/quoridor.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/quoridor/quoridor.cc"
+    },
+    "rbc": {
+      "documentation_key": "reconnaissance_blind_chess",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "9cffaf1e4a4f96e554290e57c9a72bda6312f015",
+      "registration_source_path": "open_spiel/games/rbc/rbc.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/rbc/rbc.cc"
+    },
+    "sheriff": {
+      "documentation_key": "sheriff",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "b5f38a144d199b88e6047d6570d70c3df89201e3",
+      "registration_source_path": "open_spiel/games/sheriff/sheriff.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/sheriff/sheriff.cc"
+    },
+    "skat": {
+      "documentation_key": "skat_simplified_bidding",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "9f2bd5c69007d410e9140c0035a5498702ece9f3",
+      "registration_source_path": "open_spiel/games/skat/skat.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/skat/skat.cc"
+    },
+    "solitaire": {
+      "documentation_key": "solitaire_k",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "8fa99b378fba68823a527c93b88fbcc6a48fcd9c",
+      "registration_source_path": "open_spiel/games/solitaire/solitaire.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/solitaire/solitaire.cc"
+    },
+    "spades": {
+      "documentation_key": "spades",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "d019b2fd04eed4a7f49ff0f07d5bad2b5ae2787d",
+      "registration_source_path": "open_spiel/games/spades/spades.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/spades/spades.cc"
+    },
+    "tarok": {
+      "documentation_key": "slovenian_tarok",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "16f821d95897e43e2cd6a520975163e652131d4e",
+      "registration_source_path": "open_spiel/games/tarok/tarok.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/tarok/tarok.cc"
+    },
+    "tic_tac_toe": {
+      "documentation_key": "tic_tac_toe",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "8925f23deacb041fea918718236a90679a60d9d2",
+      "registration_source_path": "open_spiel/games/tic_tac_toe/tic_tac_toe.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/tic_tac_toe/tic_tac_toe.cc"
+    },
+    "tiny_bridge_2p": {
+      "documentation_key": "tiny_bridge",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "mapping_note": "The official Tiny Bridge entry covers 2–4 players; this is its registered player-count specialization.",
+      "registration_blob_sha1": "37c4d3b2170c82841920cb4a4b3f302e16709bce",
+      "registration_source_path": "open_spiel/games/tiny_bridge/tiny_bridge.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/tiny_bridge/tiny_bridge.cc"
+    },
+    "tiny_bridge_4p": {
+      "documentation_key": "tiny_bridge",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "mapping_note": "The official Tiny Bridge entry covers 2–4 players; this is its registered player-count specialization.",
+      "registration_blob_sha1": "37c4d3b2170c82841920cb4a4b3f302e16709bce",
+      "registration_source_path": "open_spiel/games/tiny_bridge/tiny_bridge.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/tiny_bridge/tiny_bridge.cc"
+    },
+    "tiny_hanabi": {
+      "documentation_key": "tiny_hanabi",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "ad79d8def019bd3177c6d48a64a55f4868ec5cb6",
+      "registration_source_path": "open_spiel/games/tiny_hanabi/tiny_hanabi.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/tiny_hanabi/tiny_hanabi.cc"
+    },
+    "trade_comm": {
+      "documentation_key": "trade_comm",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "cbf86b9c9659eff17a05f0f8c2137456faaa8eb1",
+      "registration_source_path": "open_spiel/games/trade_comm/trade_comm.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/trade_comm/trade_comm.cc"
+    },
+    "twixt": {
+      "documentation_key": "twixt",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "8468a439495cc76f1bf7e7ee14f0b233ce36814a",
+      "registration_source_path": "open_spiel/games/twixt/twixt.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/twixt/twixt.cc"
+    },
+    "ultimate_tic_tac_toe": {
+      "documentation_key": "ultimate_tic_tac_toe",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "92edf399887f8067b09e43635fd66b2a93cd62d6",
+      "registration_source_path": "open_spiel/games/ultimate_tic_tac_toe/ultimate_tic_tac_toe.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/ultimate_tic_tac_toe/ultimate_tic_tac_toe.cc"
+    },
+    "universal_poker": {
+      "documentation_key": "poker_hold_em",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "385319aead3838faba702eced5e1460a0f28279d",
+      "registration_source_path": "open_spiel/games/universal_poker/universal_poker.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/universal_poker/universal_poker.cc"
+    },
+    "y": {
+      "documentation_key": "y",
+      "mapping_basis": "Explicit game identity matched to the installed registry and pinned upstream implementation.",
+      "registration_blob_sha1": "cdc498784fb1ac1ce0c3820acdd156038ddb152d",
+      "registration_source_path": "open_spiel/games/y/y.cc",
+      "registration_source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/open_spiel/games/y/y.cc"
+    }
+  },
+  "installed_release": "1.6.10",
+  "license_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/LICENSE",
+  "policy": "Use the installed release documentation when listed; current upstream known issues take precedence. Unlisted registrations have no inferred maturity rating.",
+  "schema_version": 1,
+  "sources": {
+    "current": {
+      "checked_at": "2026-11-05T00:11:25.525904+00:00",
+      "commit_date": "2026-10-30T14:47:18Z",
+      "raw_url": "https://raw.githubusercontent.com/google-deepmind/open_spiel/8eb13ab561c4fac6829a5fa03635d3e1658bbb60/docs/games.md",
+      "ref": "master",
+      "revision": "8eb13ab561c4fac6829a5fa03635d3e1658bbb60",
+      "source_sha256": "29ae56f3649aa744a29ab9e82264bd94af4efb307e407c194dfdbe21be1db03c",
+      "source_url": "https://github.com/google-deepmind/open_spiel/blob/8eb13ab561c4fac6829a5fa03635d3e1658bbb60/docs/games.md"
+    },
+    "release": {
+      "checked_at": "2026-11-05T00:11:25.525904+00:00",
+      "commit_date": "2025-12-15T14:47:12Z",
+      "raw_url": "https://raw.githubusercontent.com/google-deepmind/open_spiel/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/docs/games.md",
+      "ref": "v1.6.10",
+      "revision": "7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0",
+      "source_sha256": "af722ad2b7531dc85f548b2262704c1af6afe785de2668a47caae3f62968c447",
+      "source_url": "https://github.com/google-deepmind/open_spiel/blob/7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0/docs/games.md"
+    }
+  }
+}

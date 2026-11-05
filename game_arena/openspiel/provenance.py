@@ -26,6 +26,13 @@ def runtime_manifest() -> dict[str, Any]:
             digest.update(b"\0")
             digest.update(path.read_bytes())
     lockfile = root / "uv.lock"
+    upstream_catalog = (
+        root / "game_arena" / "openspiel" / "data" / "upstream_games.json"
+    )
+    if upstream_catalog.exists():
+        digest.update(upstream_catalog.relative_to(root).as_posix().encode())
+        digest.update(b"\0")
+        digest.update(upstream_catalog.read_bytes())
     dependency_versions: dict[str, str] = {}
     for package in ("openai", "anthropic", "google-genai", "numpy"):
         try:
@@ -51,6 +58,11 @@ def runtime_manifest() -> dict[str, Any]:
         "python_version": platform.python_version(),
         "source_revision": revision,
         "source_sha256": digest.hexdigest(),
+        "upstream_catalog_sha256": hashlib.sha256(
+            upstream_catalog.read_bytes()
+        ).hexdigest()
+        if upstream_catalog.exists()
+        else None,
         "dependency_versions": dependency_versions,
         "dependency_lock_sha256": hashlib.sha256(lockfile.read_bytes()).hexdigest()
         if lockfile.exists()

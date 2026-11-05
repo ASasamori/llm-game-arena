@@ -25,6 +25,7 @@ from typing import Any
 import pyspiel
 
 from game_arena.environments import registry as native_registry
+from game_arena.openspiel.upstream_status import get_upstream_status
 
 ENV_ALIASES = {"connect_four_v1": "connect_four", "chess_v1": "chess"}
 _REGISTRATION_LOCK = threading.Lock()
@@ -32,6 +33,7 @@ _PYTHON_GAMES_REGISTERED = False
 _REGISTRATION_WARNINGS: list[str] = []
 _NAME_PATTERN = re.compile(r"^[A-Za-z0-9_]+$")
 _MAX_SPEC_LENGTH = 100_000
+_UPSTREAM_ISSUE_PREFIX = "OpenSpiel documents known issues for "
 
 
 class UnsupportedGameError(ValueError):
@@ -101,6 +103,15 @@ def _metadata(game_type: Any) -> dict[str, Any]:
         reasons.append(
             "Requires a separately configured external language-model environment"
         )
+    upstream_status = (
+        get_upstream_status(game_type.short_name)
+        if game_type.short_name not in native_registry.NAMES
+        else None
+    )
+    if upstream_status is not None and upstream_status["status"] == "known_issues":
+        reasons.append(
+            _UPSTREAM_ISSUE_PREFIX + game_type.short_name + "; excluded from new runs"
+        )
     return {
         "short_name": game_type.short_name,
         "long_name": game_type.long_name,
@@ -119,6 +130,7 @@ def _metadata(game_type: Any) -> dict[str, Any]:
         "observations": observations,
         "supported": not reasons,
         "unsupported_reasons": reasons,
+        "upstream_status": upstream_status,
         "requirements": requirements,
         "verified": False,
         "reproducibility": (
@@ -129,6 +141,39 @@ def _metadata(game_type: Any) -> dict[str, Any]:
             else "recorded_explicit_chance"
         ),
     }
+
+
+def _apply_upstream_constraints(info: dict[str, Any], spec: str) -> None:
+    """Apply the official known-issue exclusion through nested transformations."""
+    if native_registry.native_name(spec) is not None:
+        return
+    parameters = pyspiel.game_parameters_from_string(spec)
+    known: set[str] = set()
+
+    def visit(value: Any) -> None:
+        if not isinstance(value, dict):
+            return
+        name = value.get("name")
+        if (
+            isinstance(name, str)
+            and get_upstream_status(name)["status"] == "known_issues"
+        ):
+            known.add(name)
+        for child in value.values():
+            visit(child)
+
+    visit(parameters)
+    reasons = [
+        reason
+        for reason in info["unsupported_reasons"]
+        if not reason.startswith(_UPSTREAM_ISSUE_PREFIX)
+    ]
+    reasons.extend(
+        _UPSTREAM_ISSUE_PREFIX + name + "; excluded from new runs"
+        for name in sorted(known)
+    )
+    info["unsupported_reasons"] = reasons
+    info["supported"] = not reasons
 
 
 def list_games() -> list[dict[str, Any]]:
@@ -321,7 +366,9 @@ def _load(spec: str, seed: int) -> Any:
         ) from exc
 
 
-def load_game(spec: str, seed: int = 0) -> Any:
+def load_game(
+    spec: str, seed: int = 0, *, allow_known_issues_for_replay: bool = False
+) -> Any:
     """Load a validated game with deterministic native RNG configuration.
 
     Use :func:`inspect_game` for untrusted API admission. Loading already
@@ -333,8 +380,16 @@ def load_game(spec: str, seed: int = 0) -> Any:
         raise UnsupportedGameError("seed must be a non-negative integer")
     game = _load(spec, seed)
     info = _metadata(game.get_type())
-    if not info["supported"]:
-        raise UnsupportedGameError("; ".join(info["unsupported_reasons"]))
+    _apply_upstream_constraints(info, spec)
+    reasons = [
+        reason
+        for reason in info["unsupported_reasons"]
+        if not (
+            allow_known_issues_for_replay and reason.startswith(_UPSTREAM_ISSUE_PREFIX)
+        )
+    ]
+    if reasons:
+        raise UnsupportedGameError("; ".join(reasons))
     if (
         game.get_type().chance_mode == pyspiel.GameType.ChanceMode.SAMPLED_STOCHASTIC
         and info["reproducibility"] == "underlying_game_required"
@@ -357,6 +412,7 @@ def _inspect_in_process(spec: str, seed: int) -> dict[str, Any]:
         return info
     game = _load(resolved, seed)
     info = _metadata(game.get_type())
+    _apply_upstream_constraints(info, resolved)
     if (
         game.get_type().chance_mode == pyspiel.GameType.ChanceMode.SAMPLED_STOCHASTIC
         and info["reproducibility"] == "underlying_game_required"

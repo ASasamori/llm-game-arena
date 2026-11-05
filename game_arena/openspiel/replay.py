@@ -386,7 +386,9 @@ def replay_episode(record: dict[str, Any]) -> dict[str, Any]:
         catalog.game_source_files(spec) == manifest.get("game_sources", []),
         "Referenced game resources have changed; restore the recorded files",
     )
-    game = catalog.load_game(spec, seed=manifest["seed"])
+    game = catalog.load_game(
+        spec, seed=manifest["seed"], allow_known_issues_for_replay=True
+    )
     quest_limit = manifest.get("stop_after_quests")
     try:
         _validate_quest_limit(game, quest_limit)

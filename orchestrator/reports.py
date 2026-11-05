@@ -15,6 +15,8 @@ from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
+from game_arena.openspiel.upstream_status import get_upstream_status
+from game_arena.environments.registry import native_name
 
 from orchestrator.models import (
     Episode,
@@ -41,6 +43,7 @@ _RUNTIME_KEYS = (
     "python_version",
     "source_revision",
     "source_sha256",
+    "upstream_catalog_sha256",
     "dependency_lock_sha256",
 )
 _CONFIG_KEYS = (
@@ -624,6 +627,13 @@ def build_run_report(
     else:
         notices.append(
             "No episodes are available on this page. The run may still be pending, or episode_offset is past the last saved episode."
+        )
+    if selected is not None:
+        selected["upstream_status"] = (
+            None
+            if selected.get("provenance", {}).get("environment_backend") == "native"
+            or native_name(selected["game"]) is not None
+            else get_upstream_status(selected["game"])
         )
     return {
         "schema_version": 1,

@@ -279,6 +279,13 @@ mock, classifier, forced action, random baseline, input script, or fallback.
 Simultaneous choices stay separate by seat. The selected legal action is marked,
 and failed responses remain available when a fallback supplied the applied move.
 Grid changes compare recorded before/after cells; they do not infer a strategy.
+The catalog and viewer also retain OpenSpiel's official maturity distinction:
+🟢 thoroughly tested and 🔶 implemented but lightly tested. Games marked ❌ with
+known upstream issues are excluded from new runs, including through nested game
+transformations. Historical traces remain readable and replayable. Utility and
+test registrations not individually rated in the upstream table are labelled
+unrated; a successful local check does not promote their upstream status. These
+viewer changes leave the installed game implementations and rules unchanged.
 Summaries contain text supplied by the model and do not expose hidden reasoning.
 Mock models supply placeholder explanations. Evaluator data can contain private
 observations from several players. Failed or older episodes show available
