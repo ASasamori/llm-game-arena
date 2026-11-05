@@ -11,3 +11,10 @@ Runner/Job Catches
 Pushing/commits
 - Before you push a commit, make sure that all the github workflows work properly. You can replicate this information by using the `act` command through a docker instance.
 - When you create code, make sure that you run `pyright`, `ruff check --fix` and `ruff format` to make sure that the code base is clean as possible
+
+Follow this schema when pushing code:
+- type(scope): short description
+- fix, docss, refactor, test, perf, build, ci, chore, infra, data
+
+Cleanup
+- When you do a feature change, note which files have become deprecated and are no longer being used. Just send a message telling me which files should be looked over only before pushing a new feature. This does not include pushing bugs, docs, etc.
