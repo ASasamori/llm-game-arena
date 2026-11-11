@@ -88,7 +88,7 @@ API_USE_TIKTOKEN = os.environ.get("API_USE_TIKTOKEN", "false").lower() in {
 API_GATEWAY_NAME = os.environ.get("API_GATEWAY_NAME", "llm-game-arena-gateway")
 API_KEYS = {
     item.strip()
-    for item in os.environ.get("ARENA_API_KEYS", "local-dev-key").split(",")
+    for item in os.environ.get("ARENA_API_KEYS", "").split(",")
     if item.strip()
 }
 WORKER_TRIGGER_MODE = os.environ.get("WORKER_TRIGGER_MODE", "none").strip().lower()
@@ -851,8 +851,8 @@ def _trigger_worker_if_configured() -> tuple[bool | None, str | None, str | None
         return True, execution_name, None
     except Exception as exc:
         increment_counter("api.worker_trigger.error", tags={"mode": "cloud_run_job"})
-        LOGGER.exception("worker_trigger_failed")
-        return False, None, str(exc)
+        LOGGER.error("worker_trigger_failed", extra={"error_type": type(exc).__name__})
+        return False, None, "Worker trigger failed; consult the server logs"
 
 
 app = FastAPI(
@@ -888,7 +888,7 @@ async def request_context_middleware(request: Request, call_next):
     start_ms = time_now_ms()
     try:
         response = await call_next(request)
-    except Exception:
+    except Exception as exc:
         duration_ms = time_now_ms() - start_ms
         increment_counter(
             "api.requests.total",
@@ -903,13 +903,14 @@ async def request_context_middleware(request: Request, call_next):
             duration_ms=duration_ms,
             tags={"method": request.method, "path": request.url.path},
         )
-        LOGGER.exception(
+        LOGGER.error(
             "request_failed",
             extra={
                 "request_id": request_id,
                 "method": request.method,
                 "path": request.url.path,
                 "duration_ms": round(duration_ms, 2),
+                "error_type": type(exc).__name__,
             },
         )
         raise
@@ -959,21 +960,24 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
         "api.requests.error.total",
         tags={"category": failure.category.value, "code": failure.code},
     )
-    LOGGER.exception(
+    LOGGER.error(
         "unhandled_exception",
         extra={
             "path": request.url.path,
             "method": request.method,
             "failure_code": failure.code,
             "failure_category": failure.category.value,
+            "error_type": type(exc).__name__,
+            "request_id": getattr(request.state, "request_id", None),
         },
     )
     return JSONResponse(
         status_code=500,
         content={
-            "error": failure.compact(),
+            "error": "Internal server error. Consult the server logs using the request ID.",
             "status_code": 500,
             "code": failure.code,
+            "request_id": getattr(request.state, "request_id", None),
         },
     )
 
@@ -1055,7 +1059,14 @@ def create_run(
         run_id, job_ids = _enqueue_with_backoff(request)
     except Exception as e:
         increment_counter("api.runs.create.error", tags={"reason": "enqueue_failed"})
-        LOGGER.exception("Failed to enqueue run after retries: %s", e)
+        LOGGER.error(
+            "run_enqueue_failed",
+            extra={
+                "run_id": request._submission_id,
+                "request_id": getattr(http_request.state, "request_id", None),
+                "error_type": type(e).__name__,
+            },
+        )
         raise HTTPException(
             status_code=503,
             detail={
@@ -1497,7 +1508,7 @@ def get_observability_dashboard(_: str = Depends(_authenticate)):
 def main() -> None:
     uvicorn.run(
         "orchestrator.api_gateway:app",
-        host=os.environ.get("API_HOST", "0.0.0.0"),
+        host=os.environ.get("API_HOST", "127.0.0.1"),
         port=int(os.environ.get("API_PORT", "8000")),
         reload=False,
     )
