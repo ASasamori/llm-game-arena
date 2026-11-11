@@ -37,6 +37,7 @@ SUITES: dict[str, tuple[str, ...]] = {
     ),
     "integration": (
         "tests.test_client_stylize_api",
+        "tests.test_demo_seed",
         "tests.test_engine",
         "tests.test_experiments",
         "tests.test_exports",
