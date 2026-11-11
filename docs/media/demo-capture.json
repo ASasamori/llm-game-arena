@@ -1,0 +1,201 @@
+{
+  "schema_version": 1,
+  "capture_date": "2026-11-11",
+  "base_revision": "4aba829",
+  "open_spiel_version": "1.6.10",
+  "description": "Captioned walkthrough assembled from actual browser screenshots of the normal run viewer, not a continuous screen recording.",
+  "mock_only": true,
+  "provider_requests": 0,
+  "policy": "Deterministic scripted demo policies, not expert play or model reasoning.",
+  "source_viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "presentation": "Each source viewport is preserved at original size, with a separate 96-pixel caption strip appended below; no UI content is covered.",
+  "media": [
+    {
+      "file": "arena-demo.mp4",
+      "bytes": 1134332,
+      "duration_seconds": 34.5,
+      "codec_name": "h264",
+      "width": 1280,
+      "height": 816,
+      "pix_fmt": "yuv420p",
+      "avg_frame_rate": "24/1"
+    },
+    {
+      "file": "arena-demo.gif",
+      "bytes": 2176702,
+      "duration_seconds": 35.0,
+      "codec_name": "gif",
+      "width": 1280,
+      "height": 816,
+      "pix_fmt": "bgra",
+      "avg_frame_rate": "2/1"
+    }
+  ],
+  "runs": [
+    {
+      "name": "connect_four",
+      "run_id": "778d0062-0017-5c87-a20e-a18fad6fc62c",
+      "episode_id": "9a0eff42-9cc6-5a0b-af0e-711e8eb4db15",
+      "game": "connect_four()",
+      "seed": 123,
+      "status": "SUCCESS",
+      "terminal": true,
+      "stop_reason": null,
+      "transitions": 7,
+      "decisions": 7,
+      "replay_verified": true
+    },
+    {
+      "name": "avalon",
+      "run_id": "7ec43b7a-cf2d-5dd2-ac04-2448b5f68528",
+      "episode_id": "0d7adabb-504b-5ec8-9d49-45058e03cbe9",
+      "game": "avalon(discussion_rounds=1,players=6,roles=\"merlin|servant|servant|servant|assassin|minion\")",
+      "seed": 123,
+      "status": "TRUNCATED",
+      "terminal": false,
+      "stop_reason": "quest_limit",
+      "transitions": 55,
+      "decisions": 48,
+      "replay_verified": true
+    },
+    {
+      "name": "catan",
+      "run_id": "27d3c74b-f4ba-598f-a9e3-45751b63406c",
+      "episode_id": "32611a28-5671-5850-9bdc-b1d849455dc1",
+      "game": "catan(max_actions_per_turn=20,max_turns=12,players=4,starting_player=-1)",
+      "seed": 123,
+      "status": "SUCCESS",
+      "terminal": true,
+      "stop_reason": null,
+      "transitions": 165,
+      "decisions": 130,
+      "replay_verified": true
+    }
+  ],
+  "frame_sequence": [
+    {
+      "source_filename": "01-connect-four-start.jpg",
+      "caption": "Connect Four | Recorded synthetic game data",
+      "description": "Actual viewer captures assembled into a walkthrough; not a continuous screen recording.",
+      "nominal_hold_seconds": 1.6
+    },
+    {
+      "source_filename": "02-connect-four-first-step.jpg",
+      "caption": "Connect Four | Inspect the first decision",
+      "description": "The acting player observation, applied action and outcome stay linked.",
+      "nominal_hold_seconds": 1.2
+    },
+    {
+      "source_filename": "03-connect-four-after.jpg",
+      "caption": "Connect Four | Compare before and after",
+      "description": "The after-action snapshot records the state produced by the selected move.",
+      "nominal_hold_seconds": 1.2
+    },
+    {
+      "source_filename": "04-connect-four-step2.jpg",
+      "caption": "Connect Four | Step through the recorded turns",
+      "description": "Indexed transitions retain each player and the chosen action.",
+      "nominal_hold_seconds": 1.0
+    },
+    {
+      "source_filename": "05-connect-four-step3.jpg",
+      "caption": "Connect Four | Follow the fixed mock policy",
+      "description": "Preset center-column and adjacent-column moves; no strategic reasoning is claimed.",
+      "nominal_hold_seconds": 1.0
+    },
+    {
+      "source_filename": "06-connect-four-step4.jpg",
+      "caption": "Connect Four | Continue through legal moves",
+      "description": "The environment applies each action and records its resulting state.",
+      "nominal_hold_seconds": 1.0
+    },
+    {
+      "source_filename": "07-connect-four-jump.jpg",
+      "caption": "Connect Four | Jump directly to step 7",
+      "description": "Go to step and the numbered index open the exact recorded transition.",
+      "nominal_hold_seconds": 1.7
+    },
+    {
+      "source_filename": "08-connect-four-win.jpg",
+      "caption": "Connect Four | Review the terminal transition",
+      "description": "Seven applied legal moves produce the scripted center-column win.",
+      "nominal_hold_seconds": 1.7
+    },
+    {
+      "source_filename": "09-connect-four-graphics.jpg",
+      "caption": "Connect Four | Switch from ASCII to graphics",
+      "description": "ASCII remains the default; a graphical view is available for the same board.",
+      "nominal_hold_seconds": 2.4
+    },
+    {
+      "source_filename": "10-connect-four-evidence.jpg",
+      "caption": "Connect Four | Inspect the supplied evidence",
+      "description": "Mock summaries describe the script; they are not hidden model reasoning.",
+      "nominal_hold_seconds": 2.4
+    },
+    {
+      "source_filename": "11-avalon-overview.jpg",
+      "caption": "Avalon | Open the six-player episode",
+      "description": "Public game progress and recorded decisions share the same indexed viewer.",
+      "nominal_hold_seconds": 1.4
+    },
+    {
+      "source_filename": "12-avalon-quests.jpg",
+      "caption": "Avalon | Stop after 3 resolved quests",
+      "description": "Quest 1 failed, quest 2 succeeded, quest 3 failed; the episode is intentionally stopped.",
+      "nominal_hold_seconds": 3.0
+    },
+    {
+      "source_filename": "13-avalon-event-jump.jpg",
+      "caption": "Avalon | Navigate by step or game event",
+      "description": "The event index and step navigation expose the recorded timeline.",
+      "nominal_hold_seconds": 1.7
+    },
+    {
+      "source_filename": "14-avalon-votes.jpg",
+      "caption": "Avalon | Review votes and actor-scoped information",
+      "description": "Public results and each player observation are identified separately.",
+      "nominal_hold_seconds": 2.4
+    },
+    {
+      "source_filename": "16-catan-offer.jpg",
+      "caption": "Catan | Inspect an outstanding resource offer",
+      "description": "The public trade identifies its recipient and the proposed exchange.",
+      "nominal_hold_seconds": 2.2
+    },
+    {
+      "source_filename": "17-catan-board.jpg",
+      "caption": "Catan | Read the board and the offered resources",
+      "description": "Roads, settlements, tile resources and the trade are recorded from the environment.",
+      "nominal_hold_seconds": 2.2
+    },
+    {
+      "source_filename": "18-catan-accepted.jpg",
+      "caption": "Catan | Acceptance advances the real rules",
+      "description": "An affordable offer is accepted under the explicit mock policy.",
+      "nominal_hold_seconds": 2.0
+    },
+    {
+      "source_filename": "19-catan-evidence.jpg",
+      "caption": "Catan | Follow observation to selected action",
+      "description": "The player-scoped observation and chosen trade action remain inspectable.",
+      "nominal_hold_seconds": 2.2
+    },
+    {
+      "source_filename": "20-catan-legal-actions.jpg",
+      "caption": "Catan | Inspect the legal actions and outcome",
+      "description": "Reproduce these credential-free demos with scripts/seed_demo.py.",
+      "nominal_hold_seconds": 2.8
+    }
+  ],
+  "excluded_frames": [
+    {
+      "source_filename": "15-catan-overview.jpg",
+      "reason": "Empty login form; omitted from the published walkthrough."
+    }
+  ],
+  "reproduce": "uv run python scripts/seed_demo.py --output analytics/readme-demo"
+}

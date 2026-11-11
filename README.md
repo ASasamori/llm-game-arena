@@ -16,6 +16,75 @@ transition data. It does not require paid model access to generate datasets.
 default. Local execution requires `--execute-mock` and constructs only mock models.
 No provider SDK client is created by that path.
 
+## See it working
+
+The test walkthrough below uses **scripted mock agents and real game rules**.
+It steps through Connect Four, three Avalon quest outcomes, and a Catan resource
+trade. The video is assembled from actual viewer captures; no model APIs were
+called, and its policy descriptions are not real model reasoning.
+
+https://github.com/user-attachments/assets/48294f07-6a01-4b99-9d2d-6fae286fb398
+
+<details>
+<summary>Animated preview</summary>
+
+[![Mock-only viewer walkthrough: indexed game turns, quest outcomes, and Catan trading](docs/media/arena-demo.gif)](docs/media/arena-demo.mp4)
+
+</details>
+
+[Watch or download the H.264 demo video](docs/media/arena-demo.mp4).
+
+<details>
+<summary>Working viewer screenshots</summary>
+
+**Connect Four:** ASCII is the default. Steps preserve exact engine boards,
+legal actions, supplied observations, and the recorded policy output.
+
+![Connect Four ASCII board and recorded mock decisions](docs/media/connect-four-ascii.jpg)
+
+**Optional graphics:** switch presentation without changing the recorded game.
+
+![Connect Four graphical board at the indexed winning move](docs/media/connect-four-graphics.jpg)
+
+**Avalon:** the mission track, public votes, and phase index make the three
+resolved quests easy to follow. This demo deliberately stops after quest three.
+
+![Avalon public mission track and indexed quest evidence](docs/media/avalon-quests.jpg)
+
+**Catan:** the board and pending trade show who offers what and which player
+must accept, reject, or counter. Resources exchange only after acceptance.
+
+![Catan board with a real pending grain-for-brick trade](docs/media/catan-trading-focus.jpg)
+
+**Decision evidence:** inspect the acting player's recorded view beside the
+chosen action, scripted description, and legal alternatives.
+
+![Recorded player view, accepted trade action, and legal alternatives](docs/media/decision-evidence.jpg)
+
+</details>
+
+To recreate the demo with no provider credentials, seed a new local directory:
+
+```bash
+uv run python scripts/seed_demo.py --output analytics/viewer-demo
+
+# Read-only viewing uses the existing API with a disposable local Redis service.
+docker run --detach --rm --name arena-viewer-demo-redis --publish 127.0.0.1:56387:6379 redis:7-alpine
+export PYTHON_DOTENV_DISABLED=1 MODEL_API_MOCK_MODE=true WORKER_TRIGGER_MODE=none
+export DATABASE_TARGET=temporary_local REDIS_HOST=127.0.0.1 REDIS_PORT=56387
+export DATABASE_URL="$(uv run python -c 'import json; print(json.load(open("analytics/viewer-demo/manifest.json"))["database_url"])')"
+export ARENA_API_KEYS=readme-demo-key # pragma: allowlist secret -- disposable local demo key only
+export API_HOST=127.0.0.1 API_PORT=8010
+uv run python -m orchestrator.api_gateway
+```
+
+Open `http://127.0.0.1:8010/reports`, use the local demo key above, and choose a run
+ID from `analytics/viewer-demo/manifest.json`. Its highlight indices are
+zero-based; the website's **Go to step** input is one-based. Use a new output
+directory for another build: the seeder refuses to overwrite existing data.
+Stop the API with Ctrl-C and remove its disposable service with
+`docker stop arena-viewer-demo-redis` when finished.
+
 ## Synthetic data for RL agents
 
 Use mock policies to exercise an environment and produce reproducible synthetic
