@@ -1,13 +1,43 @@
 # LLM Game Arena
 
-A reproducible OpenSpiel evaluation harness with a local experiment planner and
-queued workers. Games are discovered from the installed OpenSpiel registry rather
-than maintained as a two-game allowlist. The engine follows each state's node
-kind, supports arbitrary player counts, and records replayable transition data.
+Generate understandable, reproducible synthetic experience for reinforcement
+learning agents. This project runs game environments with mock policies,
+seeded baselines, or model-backed agents and records what each agent observed,
+which legal action it chose, and what happened next. The goal is to make synthetic
+data easy to generate, inspect, replay, and feed into an RL agent's training or
+evaluation pipeline. LLM arena competitions are one source of these trajectories.
+
+The harness combines a local experiment planner, queued workers, the installed
+OpenSpiel registry, and standalone Python game environments. It follows each
+state's node kind, supports arbitrary player counts, and records replayable
+transition data. It does not require paid model access to generate datasets.
 
 **No model API permissions are needed for the offline workflow.** Planning is the
 default. Local execution requires `--execute-mock` and constructs only mock models.
 No provider SDK client is created by that path.
+
+## Synthetic data for RL agents
+
+Use mock policies to exercise an environment and produce reproducible synthetic
+trajectories before connecting a funded model or a learned policy. Every episode
+keeps its game parameters, seed, agent identity, legal action choices, rewards,
+terminal status, and transition evidence. Recorded observations are scoped to the
+acting player; evaluator traces may include several players' private information.
+
+To feed exported data into your RL environment or offline training pipeline:
+
+1. Generate a seeded mock dataset with `plan --execute-mock` below.
+2. Replay it to verify the environment transitions and checksums.
+3. Export JSONL records and join them by episode, transition, and player. Construct
+   the observation/action/reward/next-observation records your learner expects;
+   simultaneous and chance transitions need their own handling.
+4. Keep the legal action mask, acting player's information boundary, and the
+   distinction between `COMPLETED`, `TRUNCATED`, `STOPPED`, and `FAILED` episodes.
+
+Mock behavior is labeled synthetic test behavior, not expert play. An agent's
+recorded explanation is its supplied output, not a verified account of its
+internal reasoning. This repository supplies environments and auditable data;
+the consuming RL training loop and its dataset transformation remain your choice.
 
 ## Start without credentials or services
 
@@ -218,6 +248,13 @@ delivery is at least once; stable episode IDs deduplicate persisted results.
 docker compose up --build
 ```
 
+The compose stack explicitly supplies a development gateway key. Outside that
+stack, set `ARENA_API_KEYS` yourself: missing or empty configuration authorizes
+no requests. The standalone API binds to `127.0.0.1` by default; set `API_HOST`
+explicitly for a container or private network listener. Provider credentials
+belong on workers and are separate from gateway keys. Unexpected backend errors
+return a request ID and safe diagnostics rather than raw connection credentials.
+
 The compose configuration defaults to mock behavior. For explicit mock jobs, use
 `MOCK` in API `model_names`; this is independent of provider credentials:
 
@@ -307,11 +344,25 @@ service or paid deployment is needed.
 ## Validation
 
 ```bash
+uv sync --frozen --no-install-project --group ci
 uv run ruff check --fix
 uv run ruff format
 uv run pyright
-uv run python -m unittest discover -s tests -p 'test_*.py'
-uv run python -m unittest discover -s game_arena/openspiel -p 'test_*.py'
+uv run --group ci python scripts/test_suites.py --suite all --report analytics/ci-tests/all.json
+
+# Run the same independent suites as GitHub Actions.
+uv run --group ci python scripts/test_suites.py --suite unit
+uv run --group ci python scripts/test_suites.py --suite integration
+uv run --group ci python scripts/test_suites.py --suite regression
+uv run --group ci python scripts/test_suites.py --suite security
+
+# Offline source scans; medium/high Bandit findings fail CI.
+uv run --group ci bandit -r game_arena orchestrator data utils config scripts --severity-level medium
+uv run --group ci python scripts/scan_secrets.py --report analytics/ci-security/secrets.json
+
+# Dependency advisories need network access, but never model API credentials.
+uv export --frozen --group ci --no-emit-project --no-hashes --format requirements-txt --output-file analytics/ci-security/requirements.txt
+uv run --group ci pip-audit --requirement analytics/ci-security/requirements.txt --no-deps --disable-pip
 
 # Model-free viewer coverage, including parameterized game fixtures.
 uv run python scripts/viewer_conformance.py --seed 123 --max-steps 96 --output analytics/viewer-coverage.json --jsonl-output analytics/viewer-coverage.jsonl
@@ -328,6 +379,91 @@ smoke additionally needs Redis/Postgres and is exercised by the GitHub workflow.
 Before pushing, run the repository workflows through `act` with Docker as required
 by the project instructions. No live provider benchmark is required for a build
 test.
+
+Pushes to `main` and pull requests run separate lint/type, unit, integration,
+regression, security, offline environment, and queued Postgres/Redis checks.
+The suite registry rejects unclassified or duplicate test modules, including the
+retained legacy tests. The runner overrides ambient provider keys, database
+configuration, and model mode before importing tests, so ordinary test execution
+cannot accidentally target the Pi or a funded provider. External-service tests
+use the workflow's disposable Postgres and Redis containers.
+
+Unit/integration/regression jobs publish JSON results and coverage XML. The
+security job tests auth, privacy, error handling, and provider transport; scans
+source for medium/high severity defects; scans the current tracked/nonignored
+source snapshot for credentials without online key verification; and audits
+locked dependencies against live advisories. It runs weekly as well as on code
+changes. Reviewed non-secret fixtures are narrowly annotated rather than
+excluding all tests or disabling entropy detection. This snapshot scan is not a
+historical Git secret audit. No scanner proves the absence of vulnerabilities.
+Actions are pinned to immutable revisions, use read-only repository permissions,
+and receive no live provider secrets. Dependabot checks action updates weekly.
+
+## Hosting and storage planning
+
+The intended small deployment is an always-on API, Redis queue, and PostgreSQL
+server, with `orchestrator.runner` workers on that machine or a separate Mac.
+Start with modest concurrency; 10,000 queued episodes do not require 10,000
+simultaneous workers. Use private networking such as the existing Tailscale link
+to the Pi, durable SSD storage, service restart policies, and tested off-host
+backups. A Pi 4 can be a reasonable coordinator; its actual throughput and ARM
+dependency installation still need verification on your hardware.
+
+A local measurement on November 11, 2026 generated three complete mock Catan
+games with the default four players, 500-turn cap and 200 actions/turn cap. All
+reached terminal draws at the turn cap; no model APIs were called. The mean was
+2,172 transitions and 1,609 agent decisions per game. Extrapolating the observed
+sample to **10,000 games**, retaining all turns, gives approximately:
+
+- **1.09 TB** canonical uncompressed JSON files.
+- **128 GB** gzip archives at compression level 6.
+- **265 GB** actual PostgreSQL 17 table, TOAST, and index storage, excluding WAL,
+  backups, maintenance headroom, and future growth.
+- **1.19 TB** SQLite storage, which does not provide PostgreSQL's row compression.
+
+These are alternatives, not sizes to add unless retaining multiple copies.
+The sample's mock responses average about 60 bytes. Longer real responses and
+different policies increase storage; every extra 1 KiB per decision contributes
+about 16.5 GB before duplication/compression across this batch. Full prompts,
+private observations, before/after boards, and cumulative action histories are
+retained. History can make long-game storage grow quadratically. These numbers
+are a measured planning sample, not a worst-case bound or a Pi performance test.
+
+A 512 GB SSD could hold the sample-scaled PostgreSQL database with backups stored
+elsewhere; **1 TB is safer**. A microSD card is a poor target for sustained large
+database writes. [Ubuntu's Pi guidance](https://ubuntu.com/tutorials/how-to-install-ubuntu-desktop-on-raspberry-pi-4)
+describes the performance benefit of USB 3 SSD storage. Keeping completed
+compressed trajectories in object storage and only searchable metadata in
+PostgreSQL is a useful next architecture step, but automatic archival/hydration
+is not implemented by this change.
+
+For an AWS price comparison, a public-IPv4 Lightsail instance with 2 vCPUs, 4 GB
+RAM and 80 GB disk is **$24/month ($288/year)**. Adding 512 GB of Lightsail block
+storage at $0.10/GB-month brings compute plus provisioned disk to **$902.40/year**,
+before backups, tax, excess transfer, or model inference. See the current
+[instance bundles](https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-bundles.html)
+and [storage pricing](https://aws.amazon.com/lightsail/pricing/). Existing Pi disk
+has no cloud rental fee; power, replacement hardware, and off-site backups still
+have a cost. API inference is separate from these storage/hosting estimates.
+
+In US East (N. Virginia), S3 Standard's first-tier rate is $0.023 per billable
+GB-month. AWS uses binary GB for S3 billing: the measured 128.4 decimal GB gzip
+copy is about 119.6 billable GB, or **$33/year for one retained archive copy**.
+Requests, downloads beyond free allowances, and extra retained backup versions
+cost more. Object storage is an archive, not a substitute for a running database.
+Rates were checked against AWS's public price list on November 11, 2026; see
+[S3 pricing](https://aws.amazon.com/s3/pricing/).
+
+Reproduce the mock measurement's data generation with:
+
+```bash
+uv run python -m game_arena plan --games catan --episodes 3 --max-steps 100037 --seed 123 --output analytics/storage-sample --execute-mock --workers 1
+```
+
+For a fresh disposable PostgreSQL database, compare the sum of
+`pg_total_relation_size` for all public application tables before and after
+persisting the sample with the normal worker path. That includes indexes and
+TOAST; filesystem size additionally includes WAL and database system files.
 
 The old `game_arena/openspiel/prompts.py` template and `data/collect.py` placeholder
 are cleanup candidates. The generic engine uses `views.py`; notation helpers
