@@ -271,6 +271,32 @@ class ApiBoundarySecurityTests(unittest.TestCase):
         self.assertNotIn(secret, logs)
         self.assertNotIn("private-queue", logs)
 
+    def test_unexpected_failure_is_contained_before_asgi_server_logging(self):
+        secret = "UPSTREAM_PASSWORD_MUST_NOT_ESCAPE_TO_ASGI_SERVER"  # pragma: allowlist secret -- synthetic test credential or sentinel only
+        self.session_factory.side_effect = RuntimeError(
+            f"database connection failed with password {secret}"
+        )
+        # The default client propagates any exception escaping the ASGI app,
+        # just as an outer server logger would receive the original exception.
+        strict_client = TestClient(api_gateway.app)
+        self.addCleanup(strict_client.close)
+        request_id = str(uuid.uuid4())
+        with self.assertLogs(api_gateway.LOGGER, level="INFO") as captured:
+            response = strict_client.get(
+                f"/v1/runs/{uuid.uuid4()}/report",
+                headers={**self.headers, "x-request-id": request_id},
+            )
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(response.json()["code"], "db_error")
+        self.assertEqual(response.json()["request_id"], request_id)
+        self.assertEqual(response.headers["x-request-id"], request_id)
+        self.assertEqual(
+            response.headers["x-api-gateway"], api_gateway.API_GATEWAY_NAME
+        )
+        self.assertNotIn(secret, response.text)
+        logs = json.dumps([record.__dict__ for record in captured.records], default=str)
+        self.assertNotIn(secret, logs)
+
     def test_worker_trigger_failure_keeps_run_without_disclosing_provider_secret(self):
         secret = "WORKER_TOKEN_MUST_NOT_REACH_CLIENT_OR_LOGS"  # pragma: allowlist secret -- synthetic test credential or sentinel only
         run_id = str(uuid.uuid4())

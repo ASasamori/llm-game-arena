@@ -913,7 +913,12 @@ async def request_context_middleware(request: Request, call_next):
                 "error_type": type(exc).__name__,
             },
         )
-        raise
+        # Returning here prevents the outer ASGI server from logging the raw
+        # exception (which can contain backend credentials) after sending a 500.
+        response = await unhandled_exception_handler(request, exc)
+        response.headers["x-request-id"] = request_id
+        response.headers["x-api-gateway"] = API_GATEWAY_NAME
+        return response
     duration_ms = time_now_ms() - start_ms
     increment_counter(
         "api.requests.total",
