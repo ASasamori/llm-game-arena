@@ -42,11 +42,11 @@ export REDIS_HOST="<memorystore-ip>"
 export REDIS_PORT="6379"
 
 # Secret names in Secret Manager (latest version used)
-export DATABASE_URL_SECRET="arena-database-url"
-export API_KEYS_SECRET="arena-api-keys"
-export OPENAI_API_KEY_SECRET="arena-openai-key"
-export GEMINI_API_KEY_SECRET="arena-gemini-key"
-export ANTHROPIC_API_KEY_SECRET="arena-anthropic-key"
+export DATABASE_URL_SECRET="arena-database-url" # pragma: allowlist secret -- Secret Manager resource name only
+export API_KEYS_SECRET="arena-api-keys" # pragma: allowlist secret -- Secret Manager resource name only
+export OPENAI_API_KEY_SECRET="arena-openai-key" # pragma: allowlist secret -- Secret Manager resource name only
+export GEMINI_API_KEY_SECRET="arena-gemini-key" # pragma: allowlist secret -- Secret Manager resource name only
+export ANTHROPIC_API_KEY_SECRET="arena-anthropic-key" # pragma: allowlist secret -- Secret Manager resource name only
 ```
 
 Optional:

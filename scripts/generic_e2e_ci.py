@@ -202,10 +202,10 @@ def configure_environment(output_dir: Path) -> tuple[str, str]:
         API_RATE_LIMIT_TOKENS_PER_MINUTE="1000000",
         MODEL_API_MOCK_MODE="true",
         MODEL_API_MOCK_CASE="default",
-        OPENAI_API_KEY="mock-not-a-real-key",
-        GEMINI_API_KEY="mock-not-a-real-key",
-        GOOGLE_API_KEY="mock-not-a-real-key",
-        ANTHROPIC_API_KEY="mock-not-a-real-key",
+        OPENAI_API_KEY="mock-not-a-real-key",  # pragma: allowlist secret -- explicit dummy key prevents real provider use
+        GEMINI_API_KEY="mock-not-a-real-key",  # pragma: allowlist secret -- synthetic local test credential
+        GOOGLE_API_KEY="mock-not-a-real-key",  # pragma: allowlist secret -- synthetic local test credential
+        ANTHROPIC_API_KEY="mock-not-a-real-key",  # pragma: allowlist secret -- synthetic local test credential
         WORKER_TRIGGER_MODE="none",
         RUNNER_NUM_WORKERS="4",
         RUNNER_QUEUE_NAME="episodes",
@@ -257,7 +257,8 @@ def request_api(
             "Content-Type": "application/json",
         },
     )
-    with urlopen(request, timeout=timeout) as response:
+    # The caller supplies the disposable local API's fixed loopback URL.
+    with urlopen(request, timeout=timeout) as response:  # nosec B310
         return json.load(response)
 
 
@@ -410,7 +411,8 @@ def verify_runs(
                 report_links["text_report_url"],
                 headers={"Authorization": f"Bearer {api_key}"},
             )
-            with urlopen(text_request, timeout=10) as response:
+            # Links come from our disposable local API, never from model output.
+            with urlopen(text_request, timeout=10) as response:  # nosec B310
                 terminal_report = response.read().decode("utf-8")
                 if response.headers.get_content_type() != "text/plain":
                     raise AssertionError("Terminal report has the wrong content type")
@@ -418,7 +420,7 @@ def verify_runs(
                 raise AssertionError(
                     "Terminal report is missing its run identity or is not ASCII"
                 )
-            with urlopen(report_links["report_url"], timeout=10) as response:
+            with urlopen(report_links["report_url"], timeout=10) as response:  # nosec B310
                 shell = response.read().decode("utf-8")
                 if (
                     response.headers.get_content_type() != "text/html"
@@ -432,7 +434,7 @@ def verify_runs(
                 report_links["export_url"],
                 headers={"Authorization": f"Bearer {api_key}"},
             )
-            with urlopen(export_request, timeout=30) as response:
+            with urlopen(export_request, timeout=30) as response:  # nosec B310
                 if response.headers.get_content_type() != "application/zip":
                     raise AssertionError("Run export has wrong content type")
                 with zipfile.ZipFile(io.BytesIO(response.read())) as archive:

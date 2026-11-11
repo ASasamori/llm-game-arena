@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: llm_game_arena
       POSTGRES_USER: arena_user
-      POSTGRES_PASSWORD: arena_pass
+      POSTGRES_PASSWORD: arena_pass # pragma: allowlist secret -- local demo credentials; configure real deployment secrets separately
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -30,10 +30,10 @@ services:
       redis:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+psycopg2://arena_user:arena_pass@postgres:5432/llm_game_arena
+      DATABASE_URL: postgresql+psycopg2://arena_user:arena_pass@postgres:5432/llm_game_arena # pragma: allowlist secret -- local demo credentials; configure real deployment secrets separately
       REDIS_HOST: redis
       REDIS_PORT: "6379"
-      ARENA_API_KEYS: local-dev-key
+      ARENA_API_KEYS: local-dev-key # pragma: allowlist secret -- local demo credentials; configure real deployment secrets separately
       API_HOST: 0.0.0.0
       API_PORT: "8000"
       MODEL_API_MOCK_MODE: "true"
@@ -53,7 +53,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+psycopg2://arena_user:arena_pass@postgres:5432/llm_game_arena
+      DATABASE_URL: postgresql+psycopg2://arena_user:arena_pass@postgres:5432/llm_game_arena # pragma: allowlist secret -- synthetic local test credential
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       MODEL_API_MOCK_MODE: "true"

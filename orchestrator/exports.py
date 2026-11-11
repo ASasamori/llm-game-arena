@@ -235,7 +235,7 @@ def export_database(
                 "hostaddr": "PGHOSTADDR",
                 "port": "PGPORT",
                 "user": "PGUSER",
-                "password": "PGPASSWORD",
+                "password": "PGPASSWORD",  # pragma: allowlist secret -- environment-variable name only
                 "dbname": "PGDATABASE",
                 "connect_timeout": "PGCONNECT_TIMEOUT",
                 "application_name": "PGAPPNAME",

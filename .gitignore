@@ -8,4 +8,7 @@ analytics/
 
 *.rdb
 logs/
+.coverage*
+coverage.xml
+htmlcov/
 .github/workflows/require-approval.yaml

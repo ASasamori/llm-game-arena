@@ -479,7 +479,9 @@ class ExportTests(unittest.TestCase):
         with (
             patch.dict(
                 os.environ,
-                {"ARENA_EXPORT_TEST_URL": "postgresql://user:PRIVATE_PASSWORD@host/db"},
+                {
+                    "ARENA_EXPORT_TEST_URL": "postgresql://user:PRIVATE_PASSWORD@host/db"  # pragma: allowlist secret -- synthetic test credential
+                },
             ),
             patch.object(
                 exports,
@@ -566,7 +568,7 @@ class ExportTests(unittest.TestCase):
         socket_directory = "/private/tmp/arena-export-socket"
         certificate = "/private/tmp/arena export root.pem"
         pg_engine = create_engine(
-            "postgresql+psycopg2://dump_user:PRIVATE_PASSWORD@ignored-host:55432/arena_collection"
+            "postgresql+psycopg2://dump_user:PRIVATE_PASSWORD@ignored-host:55432/arena_collection"  # pragma: allowlist secret -- synthetic pg_dump test credential
             "?host=/private/tmp/arena-export-socket&sslmode=verify-full"
             "&sslrootcert=/private/tmp/arena%20export%20root.pem"
         )
@@ -597,7 +599,7 @@ class ExportTests(unittest.TestCase):
                     {
                         "PGHOST": "WRONG_HOST",
                         "PGSSLMODE": "disable",
-                        "PGPASSWORD": "WRONG_PASSWORD",
+                        "PGPASSWORD": "WRONG_PASSWORD",  # pragma: allowlist secret -- synthetic test credential or sentinel only
                     },
                 ),
             ):

@@ -243,7 +243,7 @@ Configure the provider credential in the server environment, never in a report
 URL, browser storage, or a committed file:
 
 ```bash
-export TYPESAFE_API_KEY='YOUR_TYPESAFE_ISSUED_KEY'
+export TYPESAFE_API_KEY='YOUR_TYPESAFE_ISSUED_KEY' # pragma: allowlist secret -- documented placeholder, not a credential
 export JEV_BUDGET_LEDGER='analytics/jev-budget.sqlite'
 export JEV_MAX_COST_USD='0.10'
 export JEV_MAX_CALLS='100'
@@ -299,7 +299,7 @@ For the entire configured database, explicitly supply its connection URL through
 the environment. The utility does not guess a Raspberry Pi or cloud target:
 
 ```bash
-export DATABASE_URL='postgresql+psycopg2://USER:PASSWORD@HOST:5432/DATABASE'
+export DATABASE_URL='postgresql+psycopg2://USER:PASSWORD@HOST:5432/DATABASE' # pragma: allowlist secret -- documented placeholder, not a credential
 uv run python -m orchestrator.exports --output analytics/collection.zip
 uv run python -m orchestrator.exports --run-id "$RUN_ID" --output analytics/single-run.zip
 uv run python -m orchestrator.exports --postgres-dump --output analytics/backup.zip

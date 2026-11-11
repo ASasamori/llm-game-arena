@@ -1,7 +1,7 @@
 [project]
 name = "llm-game-arena"
 version = "0.1.0"
-description = "Create pipeline to do evals of llms in different games"
+description = "Generate reproducible synthetic game trajectories for reinforcement learning agents"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -28,3 +28,11 @@ dependencies = [
 # Ignore missing imports in CI where dependencies aren't installed
 reportMissingImports = "none"
 reportAttributeAccessIssue = "warning"
+
+[dependency-groups]
+ci = [
+    "bandit[toml]>=1.8.6,<2",
+    "coverage>=7.10,<8",
+    "detect-secrets>=1.5,<2",
+    "pip-audit>=2.9,<3",
+]

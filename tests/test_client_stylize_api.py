@@ -1,5 +1,6 @@
 import os
 import unittest
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -11,11 +12,16 @@ from orchestrator.api_gateway import (
     _render_stylized_client_payload,
     app,
 )
+from orchestrator import api_gateway
 
 
 class ClientStylizeApiTests(unittest.TestCase):
     def setUp(self) -> None:
+        keys = patch.object(api_gateway, "API_KEYS", {"local-dev-key"})
+        keys.start()
+        self.addCleanup(keys.stop)
         self.client = TestClient(app)
+        self.addCleanup(self.client.close)
         self.headers = {"Authorization": "Bearer local-dev-key"}
 
     def test_stylize_endpoint_returns_styled_payload(self) -> None:

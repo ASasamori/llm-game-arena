@@ -384,7 +384,7 @@
         state.requestId++;
         state.key=''; state.payload=null; state.episodeId=null; state.episodeOffset=0; state.stepOffset=0; state.stepPosition=0; state.pendingOffset=0; state.player=null; state.includePrompt=false; state.viewSnapshot=null; state.snapshotPhase='before'; state.boardModes={};
         $('apiKeyInput').value='';
-        $('apiKeyInput').placeholder='Enter API key';
+        $('apiKeyInput').placeholder='Enter API key'; // pragma: allowlist secret -- UI placeholder label only
         $('workspace').hidden=true; $('authGate').hidden=false; $('connectionBar').hidden=true; $('topbarNote').hidden=false;
         for(const id of ['runTitle','runMeta','runStats','notices','episodeList','episodeHeader','pendingContent','transitionContent','stepStrip','provenanceContent','asciiContent','pageScope']) $(id).replaceChildren();
         if($('asciiDialog').open) $('asciiDialog').close();

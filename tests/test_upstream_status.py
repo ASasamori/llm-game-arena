@@ -20,7 +20,8 @@ class UpstreamStatusTests(unittest.TestCase):
         self.assertEqual(chess["status"], "thoroughly_tested")
         self.assertEqual(chess["source_ref"], "v1.6.10")
         self.assertEqual(
-            chess["source_revision"], "7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0"
+            chess["source_revision"],
+            "7faf3cca520cc1dc4a25bc0aaaec0887804b7fb0",  # pragma: allowlist secret -- public pinned upstream Git commit hash
         )
         for name, issue in (("quoridor", "1158"), ("rbc", "811")):
             with self.subTest(name=name):
@@ -28,7 +29,8 @@ class UpstreamStatusTests(unittest.TestCase):
                 self.assertEqual(known["status"], "known_issues")
                 self.assertEqual(known["source_ref"], "master")
                 self.assertEqual(
-                    known["source_revision"], "8eb13ab561c4fac6829a5fa03635d3e1658bbb60"
+                    known["source_revision"],
+                    "8eb13ab561c4fac6829a5fa03635d3e1658bbb60",  # pragma: allowlist secret -- public pinned upstream Git commit hash
                 )
                 self.assertIn(
                     "https://github.com/google-deepmind/open_spiel/issues/" + issue,

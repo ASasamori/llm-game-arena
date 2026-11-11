@@ -189,7 +189,7 @@ class JevIntegrationTests(unittest.TestCase):
             competitors: list[LLMModel] = [
                 JevModel(
                     model_name="jev-1.14.0",
-                    api_key="unit-test-key",
+                    api_key="unit-test-key",  # pragma: allowlist secret -- synthetic test credential or sentinel only
                     ledger=ledger,
                     transport=transport,
                     mock_mode=False,

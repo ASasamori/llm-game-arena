@@ -367,7 +367,7 @@ class ReportTests(unittest.TestCase):
                 build_run_report(session, str(uuid.uuid4()))
 
     def test_terminal_text_is_ascii_and_drops_control_sequences(self) -> None:
-        secret = "never-export-provider-key"
+        secret = "never-export-provider-key"  # pragma: allowlist secret -- synthetic test credential or sentinel only
         run_id = self.create_run(
             configuration={
                 "game": "matrix_rps",

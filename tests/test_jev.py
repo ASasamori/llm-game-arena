@@ -38,7 +38,11 @@ def prompt(actions=None, **extras):
         "observation_type": "observation_string",
         "observation": json.dumps({"role": "servant", "public_history": []}),
         "own_action_history": [
-            {"action": 0, "label": "pass", "other_player_secret": "do-not-forward"}
+            {
+                "action": 0,
+                "label": "pass",
+                "other_player_secret": "do-not-forward",  # pragma: allowlist secret -- test sentinel
+            }
         ],
         "legal_actions": actions
         if actions is not None
@@ -115,7 +119,7 @@ class JevTests(unittest.TestCase):
 
     def model(self, transport=None, ledger=None, **kwargs):
         return JevModel(
-            api_key="jev-unit-secret",
+            api_key="jev-unit-secret",  # pragma: allowlist secret -- synthetic test credential or sentinel only
             ledger=ledger or self.ledger(),
             transport=transport or FakeTransport(),
             mock_mode=False,
@@ -201,7 +205,10 @@ class JevTests(unittest.TestCase):
             with self.subTest(name=name), self.assertRaises(ValueError):
                 JevModel(name, mock_mode=True)
         with self.assertRaises(ValueError):
-            JevModel(api_key="bad\nheader", mock_mode=False)
+            JevModel(
+                api_key="bad\nheader",  # pragma: allowlist secret -- invalid test credential
+                mock_mode=False,
+            )
 
     def test_auth_environment_aliases_and_default_private_ledger(self):
         for name in ("TYPESAFE_API_KEY", "JEV_API_KEY"):
